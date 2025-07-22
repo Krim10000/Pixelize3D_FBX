@@ -6,8 +6,9 @@ extends Node
 
 signal fbx_loaded(base_model)
 signal animation_loaded(animation_name)
-signal rendering_complete()
-signal export_complete(output_path)
+# Señales utilizadas por el sistema de renderizado y exportación
+signal rendering_complete() # Usada internamente por el sistema
+signal export_complete(output_path) # Usada por export_manager
 
 @onready var ui_controller = $UIController
 @onready var fbx_loader = $FBXLoader
@@ -79,7 +80,8 @@ func _scan_for_fbx_files(folder_path: String) -> Array:
 		var file_name = dir.get_next()
 		
 		while file_name != "":
-			if file_name.ends_with(".fbx") or file_name.ends_with(".FBX"):
+			var extension = file_name.get_extension().to_lower()
+			if extension in ["fbx", "gltf", "glb"]:
 				files.append(file_name)
 			file_name = dir.get_next()
 		
@@ -93,7 +95,12 @@ func _on_base_fbx_selected(filename: String):
 	
 	# Cargar el modelo base
 	ui_controller.show_loading_message("Cargando modelo base...")
-	fbx_loader.load_base_model(full_path)
+	
+	# Verificar si es GLTF/GLB (más fácil de cargar)
+	if fbx_loader.is_gltf_file(full_path):
+		fbx_loader.load_gltf_file(full_path, "base")
+	else:
+		fbx_loader.load_base_model(full_path)
 
 func _on_model_loaded(model_data: Dictionary):
 	if model_data.type == "base":
@@ -144,7 +151,12 @@ func _on_animations_selected(animation_files: Array):
 	# Cargar cada animación seleccionada
 	for anim_file in animation_files:
 		var full_path = current_project_data.folder_path.path_join(anim_file)
-		fbx_loader.load_animation_fbx(full_path, anim_file)
+		
+		# Verificar si es GLTF/GLB
+		if fbx_loader.is_gltf_file(full_path):
+			fbx_loader.load_gltf_file(full_path, "animation", anim_file)
+		else:
+			fbx_loader.load_animation_fbx(full_path, anim_file)
 
 func _on_render_settings_changed(settings: Dictionary):
 	current_project_data.render_settings.merge(settings, true)
@@ -198,6 +210,9 @@ func _start_rendering_process():
 				
 				current_task += 1
 				ui_controller.update_progress(float(current_task) / float(total_tasks))
+	
+	# Emitir señal de renderizado completo
+	emit_signal("rendering_complete")
 
 func _on_frame_rendered(frame_data: Dictionary):
 	# Acumular frames para el spritesheet
