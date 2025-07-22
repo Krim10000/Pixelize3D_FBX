@@ -1,6 +1,7 @@
 # scripts/utils/utils.gd
 extends Node
-class_name Utils
+class_name Script_Utils
+# Removido class_name Utils para evitar conflicto con autoload
 
 # Input: Varias operaciones de utilidad
 # Output: Funciones helper para toda la aplicación
@@ -299,12 +300,12 @@ static func format_time_duration(seconds: float) -> String:
 	if seconds < 60:
 		return "%.1f segundos" % seconds
 	elif seconds < 3600:
-		var minutes = int(seconds / 60)
-		var secs = int(seconds) % 60
+		var minutes = int(seconds / 60.0) # Convertido a float para evitar error de tipos
+		var secs = int(fmod(seconds, 60.0)) # Usando fmod para operación float-float
 		return "%d:%02d minutos" % [minutes, secs]
 	else:
-		var hours = int(seconds / 3600)
-		var minutes = int((seconds % 3600) / 60)
+		var hours = int(seconds / 3600.0) # Convertido a float
+		var minutes = int(fmod(seconds, 3600.0) / 60.0) # Convertido a float
 		return "%d:%02d horas" % [hours, minutes]
 
 static func format_number_with_commas(number: int) -> String:
@@ -349,7 +350,7 @@ static func print_dict_tree(dict: Dictionary, indent: int = 0):
 		else:
 			print(indent_str + str(key) + ": " + str(value))
 
-static func create_debug_texture(size: Vector2i, color: Color, text: String = "") -> ImageTexture:
+static func create_debug_texture(size: Vector2i, color: Color, _text: String = "") -> ImageTexture:
 	var img = Image.create(size.x, size.y, false, Image.FORMAT_RGBA8)
 	img.fill(color)
 	
@@ -375,7 +376,7 @@ class SimpleCache:
 	func _init(max_size: int = 100):
 		_max_size = max_size
 	
-	func get(key: String, default = null):
+	func get_value(key: String, default = null): # Renombrado de get() a get_value()
 		if key in _cache:
 			# Actualizar orden de acceso
 			_access_order.erase(key)
@@ -383,7 +384,7 @@ class SimpleCache:
 			return _cache[key]
 		return default
 	
-	func set(key: String, value) -> void:
+	func set_value(key: String, value) -> void: # Renombrado de set() a set_value()
 		if key in _cache:
 			_access_order.erase(key)
 		elif _cache.size() >= _max_size:
@@ -398,7 +399,7 @@ class SimpleCache:
 		_cache.clear()
 		_access_order.clear()
 	
-	func has(key: String) -> bool:
+	func has_key(key: String) -> bool: # Renombrado de has() a has_key()
 		return key in _cache
 	
 	func size() -> int:
@@ -415,7 +416,7 @@ class ObjectPool:
 		_create_func = create_func
 		_reset_func = reset_func
 	
-	func get():
+	func get_object(): # Renombrado de get() a get_object()
 		var obj
 		if _pool.is_empty():
 			obj = _create_func.call()

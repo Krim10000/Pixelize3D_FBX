@@ -11,12 +11,12 @@ signal render_settings_changed(settings: Dictionary)
 signal render_requested()
 signal export_requested(settings: Dictionary)
 
-@onready var main_panel = $MainPanel
-@onready var folder_dialog = $FileDialog
-@onready var progress_dialog = $ProgressDialog
-@onready var preview_viewport = $MainPanel/HSplitContainer/PreviewPanel/ViewportContainer/SubViewport
+# Referencias a controles UI (se crearán dinámicamente)
+var main_panel: PanelContainer
+var folder_dialog: FileDialog
+var progress_dialog: AcceptDialog
+var preview_viewport: SubViewport
 
-# Referencias a controles UI
 var folder_path_label: Label
 var fbx_list: ItemList
 var base_fbx_option: OptionButton
@@ -107,7 +107,7 @@ func _create_config_panel() -> Control:
 	vbox.add_child(base_section)
 	
 	base_fbx_option = OptionButton.new()
-	base_fbx_option.disabled = true
+	_set_control_disabled(base_fbx_option, true)
 	base_section.add_child(base_fbx_option)
 	
 	# Sección: Selección de animaciones
@@ -117,7 +117,7 @@ func _create_config_panel() -> Control:
 	animations_list = ItemList.new()
 	animations_list.custom_minimum_size.y = 150
 	animations_list.select_mode = ItemList.SELECT_MULTI
-	animations_list.disabled = true
+	_set_control_disabled(animations_list, true)
 	anim_section.add_child(animations_list)
 	
 	# Sección: Configuración de renderizado
@@ -127,8 +127,9 @@ func _create_config_panel() -> Control:
 	# Direcciones
 	var dir_hbox = HBoxContainer.new()
 	render_section.add_child(dir_hbox)
-	dir_hbox.add_child(Label.new())
-	dir_hbox.get_child(0).text = "Direcciones:"
+	var dir_label = Label.new()
+	dir_label.text = "Direcciones:"
+	dir_hbox.add_child(dir_label)
 	
 	directions_spinbox = SpinBox.new()
 	directions_spinbox.min_value = 4
@@ -140,8 +141,9 @@ func _create_config_panel() -> Control:
 	# Tamaño de sprite
 	var size_hbox = HBoxContainer.new()
 	render_section.add_child(size_hbox)
-	size_hbox.add_child(Label.new())
-	size_hbox.get_child(0).text = "Tamaño sprite:"
+	var size_label = Label.new()
+	size_label.text = "Tamaño sprite:"
+	size_hbox.add_child(size_label)
 	
 	sprite_size_spinbox = SpinBox.new()
 	sprite_size_spinbox.min_value = 32
@@ -153,8 +155,9 @@ func _create_config_panel() -> Control:
 	# FPS
 	var fps_hbox = HBoxContainer.new()
 	render_section.add_child(fps_hbox)
-	fps_hbox.add_child(Label.new())
-	fps_hbox.get_child(0).text = "FPS:"
+	var fps_label = Label.new()
+	fps_label.text = "FPS:"
+	fps_hbox.add_child(fps_label)
 	
 	fps_spinbox = SpinBox.new()
 	fps_spinbox.min_value = 1
@@ -167,20 +170,23 @@ func _create_config_panel() -> Control:
 	vbox.add_child(camera_section)
 	
 	# Ángulo
-	camera_section.add_child(Label.new())
-	camera_section.get_child(-1).text = "Ángulo:"
+	var angle_label = Label.new()
+	angle_label.text = "Ángulo:"
+	camera_section.add_child(angle_label)
 	camera_angle_slider = _create_slider(15, 75, 45)
 	camera_section.add_child(camera_angle_slider)
 	
 	# Altura
-	camera_section.add_child(Label.new())
-	camera_section.get_child(-1).text = "Altura:"
+	var height_label = Label.new()
+	height_label.text = "Altura:"
+	camera_section.add_child(height_label)
 	camera_height_slider = _create_slider(1, 50, 10)
 	camera_section.add_child(camera_height_slider)
 	
 	# Distancia
-	camera_section.add_child(Label.new())
-	camera_section.get_child(-1).text = "Distancia:"
+	var distance_label = Label.new()
+	distance_label.text = "Distancia:"
+	camera_section.add_child(distance_label)
 	camera_distance_slider = _create_slider(5, 100, 15)
 	camera_section.add_child(camera_distance_slider)
 	
@@ -307,6 +313,17 @@ func _apply_theme():
 	# Aplicar tema personalizado si es necesario
 	pass
 
+# Función helper para deshabilitar controles de manera segura
+func _set_control_disabled(control: Control, disabled_state: bool):
+	if control.has_method("set_disabled"):
+		control.set_disabled(disabled_state)
+	elif "disabled" in control:
+		control.disabled = disabled_state
+	else:
+		# Para controles como ItemList que no tienen propiedad disabled
+		control.mouse_filter = Control.MOUSE_FILTER_IGNORE if disabled_state else Control.MOUSE_FILTER_PASS
+		control.modulate = Color(0.5, 0.5, 0.5, 1.0) if disabled_state else Color.WHITE
+
 func initialize():
 	add_export_log("Pixelize3D FBX iniciado")
 	add_export_log("Selecciona una carpeta para comenzar")
@@ -329,7 +346,7 @@ func display_fbx_list(fbx_files: Array):
 	for file in fbx_files:
 		base_fbx_option.add_item(file)
 	
-	base_fbx_option.disabled = false
+	_set_control_disabled(base_fbx_option, false)
 	
 	# Llenar lista de animaciones
 	animations_list.clear()
@@ -345,7 +362,7 @@ func _on_base_fbx_selected(index: int):
 		add_export_log("Modelo base seleccionado: " + filename)
 
 func enable_animation_selection():
-	animations_list.disabled = false
+	_set_control_disabled(animations_list, false)
 	preview_button.disabled = false
 	add_export_log("Modelo base cargado correctamente")
 

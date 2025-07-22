@@ -44,9 +44,12 @@ func _ready():
 	# Conectar a señales del sistema
 	if has_node("/root/Main"):
 		var main = get_node("/root/Main")
-		main.fbx_loaded.connect(_on_fbx_loaded)
-		main.rendering_complete.connect(_on_rendering_complete)
-		main.export_complete.connect(_on_export_complete)
+		if main.has_signal("fbx_loaded"):
+			main.fbx_loaded.connect(_on_fbx_loaded)
+		if main.has_signal("rendering_complete"):
+			main.rendering_complete.connect(_on_rendering_complete)
+		if main.has_signal("export_complete"):
+			main.export_complete.connect(_on_export_complete)
 
 func _initialize_logging():
 	if enable_file_logging:
@@ -58,9 +61,9 @@ func _initialize_logging():
 		
 		log_file = FileAccess.open(log_path, FileAccess.WRITE)
 		if log_file:
-			log(LogLevel.INFO, "Sistema de logging inicializado", {"log_file": log_path})
+			write_log(LogLevel.INFO, "Sistema de logging inicializado", {"log_file": log_path})
 
-func log(level: LogLevel, message: String, data: Dictionary = {}):
+func write_log(level: LogLevel, message: String, data: Dictionary = {}):
 	if level < current_log_level:
 		return
 	
@@ -128,7 +131,7 @@ func _rotate_log_file():
 	var new_log_path = "user://logs/pixelize3d_%s.log" % timestamp
 	
 	log_file = FileAccess.open(new_log_path, FileAccess.WRITE)
-	log(LogLevel.INFO, "Log rotado", {"new_file": new_log_path})
+	write_log(LogLevel.INFO, "Log rotado", {"new_file": new_log_path})
 
 func _get_level_string(level: LogLevel) -> String:
 	match level:
@@ -153,22 +156,22 @@ func _get_caller_info() -> Dictionary:
 
 # Funciones de conveniencia
 func verbose(message: String, data: Dictionary = {}):
-	log(LogLevel.VERBOSE, message, data)
+	write_log(LogLevel.VERBOSE, message, data)
 
 func debug(message: String, data: Dictionary = {}):
-	log(LogLevel.DEBUG, message, data)
+	write_log(LogLevel.DEBUG, message, data)
 
 func info(message: String, data: Dictionary = {}):
-	log(LogLevel.INFO, message, data)
+	write_log(LogLevel.INFO, message, data)
 
 func warning(message: String, data: Dictionary = {}):
-	log(LogLevel.WARNING, message, data)
+	write_log(LogLevel.WARNING, message, data)
 
 func error(message: String, data: Dictionary = {}):
-	log(LogLevel.ERROR, message, data)
+	write_log(LogLevel.ERROR, message, data)
 
 func critical(message: String, data: Dictionary = {}):
-	log(LogLevel.CRITICAL, message, data)
+	write_log(LogLevel.CRITICAL, message, data)
 
 # Sistema de timing para medición de rendimiento
 func start_timer(timer_name: String):
@@ -230,7 +233,7 @@ func generate_debug_report() -> Dictionary:
 
 func _get_session_info() -> Dictionary:
 	return {
-		"start_time": OS.get_unix_time(),
+		"start_time": Time.get_unix_time_from_system(),
 		"godot_version": Engine.get_version_info(),
 		"os": OS.get_name(),
 		"cpu_count": OS.get_processor_count(),
@@ -358,7 +361,7 @@ func _on_export_complete(file_path: String):
 # Limpieza
 func _exit_tree():
 	if log_file:
-		log(LogLevel.INFO, "Cerrando sistema de logging")
+		write_log(LogLevel.INFO, "Cerrando sistema de logging")
 		log_file.close()
 
 # Función para debug visual (overlay)
