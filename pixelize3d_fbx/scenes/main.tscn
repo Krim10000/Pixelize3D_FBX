@@ -1,0 +1,39 @@
+[gd_scene load_steps=8 format=3 uid="uid://cixfyx1e3luas"]
+
+[ext_resource type="Script" uid="uid://dfyi7y3jgrppp" path="res://scripts/main.gd" id="1_o6xl0"]
+[ext_resource type="Script" uid="uid://yx236cfp2h3l" path="res://scripts/ui/ui_controller.gd" id="2_tipki"]
+[ext_resource type="Script" uid="uid://c7x323fdvpcdb" path="res://scripts/core/fbx_loader.gd" id="3_85g3d"]
+[ext_resource type="Script" uid="uid://dssat5n0ns8ae" path="res://scripts/core/animation_manager.gd" id="4_choun"]
+[ext_resource type="Script" uid="uid://e2r0fgmqqc2v" path="res://scripts/rendering/sprite_renderer.gd" id="5_ya4ey"]
+[ext_resource type="Script" uid="uid://do8lqfm8i3vcb" path="res://scripts/rendering/camera_controller.gd" id="6_eb6dy"]
+[ext_resource type="Script" uid="uid://ix3llehr5ptp" path="res://scripts/export/export_manager.gd" id="7_trceg"]
+
+[node name="main" type="Node"]
+script = ExtResource("1_o6xl0")
+
+[node name="UIController" type="Control" parent="."]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("2_tipki")
+
+[node name="FBXLoader" type="Node" parent="."]
+script = ExtResource("3_85g3d")
+
+[node name="AnimationManager" type="Node" parent="."]
+script = ExtResource("4_choun")
+
+[node name="SpriteRenderer" type="Node3D" parent="."]
+script = ExtResource("5_ya4ey")
+
+[node name="SubViewport" type="SubViewport" parent="SpriteRenderer"]
+transparent_bg = true
+
+[node name="CameraController" type="Node3D" parent="SpriteRenderer/SubViewport"]
+script = ExtResource("6_eb6dy")
+
+[node name="ExportManager" type="Node" parent="."]
+script = ExtResource("7_trceg")
