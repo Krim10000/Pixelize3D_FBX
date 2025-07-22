@@ -4,12 +4,12 @@ importer="scene"
 importer_version=1
 type="PackedScene"
 uid="uid://vkaj3qk1lljb"
-path="res://.godot/imported/Zombiegirl_base.fbx-1f555b5e8a5ecd5b865fc74884533624.scn"
+path="res://.godot/imported/Zombiegirl_base.fbx-911821de6123bf83441e6b027fb4994f.scn"
 
 [deps]
 
-source_file="res://assets/fbx/Zombiegirl_base.fbx"
-dest_files=["res://.godot/imported/Zombiegirl_base.fbx-1f555b5e8a5ecd5b865fc74884533624.scn"]
+source_file="res://assets/fbx/Zombie/Zombiegirl_base.fbx"
+dest_files=["res://.godot/imported/Zombiegirl_base.fbx-911821de6123bf83441e6b027fb4994f.scn"]
 
 [params]
 

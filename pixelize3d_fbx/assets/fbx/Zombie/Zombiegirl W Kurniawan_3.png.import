@@ -3,7 +3,7 @@
 importer="texture"
 type="CompressedTexture2D"
 uid="uid://ditrk2eqkfiy"
-path.s3tc="res://.godot/imported/Zombiegirl W Kurniawan_3.png-8ba6c5955dfcfdf27b3c38ad22590662.s3tc.ctex"
+path.s3tc="res://.godot/imported/Zombiegirl W Kurniawan_3.png-bc0f13b1aec8856e49ec1b48739415e0.s3tc.ctex"
 metadata={
 "imported_formats": ["s3tc_bptc"],
 "vram_texture": true
@@ -14,8 +14,8 @@ generator_parameters={
 
 [deps]
 
-source_file="res://assets/fbx/Zombiegirl W Kurniawan_3.png"
-dest_files=["res://.godot/imported/Zombiegirl W Kurniawan_3.png-8ba6c5955dfcfdf27b3c38ad22590662.s3tc.ctex"]
+source_file="res://assets/fbx/Zombie/Zombiegirl W Kurniawan_3.png"
+dest_files=["res://.godot/imported/Zombiegirl W Kurniawan_3.png-bc0f13b1aec8856e49ec1b48739415e0.s3tc.ctex"]
 
 [params]
 

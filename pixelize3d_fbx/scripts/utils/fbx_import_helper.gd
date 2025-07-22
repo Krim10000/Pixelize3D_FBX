@@ -46,23 +46,24 @@ static func validate_folder_structure(folder_path: String) -> Dictionary:
 		return result
 	
 	# Escanear archivos FBX
-	dir.list_dir_begin()
-	var file_name = dir.get_next()
 	
-	while file_name != "":
-		if file_name.ends_with(".fbx") or file_name.ends_with(".FBX"):
-			result.files.all_fbx.append(file_name)
-			
-			# Clasificar archivo
-			var lower_name = file_name.to_lower()
-			if "base" in lower_name or "mesh" in lower_name:
-				result.files.base_candidates.append(file_name)
-			else:
-				result.files.animation_files.append(file_name)
-		
-		file_name = dir.get_next()
 	
-	dir.list_dir_end()
+	# Escanear archivos FBX en carpeta y subcarpetas
+# Escanear archivos FBX en carpeta y subcarpetas
+	var all_fbx_files := _scan_fbx_files_recursive(folder_path)
+
+	for full_path in all_fbx_files:
+		var file_name: String = full_path.get_file()
+
+		result.files.all_fbx.append(full_path)
+
+		var lower_name = file_name.to_lower()
+		if "base" in lower_name or "mesh" in lower_name:
+			result.files.base_candidates.append(full_path)
+		else:
+			result.files.animation_files.append(full_path)
+
+	
 	
 	# Validar contenido
 	if result.files.all_fbx.is_empty():
@@ -349,3 +350,28 @@ static func create_example_structure(base_path: String):
 		if file:
 			file.store_string(readme_content)
 			file.close()
+
+
+
+static func _scan_fbx_files_recursive(path: String) -> Array:
+	var result := []
+	var dir = DirAccess.open(path)
+	if dir == null:
+		return result
+	
+	dir.list_dir_begin()
+	var name = dir.get_next()
+	while name != "":
+		if name == "." or name == "..":
+			name = dir.get_next()
+			continue
+		
+		var full_path = path.path_join(name)
+		if dir.current_is_dir():
+			result += _scan_fbx_files_recursive(full_path)
+		elif name.to_lower().ends_with(".fbx"):
+			result.append(full_path)
+		
+		name = dir.get_next()
+	dir.list_dir_end()
+	return result

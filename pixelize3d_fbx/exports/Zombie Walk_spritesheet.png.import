@@ -2,19 +2,16 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://bm81aokyuf2xe"
-path="res://.godot/imported/Zombiegirl W Kurniawan_2.png-7a2fa5db59d4b70cb34565afef80247b.ctex"
+uid="uid://cnfetjvndxjbg"
+path="res://.godot/imported/Zombie Walk_spritesheet.png-9d31e2c5ad5a08dde1707044f0c246f7.ctex"
 metadata={
 "vram_texture": false
-}
-generator_parameters={
-"md5": "91a0b8206e42cf46451c57c393c2de04"
 }
 
 [deps]
 
-source_file="res://assets/fbx/Zombiegirl W Kurniawan_2.png"
-dest_files=["res://.godot/imported/Zombiegirl W Kurniawan_2.png-7a2fa5db59d4b70cb34565afef80247b.ctex"]
+source_file="res://exports/Zombie Walk_spritesheet.png"
+dest_files=["res://.godot/imported/Zombie Walk_spritesheet.png-9d31e2c5ad5a08dde1707044f0c246f7.ctex"]
 
 [params]
 
@@ -24,7 +21,7 @@ compress/lossy_quality=0.7
 compress/hdr_compression=1
 compress/normal_map=0
 compress/channel_pack=0
-mipmaps/generate=true
+mipmaps/generate=false
 mipmaps/limit=-1
 roughness/mode=0
 roughness/src_normal=""

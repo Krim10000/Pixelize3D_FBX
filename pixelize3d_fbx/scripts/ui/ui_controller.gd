@@ -11,8 +11,10 @@ signal render_settings_changed(settings: Dictionary)
 signal render_requested()
 signal export_requested(settings: Dictionary)
 
-@onready var main_panel = $MainPanel
-@onready var progress_dialog = $ProgressDialog
+# Verificación segura de nodos
+@onready var main_panel := get_node_or_null("MainPanel")
+@onready var progress_dialog := get_node_or_null("ProgressDialog")
+
 
 # Referencias a controles UI
 var instructions_panel: PanelContainer
@@ -43,6 +45,10 @@ func _ready():
 	_connect_ui_signals()
 	_apply_theme()
 	_ensure_fbx_directory()
+	if main_panel == null:
+		push_error("[UIController] No se encontró el nodo 'MainPanel'. Verifica la jerarquía de nodos.")
+	if progress_dialog == null:
+		push_error("[UIController] No se encontró el nodo 'ProgressDialog'.")
 
 func _ensure_fbx_directory():
 	# Crear directorio si no existe

@@ -2,8 +2,8 @@
 
 importer="texture"
 type="CompressedTexture2D"
-uid="uid://cexo21gb866l7"
-path="res://.godot/imported/Zombiegirl_base_2.png-624df6254420a49e9b394d6bb2e1478c.ctex"
+uid="uid://bm81aokyuf2xe"
+path="res://.godot/imported/Zombiegirl W Kurniawan_2.png-78d211d686d7e6ccdfc4524e27702b8d.ctex"
 metadata={
 "vram_texture": false
 }
@@ -13,8 +13,8 @@ generator_parameters={
 
 [deps]
 
-source_file="res://assets/fbx/Zombiegirl_base_2.png"
-dest_files=["res://.godot/imported/Zombiegirl_base_2.png-624df6254420a49e9b394d6bb2e1478c.ctex"]
+source_file="res://assets/fbx/Zombie/Zombiegirl W Kurniawan_2.png"
+dest_files=["res://.godot/imported/Zombiegirl W Kurniawan_2.png-78d211d686d7e6ccdfc4524e27702b8d.ctex"]
 
 [params]
 
