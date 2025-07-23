@@ -120,9 +120,13 @@ func _on_model_loaded(model_data: Dictionary):
 			print("Mesh encontrado: %s" % mesh_data.name)
 		
 		# Extraer lista de meshes del modelo base
-		var mesh_list = _extract_mesh_list(model_data.node)
-		animation_manager.set_base_meshes(mesh_list)
-		
+		var skeleton = _find_skeleton(model_data.node)
+		if skeleton:
+			var mesh_list = animation_manager.extract_enhanced_mesh_data(skeleton)
+			animation_manager.set_base_meshes(mesh_list)
+		else:
+			print("❌ No se encontró skeleton para extraer mesh data")
+			animation_manager.set_base_meshes([])
 		# Advertir si no hay huesos
 		if bone_count == 0:
 			print("⚠️  ADVERTENCIA: El skeleton no tiene huesos!")
@@ -180,21 +184,111 @@ func _on_animations_selected(animation_files: Array):
 		fbx_loader.load_animation_fbx(full_path, anim_file)
 
 # NUEVA función para verificar y activar preview
+#func _check_and_activate_preview():
+	#print("--- VERIFICANDO ESTADO PARA PREVIEW ---")
+	#print("Base cargado: %s" % (current_project_data.loaded_base != null))
+	#print("Animaciones cargadas: %d" % current_project_data.loaded_animations.size())
+	#print("Animaciones seleccionadas: %d" % current_project_data.selected_animations.size())
+	#
+	## Verificar que tenemos todo lo necesario
+	#if (current_project_data.loaded_base != null and 
+		#current_project_data.loaded_animations.size() > 0 and
+		#not current_project_data.selected_animations.is_empty()):
+		#
+		#print("✅ Todo listo - Activando preview...")
+		#_activate_preview_mode()
+	#else:
+		#print("⏳ Esperando más datos para activar preview...")
+
+
+# Modificación sugerida para main.gd
+# Buscar la función _check_and_activate_preview y reemplazarla por esta versión:
+
 func _check_and_activate_preview():
 	print("--- VERIFICANDO ESTADO PARA PREVIEW ---")
-	print("Base cargado: %s" % (current_project_data.loaded_base != null))
-	print("Animaciones cargadas: %d" % current_project_data.loaded_animations.size())
-	print("Animaciones seleccionadas: %d" % current_project_data.selected_animations.size())
 	
-	# Verificar que tenemos todo lo necesario
-	if (current_project_data.loaded_base != null and 
-		current_project_data.loaded_animations.size() > 0 and
-		not current_project_data.selected_animations.is_empty()):
-		
-		print("✅ Todo listo - Activando preview...")
-		_activate_preview_mode()
+	var base_loaded = current_project_data.loaded_base != null
+	var animations_loaded = current_project_data.loaded_animations.size()
+	var animations_selected = current_project_data.selected_animations.size()
+	
+	print("Base cargado: %s" % base_loaded)
+	print("Animaciones cargadas: %d" % animations_loaded)
+	print("Animaciones seleccionadas: %d" % animations_selected)
+	
+	# MODIFICACIÓN: Activar preview incluso sin animaciones (modo debug)
+	if base_loaded:
+		if animations_selected > 0:
+			print("✅ Todo listo - Activando preview...")
+			_activate_preview_mode()
+		else:
+			print("⚠️  Sin animaciones seleccionadas - Activando modo debug...")
+			_activate_debug_preview_mode()
 	else:
-		print("⏳ Esperando más datos para activar preview...")
+		print("⚠️  Esperando que se cargue el modelo base...")
+
+# NUEVA FUNCIÓN: Activar preview normal con animaciones
+#func _activate_preview_mode():
+	#print("🎬 ACTIVANDO PREVIEW MODE")
+	#ui_controller.set_preview_mode(true)
+	#
+	## Tomar la primera animación seleccionada
+	#var selected_anim = current_project_data.selected_animations[0]
+	#print("Combinando para preview: %s" % selected_anim)
+	#
+	## Combinar modelo base con animación
+	#var base_data = current_project_data.loaded_base
+	#var anim_data = current_project_data.loaded_animations[selected_anim]
+	#
+	## Debug de la combinación
+	#animation_manager.debug_combination(base_data, anim_data)
+	#
+	## Realizar la combinación
+	#var combined_model = animation_manager.combine_base_with_animation(base_data, anim_data)
+	#
+	#if combined_model:
+		#print("✅ Modelo combinado exitosamente - Configurando preview")
+		#sprite_renderer.setup_preview(combined_model, false)  # false = modo normal
+		#print("🎬 Preview activado completamente!")
+	#else:
+		#print("❌ Error al combinar modelo - Activando modo debug")
+		#sprite_renderer.setup_preview(null, true)  # true = modo debug
+
+# NUEVA FUNCIÓN: Activar modo debug cuando no hay animaciones
+func _activate_debug_preview_mode():
+	print("🔴 ACTIVANDO PREVIEW MODE DEBUG")
+	ui_controller.set_preview_mode(true)
+	
+	# Activar directamente el modo debug del sprite renderer
+	sprite_renderer.setup_preview(null, true)  # null = sin modelo, true = modo debug
+	
+	print("🔴 Preview debug activado - Deberías ver objetos de prueba")
+
+# OPCIONAL: Función para forzar modo debug desde UI
+func force_debug_preview():
+	print("🔴 FORZANDO MODO DEBUG DESDE UI")
+	sprite_renderer.setup_preview(null, true)
+
+# OPCIONAL: Función para activar preview con modelo base solamente
+func preview_base_model_only():
+	if current_project_data.loaded_base:
+		print("📱 ACTIVANDO PREVIEW SOLO CON MODELO BASE")
+		ui_controller.set_preview_mode(true)
+		
+		# Usar el modelo base sin animaciones
+		var base_data = current_project_data.loaded_base
+		var model_node = base_data.node
+		
+		if model_node:
+			# Crear una copia del nodo base para preview
+			var preview_model = model_node.duplicate()
+			sprite_renderer.setup_preview(preview_model, false)
+			print("📱 Preview del modelo base activado")
+		else:
+			print("❌ No se pudo acceder al nodo del modelo base")
+			sprite_renderer.setup_preview(null, true)  # Fallback a modo debug
+	else:
+		print("❌ No hay modelo base cargado")
+		sprite_renderer.setup_preview(null, true)  # Fallback a modo debug
 
 func _activate_preview_mode():
 	print("🎬 ACTIVANDO PREVIEW MODE")
