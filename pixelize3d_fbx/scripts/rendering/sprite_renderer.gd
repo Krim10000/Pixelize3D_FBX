@@ -1,4 +1,4 @@
-# sprite_renderer.gd
+# scripts/rendering/sprite_renderer.gd
 extends Node3D
 
 # Input: Modelo 3D combinado con animaciones y configuración de renderizado
@@ -6,9 +6,7 @@ extends Node3D
 
 signal frame_rendered(frame_data: Dictionary)
 signal animation_complete(animation_name: String)
-signal direction_complete(animation_name: String, direction: int)
 signal rendering_progress(current: int, total: int)
-signal rendering_started(animation_name: String, direction_count: int)
 
 @onready var viewport: SubViewport = $SubViewport
 @onready var camera_controller = $SubViewport/CameraController
@@ -19,17 +17,10 @@ var frames_buffer: Array = []
 
 # Estado del renderizado
 var is_rendering: bool = false
-var should_stop_rendering: bool = false
 var current_animation: String = ""
 var current_direction: int = 0
 var current_frame: int = 0
 var total_frames: int = 0
-var render_queue: Array = []
-
-# Configuración de direcciones
-var direction_count: int = 8
-var angle_offset: float = 0.0
-var rendered_frames: Dictionary = {}
 
 func _ready():
 	_setup_viewport()
@@ -43,14 +34,12 @@ func _setup_viewport():
 		add_child(viewport)
 	
 	# Configurar viewport para renderizado de sprites
-	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	viewport.render_target_update_mode = SubViewport.UPDATE_WHEN_VISIBLE
 	viewport.transparent_bg = true
-	viewport.size = Vector2i(512, 512)
 	
 	# Crear camera controller si no existe
 	if not camera_controller:
 		camera_controller = preload("res://scripts/rendering/camera_controller.gd").new()
-		camera_controller.name = "CameraController"
 		viewport.add_child(camera_controller)
 
 func _setup_render_environment():
@@ -87,46 +76,25 @@ func initialize(settings: Dictionary):
 		"camera_height": settings.camera_height,
 		"camera_distance": settings.camera_distance
 	})
-	
-	# Configurar direcciones
-	direction_count = settings.get("directions", 8)
-	angle_offset = settings.get("angle_offset", 0.0)
-	
-	print("Sprite Renderer inicializado - Tamaño: %dx%d, Direcciones: %d, Offset: %.1f°" % 
-		  [settings.sprite_size, settings.sprite_size, direction_count, angle_offset])
 
-func render_animation(model: Node3D, animation_name: String):
+func render_animation(model: Node3D, animation_name: String, angle: float, direction_index: int):
 	if is_rendering:
-		print("WARNING: Ya hay un renderizado en proceso. Añadiendo a cola...")
-		render_queue.append({
-			"model": model,
-			"animation_name": animation_name
-		})
+		push_warning("Ya hay un renderizado en proceso")
 		return
 	
-	# Marcar como ocupado
 	is_rendering = true
-	should_stop_rendering = false
 	current_animation = animation_name
-	current_direction = 0  # Empezar por la primera dirección
+	current_direction = direction_index
 	current_frame = 0
-	
-	# Inicializar almacenamiento para esta animación
-	rendered_frames[current_animation] = {
-		"direction_count": direction_count,
-		"frames": []
-	}
 	
 	# Limpiar modelo anterior si existe
 	if current_model and current_model.get_parent() == viewport:
 		viewport.remove_child(current_model)
+		current_model.queue_free()
 	
 	# Añadir nuevo modelo al viewport
 	current_model = model
 	viewport.add_child(current_model)
-	
-	# Calcular el ángulo para la primera dirección
-	var angle = _get_direction_angle(current_direction)
 	
 	# Configurar cámara para el modelo
 	var bounds = _calculate_model_bounds(current_model)
@@ -138,94 +106,40 @@ func render_animation(model: Node3D, animation_name: String):
 	if anim_player and anim_player.has_animation(animation_name):
 		var anim = anim_player.get_animation(animation_name)
 		var fps = render_settings.fps
-		total_frames = max(1, int(anim.length * fps))
+		total_frames = int(anim.length * fps)
+		
+		# Iniciar renderizado de frames
+		_render_next_frame()
 	else:
-		# Si no se encuentra la animación, buscar una alternativa
-		print("Buscando animación alternativa para: ", animation_name)
-		if anim_player:
-			var anims = anim_player.get_animation_list()
-			if anims.size() > 0:
-				var first_anim = anims[0]
-				if anim_player.has_animation(first_anim):
-					current_animation = first_anim
-					var anim = anim_player.get_animation(first_anim)
-					var fps = render_settings.fps
-					total_frames = max(1, int(anim.length * fps))
-					print("Usando animación alternativa: ", first_anim)
-				else:
-					total_frames = 1
-			else:
-				total_frames = 1
-		else:
-			total_frames = 1
-	
-	print("Iniciando renderizado: %s, %d direcciones, %d frames" % [current_animation, direction_count, total_frames])
-	emit_signal("rendering_started", current_animation, direction_count)
-	
-	# Iniciar renderizado de la primera dirección
-	_render_next_frame_in_direction()
+		# Si no hay animación, renderizar un solo frame
+		total_frames = 1
+		_render_static_frame()
 
-func _get_direction_angle(direction_index: int) -> float:
-	var angle_step = 360.0 / direction_count
-	return direction_index * angle_step + angle_offset
-
-func _render_next_frame_in_direction():
-	if should_stop_rendering:
-		_finish_direction()
+func _render_next_frame():
+	if current_frame >= total_frames:
+		# Animación completa para esta dirección
+		is_rendering = false
+		emit_signal("animation_complete", current_animation)
 		return
 	
-	# Verificar si hemos terminado todos los frames de esta dirección
-	if current_frame >= total_frames:
-		# Emitir señal de dirección completada
-		emit_signal("direction_complete", current_animation, current_direction)
-		
-		# Pasar a la siguiente dirección
-		current_direction += 1
-		current_frame = 0
-		
-		# Verificar si hemos terminado todas las direcciones
-		if current_direction >= direction_count:
-			_finish_rendering()
-			return
-		
-		# Configurar nueva dirección
-		var angle = _get_direction_angle(current_direction)
-		camera_controller.set_rotation_angle(angle)
-		await get_tree().process_frame  # Esperar un frame para que la cámara se actualice
-	
 	# Preparar el modelo para el frame actual
-	var anim_manager = get_node_or_null("/root/Main/AnimationManager")
-	if anim_manager:
-		anim_manager.prepare_model_for_rendering(
-			current_model,
-			current_frame,
-			total_frames,
-			current_animation
-		)
-	else:
-		# Fallback: Usar AnimationPlayer directamente
-		var anim_player = current_model.get_node_or_null("AnimationPlayer")
-		if anim_player:
-			if anim_player.has_animation(current_animation):
-				anim_player.play(current_animation)
-				var anim = anim_player.get_animation(current_animation)
-				var time = (float(current_frame) / float(total_frames)) * anim.length
-				anim_player.seek(time, true)
+	var anim_manager = get_node("/root/Main/AnimationManager")
+	anim_manager.prepare_model_for_rendering(
+		current_model,
+		current_frame,
+		total_frames,
+		current_animation
+	)
 	
 	# Esperar un frame para que se actualice la pose
 	await get_tree().process_frame
 	
-	# Forzar renderizado
+	# Renderizar el frame
 	viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
 	await RenderingServer.frame_post_draw
 	
 	# Capturar la imagen
 	var image = viewport.get_texture().get_image()
-	
-	if not image:
-		print("ERROR: No se pudo capturar imagen del viewport")
-		_finish_rendering()
-		return
 	
 	# Aplicar pixelización si es necesario
 	if render_settings.get("pixelize", true):
@@ -236,129 +150,40 @@ func _render_next_frame_in_direction():
 		"animation": current_animation,
 		"direction": current_direction,
 		"frame": current_frame,
-		"angle": _get_direction_angle(current_direction),
+		"angle": camera_controller.pivot_node.rotation_degrees.y,
 		"image": image
 	}
 	
 	emit_signal("frame_rendered", frame_data)
-	emit_signal("rendering_progress", _calculate_overall_progress(), direction_count * total_frames)
+	emit_signal("rendering_progress", current_frame + 1, total_frames)
 	
-	# Almacenar frame
-	if not rendered_frames[current_animation].has("dir_%d" % current_direction):
-		rendered_frames[current_animation]["dir_%d" % current_direction] = []
-	
-	rendered_frames[current_animation]["dir_%d" % current_direction].append(image)
-	
-	# Avanzar al siguiente frame
+	# Continuar con el siguiente frame
 	current_frame += 1
-	call_deferred("_render_next_frame_in_direction")
+	call_deferred("_render_next_frame")
 
-func _calculate_overall_progress() -> int:
-	var frames_per_direction = total_frames
-	var completed_directions = current_direction
-	var completed_frames_in_current = current_frame
-	return (completed_directions * frames_per_direction) + completed_frames_in_current
-
-func _finish_direction():
-	# Limpiar y pasar a la siguiente dirección
-	current_direction += 1
-	current_frame = 0
-	if current_direction >= direction_count:
-		_finish_rendering()
-	else:
-		# Configurar nueva dirección
-		var angle = _get_direction_angle(current_direction)
-		camera_controller.set_rotation_angle(angle)
-		call_deferred("_render_next_frame_in_direction")
-
-func _finish_rendering():
-	print("Renderizado completado: %s" % current_animation)
+func _render_static_frame():
+	# Para modelos sin animación
+	await get_tree().process_frame
 	
-	# Limpiar modelo del viewport
-	if current_model and current_model.get_parent() == viewport:
-		viewport.remove_child(current_model)
+	viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
+	await RenderingServer.frame_post_draw
 	
-	# Resetear estado
+	var image = viewport.get_texture().get_image()
+	
+	if render_settings.get("pixelize", true):
+		image = _apply_pixelization(image)
+	
+	var frame_data = {
+		"animation": current_animation,
+		"direction": current_direction,
+		"frame": 0,
+		"angle": camera_controller.pivot_node.rotation_degrees.y,
+		"image": image
+	}
+	
+	emit_signal("frame_rendered", frame_data)
 	is_rendering = false
-	should_stop_rendering = false
-	
 	emit_signal("animation_complete", current_animation)
-	
-	# Procesar siguiente en cola si existe
-	if render_queue.size() > 0:
-		var next_render = render_queue.pop_front()
-		call_deferred("render_animation", next_render.model, next_render.animation_name)
-
-func stop_rendering():
-	should_stop_rendering = true
-	render_queue.clear()
-
-#func generate_spritesheet(animation_name: String) -> Image:
-	#if not rendered_frames.has(animation_name):
-		#push_error("No hay frames renderizados para la animación: " + animation_name)
-		#return null
-	#
-	#var anim_data = rendered_frames[animation_name]
-	#var direction_count = anim_data.direction_count
-	#var frames_per_direction = anim_data.get("dir_0", []).size()
-	#
-	#if frames_per_direction == 0:
-		#push_error("No hay frames para generar el spritesheet")
-		#return null
-	#
-	## Obtener tamaño de frame
-	#var frame_size = viewport.size
-	#var spritesheet = Image.create(
-		#frame_size.x * direction_count,
-		#frame_size.y * frames_per_direction,
-		#false,
-		#Image.FORMAT_RGBA8
-	#)
-	#
-	## Llenar el spritesheet
-	#for frame in range(frames_per_direction):
-		#for direction in range(direction_count):
-			#var dir_key = "dir_%d" % direction
-			#if anim_data.has(dir_key) and anim_data[dir_key].size() > frame:
-				#var frame_img = anim_data[dir_key][frame]
-				#var pos = Vector2i(direction * frame_size.x, frame * frame_size.y)
-				#spritesheet.blit_rect(frame_img, Rect2i(Vector2i.ZERO, frame_size), pos)
-	#
-	#return spritesheet
-func generate_spritesheet(animation_name: String) -> Image:
-	if not rendered_frames.has(animation_name):
-		push_error("No hay frames renderizados para la animación: " + animation_name)
-		return null
-	
-	var anim_data = rendered_frames[animation_name]
-	# Cambia el nombre para evitar conflicto con variable de clase
-	var anim_direction_count = anim_data.direction_count
-	var frames_per_direction = anim_data.get("dir_0", []).size()
-	
-	if frames_per_direction == 0:
-		push_error("No hay frames para generar el spritesheet")
-		return null
-	
-	# Obtener tamaño de frame
-	var frame_size = viewport.size
-	var spritesheet = Image.create(
-		frame_size.x * anim_direction_count,  # Usa el nuevo nombre
-		frame_size.y * frames_per_direction,
-		false,
-		Image.FORMAT_RGBA8
-	)
-	
-	# Llenar el spritesheet
-	for frame in range(frames_per_direction):
-		for direction in range(anim_direction_count):  # Usa el nuevo nombre
-			var dir_key = "dir_%d" % direction
-			if anim_data.has(dir_key) and anim_data[dir_key].size() > frame:
-				var frame_img = anim_data[dir_key][frame]
-				var pos = Vector2i(direction * frame_size.x, frame * frame_size.y)
-				spritesheet.blit_rect(frame_img, Rect2i(Vector2i.ZERO, frame_size), pos)
-	
-	return spritesheet
-
 
 func _apply_pixelization(image: Image) -> Image:
 	# Aplicar efecto de pixelización
@@ -380,6 +205,7 @@ func _apply_pixelization(image: Image) -> Image:
 
 func _reduce_color_palette(image: Image, color_count: int):
 	# Implementación simple de reducción de paleta
+	# En una implementación completa, usarías algoritmos como k-means
 	var width = image.get_width()
 	var height = image.get_height()
 	
@@ -424,36 +250,120 @@ func _find_all_mesh_instances(node: Node) -> Array:
 	
 	return meshes
 
-# Función para preview en tiempo real
-func setup_preview(model: Node3D, direction: int = 0):
-	if is_rendering:
-		print("No se puede hacer preview durante renderizado")
-		return
+func update_camera_settings(settings: Dictionary):
+	camera_controller.set_camera_settings(settings)
+
+# NUEVA FUNCIÓN para configurar preview
+func setup_preview(model: Node3D):
+	print("--- CONFIGURANDO PREVIEW ---")
 	
 	if current_model and current_model != model:
+		print("Limpiando modelo anterior: %s" % current_model.name)
 		if current_model.get_parent() == viewport:
 			viewport.remove_child(current_model)
+		current_model.queue_free()
 	
 	current_model = model
 	viewport.add_child(current_model)
-	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	
+	print("✅ Modelo añadido al viewport: %s" % current_model.name)
+	
+	# Configurar cámara para el modelo
 	var bounds = _calculate_model_bounds(current_model)
+	print("Bounds calculados: %s" % str(bounds))
+	
 	camera_controller.setup_for_model(bounds)
 	
-	# Configurar dirección
-	var angle = _get_direction_angle(direction)
-	camera_controller.set_rotation_angle(angle)
+	# ACTIVAR modo preview en camera controller
 	camera_controller.enable_preview_mode()
 	
-	# Asegurar que el modelo sea visible
-	current_model.visible = true
+	print("✅ Preview mode activado en camera controller")
 	
-	# Forzar un frame de renderizado
-	RenderingServer.force_draw()
+	# Iniciar animación de preview si existe
+	_start_preview_animation()
+	
+	# Verificar que el modelo se ve
+	_debug_preview_setup()
+
+func _start_preview_animation():
+	print("--- INICIANDO ANIMACIÓN DE PREVIEW ---")
+	
+	var anim_player = current_model.get_node_or_null("AnimationPlayer")
+	if anim_player and anim_player.get_animation_list().size() > 0:
+		var first_anim = anim_player.get_animation_list()[0]
+		print("Reproduciendo animación: %s" % first_anim)
+		
+		anim_player.play(first_anim)
+		# No pausar, dejar que se reproduzca en loop
+		
+		print("✅ Animación iniciada")
+	else:
+		print("❌ No se encontró AnimationPlayer o animaciones")
+
+func _debug_preview_setup():
+	print("--- DEBUG PREVIEW SETUP ---")
+	print("Current model: %s" % (current_model.name if current_model else "NULL"))
+	print("Viewport size: %s" % str(viewport.size))
+	
+	var camera = camera_controller.get_camera()
+	if camera:
+		print("Camera position: %s" % str(camera.global_position))
+		print("Camera looking at: %s" % str(camera_controller.target_position))
+	else:
+		print("❌ No se encontró cámara")
+	
+	# Verificar que el modelo tiene skeleton y meshes
+	if current_model:
+		var skeleton = current_model.get_node_or_null("Skeleton3D_combined")
+		if skeleton:
+			print("✅ Skeleton encontrado: %d huesos" % skeleton.get_bone_count())
+			
+			var mesh_count = 0
+			for child in skeleton.get_children():
+				if child is MeshInstance3D:
+					mesh_count += 1
+					print("  Mesh: %s (visible: %s)" % [child.name, child.visible])
+					
+					if child.mesh:
+						print("    Mesh resource: %s" % child.mesh.get_class())
+						print("    Surfaces: %d" % child.mesh.get_surface_count())
+					else:
+						print("    ❌ Sin mesh resource")
+			
+			print("✅ Meshes encontrados: %d" % mesh_count)
+			
+			# Verificar AnimationPlayer
+			var anim_player = current_model.get_node_or_null("AnimationPlayer")
+			if anim_player:
+				print("✅ AnimationPlayer encontrado")
+				print("  Animaciones: %s" % str(anim_player.get_animation_list()))
+				if anim_player.is_playing():
+					print("  Estado: Reproduciendo %s" % anim_player.current_animation)
+				else:
+					print("  Estado: Detenido")
+			else:
+				print("❌ No se encontró AnimationPlayer")
+		else:
+			print("❌ No se encontró skeleton en modelo combinado")
+			
+			# Buscar otros skeletons
+			for child in current_model.get_children():
+				print("  Nodo hijo: %s (%s)" % [child.name, child.get_class()])
+				if child is Skeleton3D:
+					print("    Es Skeleton3D con %d huesos" % child.get_bone_count())
 
 func stop_preview():
+	print("--- DETENIENDO PREVIEW ---")
 	camera_controller.disable_preview_mode()
-	if current_model and not is_rendering:
+	
+	if current_model:
+		var anim_player = current_model.get_node_or_null("AnimationPlayer")
+		if anim_player:
+			anim_player.stop()
+		
 		if current_model.get_parent() == viewport:
 			viewport.remove_child(current_model)
+		
+		current_model = null
+	
+	print("✅ Preview detenido")

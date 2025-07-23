@@ -4,24 +4,23 @@ extends Control
 # Input: Interacciones del usuario
 # Output: Señales y configuración para el proceso de renderizado
 
-signal folder_selected(folder_name: String)
+signal folder_selected(path: String)
 signal base_fbx_selected(filename: String)
 signal animations_selected(filenames: Array)
 signal render_settings_changed(settings: Dictionary)
 signal render_requested()
 signal export_requested(settings: Dictionary)
 
-# Referencias a controles UI
+# Referencias a controles UI (sin @onready ya que se crean dinámicamente)
 var main_panel: PanelContainer
+var folder_dialog: FileDialog
 var progress_dialog: AcceptDialog
 var preview_viewport: SubViewport
 
-# Controles para selección de carpetas y animaciones
-var folder_list: ItemList
 var folder_path_label: Label
+var fbx_list: ItemList
 var base_fbx_option: OptionButton
-var animations_container: VBoxContainer  # Contenedor de checkboxes
-var animations_checkboxes: Array = []     # Array de checkboxes
+var animations_list: ItemList
 var directions_spinbox: SpinBox
 var sprite_size_spinbox: SpinBox
 var camera_angle_slider: HSlider
@@ -33,9 +32,10 @@ var preview_button: Button
 var render_button: Button
 var export_log: RichTextLabel
 
-var current_folder_name: String = ""
+var current_folder_path: String = ""
 var available_fbx_files: Array = []
 var selected_animations: Array = []
+var preview_mode_active: bool = false
 
 func _ready():
 	_create_ui()
@@ -79,7 +79,7 @@ func _create_ui():
 	var log_panel = _create_log_panel()
 	main_vbox.add_child(log_panel)
 	
-	# Diálogos
+	# Diálogos (crear después del panel principal)
 	_create_dialogs()
 
 func _create_config_panel() -> Control:
@@ -90,236 +90,140 @@ func _create_config_panel() -> Control:
 	var vbox = VBoxContainer.new()
 	panel.add_child(vbox)
 	
-	# PASO 1: Selección de carpeta
-	var folder_section = _create_section("1. Seleccionar Carpeta del Proyecto")
+	# Sección: Selección de carpeta
+	var folder_section = _create_section("Carpeta del Proyecto")
 	vbox.add_child(folder_section)
 	
-	var folder_info = Label.new()
-	folder_info.text = "Carpetas disponibles en res://assets/fbx/:"
-	folder_info.add_theme_font_size_override("font_size", 12)
-	folder_section.add_child(folder_info)
-	
-	folder_list = ItemList.new()
-	folder_list.custom_minimum_size.y = 100
-	folder_list.select_mode = ItemList.SELECT_SINGLE
-	folder_section.add_child(folder_list)
+	var folder_hbox = HBoxContainer.new()
+	folder_section.add_child(folder_hbox)
 	
 	folder_path_label = Label.new()
-	folder_path_label.text = "Ninguna carpeta seleccionada"
-	folder_path_label.add_theme_font_size_override("font_size", 12)
-	folder_path_label.add_theme_color_override("font_color", Color.GRAY)
-	folder_section.add_child(folder_path_label)
+	folder_path_label.text = "No se ha seleccionado carpeta"
+	folder_path_label.custom_minimum_size.x = 300
+	folder_hbox.add_child(folder_path_label)
 	
-	# PASO 2: Selección de FBX base
-	var base_section = _create_section("2. Seleccionar Modelo Base")
+	var browse_button = Button.new()
+	browse_button.text = "Examinar..."
+	browse_button.pressed.connect(_on_browse_folder)
+	folder_hbox.add_child(browse_button)
+	
+	# Sección: Selección de FBX base
+	var base_section = _create_section("Modelo Base")
 	vbox.add_child(base_section)
 	
-	var base_info = Label.new()
-	base_info.text = "Archivo FBX que contiene los meshes:"
-	base_info.add_theme_font_size_override("font_size", 12)
-	base_section.add_child(base_info)
-	
 	base_fbx_option = OptionButton.new()
-	base_fbx_option.add_item("-- Selecciona una carpeta primero --")
+	base_fbx_option.add_item("-- Seleccionar carpeta primero --")
 	base_fbx_option.disabled = true
 	base_section.add_child(base_fbx_option)
 	
-	# PASO 3: Selección de animaciones con CHECKBOXES
-	var anim_section = _create_section("3. Seleccionar Animaciones")
+	# Sección: Selección de animaciones
+	var anim_section = _create_section("Animaciones")
 	vbox.add_child(anim_section)
 	
-	var anim_info = Label.new()
-	anim_info.text = "Archivos FBX con animaciones (sin meshes):"
-	anim_info.add_theme_font_size_override("font_size", 12)
-	anim_section.add_child(anim_info)
+	animations_list = ItemList.new()
+	animations_list.custom_minimum_size.y = 150
+	animations_list.select_mode = ItemList.SELECT_MULTI
+	# ❌ INCORRECTO: ItemList no tiene propiedad 'disabled'
+# animations_list.disabled = true
+
+	# ✅ CORRECTO: Para desactivar ItemList usamos mouse_filter y focus_mode
+	animations_list.mouse_filter = Control.MOUSE_FILTER_IGNORE  # Ignora input del mouse
+	animations_list.focus_mode = Control.FOCUS_NONE              # No puede recibir foco
+	animations_list.modulate = Color(0.5, 0.5, 0.5, 0.8)       # Apariencia visual desactivada
+	anim_section.add_child(animations_list)
 	
-	# Contenedor scrollable para checkboxes
-	var anim_scroll = ScrollContainer.new()
-	anim_scroll.custom_minimum_size.y = 150
-	anim_section.add_child(anim_scroll)
-	
-	animations_container = VBoxContainer.new()
-	anim_scroll.add_child(animations_container)
-	
-	var anim_count_label = Label.new()
-	anim_count_label.name = "AnimCountLabel"
-	anim_count_label.text = "0 animaciones seleccionadas"
-	anim_count_label.add_theme_font_size_override("font_size", 12)
-	anim_count_label.add_theme_color_override("font_color", Color.GRAY)
-	anim_section.add_child(anim_count_label)
-	
-	# Botones para seleccionar/deseleccionar todo
-	var anim_buttons = HBoxContainer.new()
-	anim_section.add_child(anim_buttons)
-	
-	var select_all_btn = Button.new()
-	select_all_btn.text = "Seleccionar Todo"
-	select_all_btn.custom_minimum_size.x = 120
-	select_all_btn.pressed.connect(_on_select_all_animations)
-	anim_buttons.add_child(select_all_btn)
-	
-	var deselect_all_btn = Button.new()
-	deselect_all_btn.text = "Deseleccionar Todo"
-	deselect_all_btn.custom_minimum_size.x = 120
-	deselect_all_btn.pressed.connect(_on_deselect_all_animations)
-	anim_buttons.add_child(deselect_all_btn)
-	
-	# PASO 4: Configuración de renderizado
-	var render_section = _create_section("4. Configuración de Renderizado")
+	# Sección: Configuración de renderizado
+	var render_section = _create_section("Configuración de Renderizado")
 	vbox.add_child(render_section)
 	
 	# Direcciones
-	var dir_container = HBoxContainer.new()
-	render_section.add_child(dir_container)
+	var dir_hbox = HBoxContainer.new()
+	render_section.add_child(dir_hbox)
 	
 	var dir_label = Label.new()
 	dir_label.text = "Direcciones:"
-	dir_label.custom_minimum_size.x = 100
-	dir_container.add_child(dir_label)
+	dir_hbox.add_child(dir_label)
 	
 	directions_spinbox = SpinBox.new()
 	directions_spinbox.min_value = 4
 	directions_spinbox.max_value = 32
 	directions_spinbox.step = 4
 	directions_spinbox.value = 16
-	dir_container.add_child(directions_spinbox)
-	
-	var dir_help = Label.new()
-	dir_help.text = "(4, 8, 16, 32)"
-	dir_help.add_theme_font_size_override("font_size", 10)
-	dir_help.add_theme_color_override("font_color", Color.GRAY)
-	dir_container.add_child(dir_help)
+	dir_hbox.add_child(directions_spinbox)
 	
 	# Tamaño de sprite
-	var size_container = HBoxContainer.new()
-	render_section.add_child(size_container)
+	var size_hbox = HBoxContainer.new()
+	render_section.add_child(size_hbox)
 	
 	var size_label = Label.new()
 	size_label.text = "Tamaño sprite:"
-	size_label.custom_minimum_size.x = 100
-	size_container.add_child(size_label)
+	size_hbox.add_child(size_label)
 	
 	sprite_size_spinbox = SpinBox.new()
 	sprite_size_spinbox.min_value = 32
 	sprite_size_spinbox.max_value = 1024
 	sprite_size_spinbox.step = 32
 	sprite_size_spinbox.value = 256
-	size_container.add_child(sprite_size_spinbox)
-	
-	var size_help = Label.new()
-	size_help.text = "px"
-	size_help.add_theme_font_size_override("font_size", 10)
-	size_help.add_theme_color_override("font_color", Color.GRAY)
-	size_container.add_child(size_help)
+	size_hbox.add_child(sprite_size_spinbox)
 	
 	# FPS
-	var fps_container = HBoxContainer.new()
-	render_section.add_child(fps_container)
+	var fps_hbox = HBoxContainer.new()
+	render_section.add_child(fps_hbox)
 	
 	var fps_label = Label.new()
 	fps_label.text = "FPS:"
-	fps_label.custom_minimum_size.x = 100
-	fps_container.add_child(fps_label)
+	fps_hbox.add_child(fps_label)
 	
 	fps_spinbox = SpinBox.new()
 	fps_spinbox.min_value = 1
 	fps_spinbox.max_value = 60
 	fps_spinbox.value = 12
-	fps_container.add_child(fps_spinbox)
+	fps_hbox.add_child(fps_spinbox)
 	
-	# PASO 5: Configuración de cámara
-	var camera_section = _create_section("5. Configuración de Cámara")
+	# Sección: Configuración de cámara
+	var camera_section = _create_section("Cámara")
 	vbox.add_child(camera_section)
 	
 	# Ángulo
-	var angle_container = VBoxContainer.new()
-	camera_section.add_child(angle_container)
-	
 	var angle_label = Label.new()
-	angle_label.name = "AngleLabel"
-	angle_label.text = "Ángulo: 45°"
-	angle_container.add_child(angle_label)
-	
-	camera_angle_slider = HSlider.new()
-	camera_angle_slider.min_value = 15
-	camera_angle_slider.max_value = 75
-	camera_angle_slider.value = 45
-	camera_angle_slider.step = 1
-	camera_angle_slider.custom_minimum_size.x = 200
-	camera_angle_slider.value_changed.connect(func(val): angle_label.text = "Ángulo: %.0f°" % val)
-	angle_container.add_child(camera_angle_slider)
+	angle_label.text = "Ángulo:"
+	camera_section.add_child(angle_label)
+	camera_angle_slider = _create_slider(15, 75, 45)
+	camera_section.add_child(camera_angle_slider)
 	
 	# Altura
-	var height_container = VBoxContainer.new()
-	camera_section.add_child(height_container)
-	
 	var height_label = Label.new()
-	height_label.name = "HeightLabel"
-	height_label.text = "Altura: 10.0"
-	height_container.add_child(height_label)
-	
-	camera_height_slider = HSlider.new()
-	camera_height_slider.min_value = 1
-	camera_height_slider.max_value = 50
-	camera_height_slider.value = 10
-	camera_height_slider.step = 0.5
-	camera_height_slider.custom_minimum_size.x = 200
-	camera_height_slider.value_changed.connect(func(val): height_label.text = "Altura: %.1f" % val)
-	height_container.add_child(camera_height_slider)
+	height_label.text = "Altura:"
+	camera_section.add_child(height_label)
+	camera_height_slider = _create_slider(1, 50, 10)
+	camera_section.add_child(camera_height_slider)
 	
 	# Distancia
-	var distance_container = VBoxContainer.new()
-	camera_section.add_child(distance_container)
-	
 	var distance_label = Label.new()
-	distance_label.name = "DistanceLabel"
-	distance_label.text = "Distancia: 15.0"
-	distance_container.add_child(distance_label)
-	
-	camera_distance_slider = HSlider.new()
-	camera_distance_slider.min_value = 5
-	camera_distance_slider.max_value = 100
-	camera_distance_slider.value = 15
-	camera_distance_slider.step = 0.5
-	camera_distance_slider.custom_minimum_size.x = 200
-	camera_distance_slider.value_changed.connect(func(val): distance_label.text = "Distancia: %.1f" % val)
-	distance_container.add_child(camera_distance_slider)
+	distance_label.text = "Distancia:"
+	camera_section.add_child(distance_label)
+	camera_distance_slider = _create_slider(5, 100, 15)
+	camera_section.add_child(camera_distance_slider)
 	
 	# Opciones adicionales
-	var options_container = VBoxContainer.new()
-	camera_section.add_child(options_container)
-	
 	pixelize_checkbox = CheckBox.new()
 	pixelize_checkbox.text = "Aplicar pixelización"
 	pixelize_checkbox.button_pressed = true
-	options_container.add_child(pixelize_checkbox)
+	camera_section.add_child(pixelize_checkbox)
 	
-	# Separador
-	vbox.add_child(HSeparator.new())
-	
-	# PASO 6: Botones de acción
-	var action_section = _create_section("6. Acciones")
-	vbox.add_child(action_section)
-	
-	var button_container = HBoxContainer.new()
-	button_container.alignment = BoxContainer.ALIGNMENT_CENTER
-	action_section.add_child(button_container)
+	# Botones de acción
+	var button_hbox = HBoxContainer.new()
+	vbox.add_child(button_hbox)
 	
 	preview_button = Button.new()
 	preview_button.text = "Preview"
 	preview_button.disabled = true
-	preview_button.custom_minimum_size.x = 100
-	button_container.add_child(preview_button)
-	
-	button_container.add_child(VSeparator.new())
+	button_hbox.add_child(preview_button)
 	
 	render_button = Button.new()
 	render_button.text = "Renderizar"
 	render_button.disabled = true
-	render_button.custom_minimum_size.x = 100
-	# Estilo más prominente para el botón principal
-	render_button.add_theme_color_override("font_color", Color.WHITE)
-	button_container.add_child(render_button)
+	button_hbox.add_child(render_button)
 	
 	return panel
 
@@ -335,14 +239,19 @@ func _create_preview_panel() -> Control:
 	label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(label)
 	
-	# Crear estructura para el viewport
+	# Status del preview
+	var status_label = Label.new()
+	status_label.name = "PreviewStatus"
+	status_label.text = "Carga un modelo para ver preview"
+	status_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(status_label)
+	
 	var viewport_container = SubViewportContainer.new()
 	viewport_container.name = "ViewportContainer"
 	viewport_container.stretch = true
 	viewport_container.custom_minimum_size = Vector2(400, 400)
 	vbox.add_child(viewport_container)
-	
-	viewport_container.material = null  # Asegurar que no haya material que interfiera
 	
 	preview_viewport = SubViewport.new()
 	preview_viewport.name = "SubViewport"
@@ -350,13 +259,15 @@ func _create_preview_panel() -> Control:
 	preview_viewport.transparent_bg = true
 	viewport_container.add_child(preview_viewport)
 	
-	# Info del preview
-	var info_label = Label.new()
-	info_label.text = "Selecciona un modelo base para ver el preview"
-	info_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	info_label.add_theme_font_size_override("font_size", 12)
-	info_label.add_theme_color_override("font_color", Color.GRAY)
-	vbox.add_child(info_label)
+	# Instrucciones de controles
+	var controls_label = Label.new()
+	controls_label.name = "ControlsHelp"
+	controls_label.text = "Controles: Click + Arrastrar = Rotar | Rueda = Zoom"
+	controls_label.add_theme_font_size_override("font_size", 10)
+	controls_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+	controls_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	controls_label.visible = false
+	vbox.add_child(controls_label)
 	
 	return panel
 
@@ -368,22 +279,12 @@ func _create_log_panel() -> Control:
 	var vbox = VBoxContainer.new()
 	panel.add_child(vbox)
 	
-	var header_hbox = HBoxContainer.new()
-	vbox.add_child(header_hbox)
-	
 	var label = Label.new()
-	label.text = "Log de Proceso"
-	header_hbox.add_child(label)
-	
-	# Botón para limpiar log
-	var clear_button = Button.new()
-	clear_button.text = "Limpiar"
-	clear_button.custom_minimum_size.x = 80
-	clear_button.pressed.connect(_clear_log)
-	header_hbox.add_child(clear_button)
+	label.text = "Log de Exportación"
+	vbox.add_child(label)
 	
 	export_log = RichTextLabel.new()
-	export_log.custom_minimum_size.y = 120
+	export_log.custom_minimum_size.y = 100
 	export_log.scroll_following = true
 	export_log.bbcode_enabled = true
 	export_log.fit_content = true
@@ -391,13 +292,12 @@ func _create_log_panel() -> Control:
 	
 	return panel
 
-func _create_section(title_text: String) -> VBoxContainer:
+func _create_section(title: String) -> VBoxContainer:
 	var section = VBoxContainer.new()
 	
 	var label = Label.new()
-	label.text = title_text
+	label.text = title
 	label.add_theme_font_size_override("font_size", 16)
-	# Color diferente para los títulos de sección
 	label.add_theme_color_override("font_color", Color(0.2, 0.6, 1.0))
 	section.add_child(label)
 	
@@ -405,16 +305,32 @@ func _create_section(title_text: String) -> VBoxContainer:
 	
 	return section
 
+func _create_slider(min_val: float, max_val: float, default: float) -> HSlider:
+	var slider = HSlider.new()
+	slider.min_value = min_val
+	slider.max_value = max_val
+	slider.value = default
+	slider.step = 0.1
+	return slider
+
 func _create_dialogs():
+	# Diálogo de selección de carpeta
+	folder_dialog = FileDialog.new()
+	folder_dialog.name = "FileDialog"
+	folder_dialog.file_mode = FileDialog.FILE_MODE_OPEN_DIR
+	folder_dialog.title = "Seleccionar carpeta del proyecto"
+	folder_dialog.dir_selected.connect(_on_folder_selected)
+	add_child(folder_dialog)
+	
 	# Diálogo de progreso
 	progress_dialog = AcceptDialog.new()
 	progress_dialog.name = "ProgressDialog"
-	progress_dialog.title = "Renderizando Spritesheets..."
+	progress_dialog.title = "Renderizando..."
 	progress_dialog.dialog_hide_on_ok = false
 	progress_dialog.get_ok_button().visible = false
 	
 	var progress_content = VBoxContainer.new()
-	progress_content.custom_minimum_size = Vector2(350, 100)
+	progress_content.custom_minimum_size = Vector2(300, 80)
 	
 	var progress_label = Label.new()
 	progress_label.name = "ProgressLabel"
@@ -424,25 +340,19 @@ func _create_dialogs():
 	
 	var progress_bar = ProgressBar.new()
 	progress_bar.name = "ProgressBar"
-	progress_bar.custom_minimum_size = Vector2(300, 25)
 	progress_bar.show_percentage = true
 	progress_content.add_child(progress_bar)
-	
-	var cancel_button = Button.new()
-	cancel_button.text = "Cancelar"
-	cancel_button.pressed.connect(_on_cancel_rendering)
-	progress_content.add_child(cancel_button)
 	
 	progress_dialog.add_child(progress_content)
 	add_child(progress_dialog)
 
 func _connect_ui_signals():
 	# Conectar señales de UI
-	if folder_list:
-		folder_list.item_selected.connect(_on_folder_list_selected)
-	
 	if base_fbx_option:
 		base_fbx_option.item_selected.connect(_on_base_fbx_selected)
+	
+	if animations_list:
+		animations_list.multi_selected.connect(_on_animation_selected)
 	
 	if preview_button:
 		preview_button.pressed.connect(_on_preview_pressed)
@@ -450,15 +360,13 @@ func _connect_ui_signals():
 	if render_button:
 		render_button.pressed.connect(_on_render_pressed)
 	
-	# Conectar sliders para emisión de señales
-	var sliders = [camera_angle_slider, camera_height_slider, camera_distance_slider]
-	for slider in sliders:
+	# Conectar sliders
+	for slider in [camera_angle_slider, camera_height_slider, camera_distance_slider]:
 		if slider:
 			slider.value_changed.connect(_on_camera_setting_changed)
 	
 	# Conectar spinboxes
-	var spinboxes = [directions_spinbox, sprite_size_spinbox, fps_spinbox]
-	for spinbox in spinboxes:
+	for spinbox in [directions_spinbox, sprite_size_spinbox, fps_spinbox]:
 		if spinbox:
 			spinbox.value_changed.connect(_on_camera_setting_changed)
 	
@@ -472,135 +380,113 @@ func _apply_theme():
 
 func initialize():
 	add_export_log("Pixelize3D FBX iniciado")
-	add_export_log("Escaneando carpetas en res://assets/fbx/...")
+	add_export_log("Selecciona una carpeta para comenzar")
 
-# FUNCIÓN: Mostrar lista de carpetas
-func display_folder_list(folders: Array):
-	"""Muestra la lista de carpetas disponibles"""
-	folder_list.clear()
-	
-	for folder_name in folders:
-		folder_list.add_item(folder_name)
-	
-	add_export_log("Encontradas %d carpetas: %s" % [folders.size(), str(folders)])
+func _on_browse_folder():
+	if folder_dialog:
+		folder_dialog.popup_centered(Vector2(800, 600))
 
-func _on_folder_list_selected(index: int):
-	"""Se llama cuando el usuario selecciona una carpeta"""
-	var folder_name = folder_list.get_item_text(index)
-	current_folder_name = folder_name
-	
-	# Actualizar label de ruta
-	folder_path_label.text = "Carpeta seleccionada: " + folder_name
-	folder_path_label.add_theme_color_override("font_color", Color.GREEN)
-	
-	# Limpiar selecciones anteriores
-	base_fbx_option.clear()
-	base_fbx_option.add_item("-- Cargando archivos FBX... --")
-	base_fbx_option.disabled = true
-	
-	_clear_animation_checkboxes()
-	
-	render_button.disabled = true
-	preview_button.disabled = true
-	
-	# Emitir señal para que main.gd procese la carpeta
-	emit_signal("folder_selected", folder_name)
+func _on_folder_selected(path: String):
+	current_folder_path = path
+	if folder_path_label:
+		folder_path_label.text = path.get_file()
+	emit_signal("folder_selected", path)
 
 func display_fbx_list(fbx_files: Array):
-	"""Muestra la lista de archivos FBX en la carpeta seleccionada"""
 	available_fbx_files = fbx_files
 	
 	# Llenar lista de FBX base
-	base_fbx_option.clear()
-	base_fbx_option.add_item("-- Seleccionar modelo base --")
-	
-	for file in fbx_files:
-		base_fbx_option.add_item(file)
-	
-	base_fbx_option.disabled = false
-	
-	# Crear checkboxes para animaciones
-	_create_animation_checkboxes(fbx_files)
-	
-	add_export_log("Archivos FBX cargados: %d" % fbx_files.size())
-
-func _create_animation_checkboxes(fbx_files: Array):
-	"""Crea checkboxes para cada archivo FBX"""
-	_clear_animation_checkboxes()
-	
-	for file in fbx_files:
-		var checkbox = CheckBox.new()
-		checkbox.text = file
-		checkbox.toggled.connect(_on_animation_checkbox_toggled)
+	if base_fbx_option:
+		base_fbx_option.clear()
+		base_fbx_option.add_item("-- Seleccionar modelo base --")
 		
-		animations_container.add_child(checkbox)
-		animations_checkboxes.append(checkbox)
-
-func _clear_animation_checkboxes():
-	"""Limpia todos los checkboxes de animaciones"""
-	for checkbox in animations_checkboxes:
-		if is_instance_valid(checkbox):
-			checkbox.queue_free()
+		for file in fbx_files:
+			base_fbx_option.add_item(file)
+		
+		base_fbx_option.disabled = false
 	
-	animations_checkboxes.clear()
+	# Llenar lista de animaciones
+	if animations_list:
+		animations_list.clear()
+		for file in fbx_files:
+			animations_list.add_item(file)
 	
-	for child in animations_container.get_children():
-		child.queue_free()
-
-func _on_animation_checkbox_toggled(_pressed: bool):
-	"""Se llama cuando se cambia el estado de un checkbox"""
-	_update_selected_animations()
-
-func _update_selected_animations():
-	"""Actualiza la lista de animaciones seleccionadas"""
-	selected_animations.clear()
-	
-	for checkbox in animations_checkboxes:
-		if is_instance_valid(checkbox) and checkbox.button_pressed:
-			selected_animations.append(checkbox.text)
-	
-	# Actualizar contador
-	var count_label = animations_container.get_parent().get_parent().get_node_or_null("AnimCountLabel")
-	if count_label:
-		count_label.text = "%d animaciones seleccionadas" % selected_animations.size()
-		if selected_animations.size() > 0:
-			count_label.add_theme_color_override("font_color", Color.GREEN)
-		else:
-			count_label.add_theme_color_override("font_color", Color.GRAY)
-	
-	render_button.disabled = selected_animations.is_empty()
-	
-	if not selected_animations.is_empty():
-		emit_signal("animations_selected", selected_animations)
-		add_export_log("Animaciones: %s" % str(selected_animations))
-
-func _on_select_all_animations():
-	"""Selecciona todas las animaciones"""
-	for checkbox in animations_checkboxes:
-		if is_instance_valid(checkbox):
-			checkbox.button_pressed = true
-	
-	_update_selected_animations()
-
-func _on_deselect_all_animations():
-	"""Deselecciona todas las animaciones"""
-	for checkbox in animations_checkboxes:
-		if is_instance_valid(checkbox):
-			checkbox.button_pressed = false
-	
-	_update_selected_animations()
+	add_export_log("Encontrados %d archivos FBX" % fbx_files.size())
 
 func _on_base_fbx_selected(index: int):
 	if index > 0:
 		var filename = base_fbx_option.get_item_text(index)
 		emit_signal("base_fbx_selected", filename)
-		add_export_log("Modelo base: " + filename)
+		add_export_log("Modelo base seleccionado: " + filename)
 
 func enable_animation_selection():
-	"""Se llama cuando el modelo base se carga exitosamente"""
-	# Los checkboxes ya están habilitados desde _create_animation_checkboxes
-	preview_button.disabled = false
-	add_export_log("✓ Modelo base cargado. Selecciona animaciones.")
+	if animations_list:
+		# ❌ INCORRECTO: ItemList no tiene propiedad 'disabled'
+		# animations_list.disabled = false
+
+		# ✅ CORRECTO: Para habilitar ItemList restauramos las propiedades
+		animations_list.mouse_filter = Control.MOUSE_FILTER_PASS    # Permite input del mouse
+		animations_list.focus_mode = Control.FOCUS_ALL              # Puede recibir foco
+		animations_list.modulate = Color(1.0, 1.0, 1.0, 1.0)       # Apariencia visual normal
+	if preview_button:
+		preview_button.disabled = false
+	add_export_log("Modelo base cargado correctamente")
+
+func _on_animation_selected(index: int, selected: bool):
+	selected_animations.clear()
+	
+	if animations_list:
+		for i in range(animations_list.get_item_count()):
+			if animations_list.is_selected(i):
+				selected_animations.append(animations_list.get_item_text(i))
+	
+	if render_button:
+		render_button.disabled = selected_animations.is_empty()
+	
+	if not selected_animations.is_empty():
+		emit_signal("animations_selected", selected_animations)
+
+# NUEVA FUNCIÓN para habilitar modo preview
+func enable_preview_mode():
+	print("🎬 UI Preview Mode Activado")
+	preview_mode_active = true
+	
+	# Actualizar status del preview usando búsqueda más robusta
+	var status_label = _find_node_by_name(self, "PreviewStatus")
+	if status_label:
+		status_label.text = "✅ Preview Activo - Modelo cargado"
+		status_label.add_theme_color_override("font_color", Color(0.2, 0.8, 0.2))
+	
+	# Mostrar controles de ayuda
+	var controls_help = _find_node_by_name(self, "ControlsHelp")
+	if controls_help:
+		controls_help.visible = true
+	
+	# Habilitar controles de preview si existen
+	if preview_button:
+		preview_button.disabled = false
+		preview_button.text = "Preview Activo ✓"
+		preview_button.add_theme_color_override("font_color", Color(0.2, 0.8, 0.2))
+	
+	# Habilitar renderizado
+	if render_button:
+		render_button.disabled = false
+	
+	# Mostrar mensaje en el log
+	add_export_log("[color=green]✅ Preview activado - Modelo visible en viewport[/color]")
+	add_export_log("Controles: Click + Arrastrar para rotar vista")
+
+# Función auxiliar para buscar nodos por nombre recursivamente
+func _find_node_by_name(parent: Node, node_name: String) -> Node:
+	if parent.name == node_name:
+		return parent
+	
+	for child in parent.get_children():
+		var result = _find_node_by_name(child, node_name)
+		if result:
+			return result
+	
+	return null
 
 func _on_camera_setting_changed(_value = null):
 	var settings = {
@@ -615,18 +501,16 @@ func _on_camera_setting_changed(_value = null):
 	emit_signal("render_settings_changed", settings)
 
 func _on_preview_pressed():
-	add_export_log("Preview activado")
+	if preview_mode_active:
+		add_export_log("Preview ya está activo")
+	else:
+		add_export_log("Esperando que se carguen los modelos para activar preview...")
 
 func _on_render_pressed():
-	add_export_log("=== INICIANDO RENDERIZADO ===")
 	emit_signal("render_requested")
 
-func _on_cancel_rendering():
-	add_export_log("Renderizado cancelado por el usuario")
-	hide_progress_dialog()
-
 func show_loading_message(message: String):
-	add_export_log(message)
+	add_export_log("[color=yellow]⏳ %s[/color]" % message)
 
 func hide_loading_message():
 	pass
@@ -638,37 +522,23 @@ func show_progress_dialog():
 func update_progress(progress: float):
 	if progress_dialog:
 		var progress_bar = progress_dialog.get_node_or_null("VBoxContainer/ProgressBar")
-		var progress_label = progress_dialog.get_node_or_null("VBoxContainer/ProgressLabel")
-		
 		if progress_bar:
 			progress_bar.value = progress * 100.0
-		
-		if progress_label:
-			progress_label.text = "Renderizando... %.1f%%" % (progress * 100.0)
-
-func hide_progress_dialog():
-	if progress_dialog:
-		progress_dialog.hide()
 
 func show_error(error: String):
-	add_export_log("[color=red]✗ Error: " + error + "[/color]")
+	add_export_log("[color=red]❌ Error: %s[/color]" % error)
 	
 	var error_dialog = AcceptDialog.new()
 	error_dialog.title = "Error"
 	error_dialog.dialog_text = error
 	add_child(error_dialog)
 	error_dialog.popup_centered()
-	error_dialog.confirmed.connect(error_dialog.queue_free)
+	error_dialog.visibility_changed.connect(error_dialog.queue_free)
 
 func add_export_log(message: String):
 	var timestamp = Time.get_time_string_from_system()
 	if export_log:
 		export_log.append_text("[%s] %s\n" % [timestamp, message])
 
-func _clear_log():
-	if export_log:
-		export_log.clear()
-		add_export_log("Log limpiado")
-
 func is_preview_active() -> bool:
-	return preview_button.button_pressed if preview_button else false
+	return preview_mode_active

@@ -1,7 +1,7 @@
 # scripts/main.gd
 extends Node
 
-# Input: Subcarpetas en res://assets/fbx/ con archivos FBX
+# Input: Carpeta seleccionada por el usuario con archivos FBX
 # Output: Controla el flujo principal de la aplicación
 
 signal fbx_loaded(base_model)
@@ -16,12 +16,11 @@ signal export_complete(output_path)
 @onready var export_manager = $ExportManager
 
 var current_project_data = {
-	"selected_folder": "",
 	"folder_path": "",
 	"base_fbx": "",
 	"selected_animations": [],
 	"render_settings": {
-		"directions": 16,
+		"directions": 16, # 16 o 32
 		"sprite_size": 256,
 		"camera_angle": 45.0,
 		"camera_height": 10.0,
@@ -33,8 +32,6 @@ var current_project_data = {
 	"loaded_animations": {}
 }
 
-const FBX_ASSETS_PATH = "res://assets/fbx"
-
 func _ready():
 	# Configurar la aplicación para modo standalone
 	get_window().title = "Pixelize3D FBX - Sprite Generator"
@@ -43,9 +40,8 @@ func _ready():
 	# Conectar señales
 	_connect_signals()
 	
-	# Inicializar UI y escanear carpetas
+	# Inicializar UI
 	ui_controller.initialize()
-	_scan_fbx_folders()
 
 func _connect_signals():
 	# Señales de UI
@@ -67,95 +63,31 @@ func _connect_signals():
 	export_manager.export_complete.connect(_on_export_complete)
 	export_manager.export_failed.connect(_on_export_failed)
 
-func _scan_fbx_folders():
-	"""Escanea las subcarpetas en res://assets/fbx/ y las muestra en la UI"""
-	print("Escaneando carpetas en: " + FBX_ASSETS_PATH)
+func _on_folder_selected(path: String):
+	current_project_data.folder_path = path
 	
-	# Verificar que la carpeta base existe
-	if not DirAccess.dir_exists_absolute(FBX_ASSETS_PATH):
-		ui_controller.show_error("La carpeta res://assets/fbx/ no existe")
-		return
-	
-	var folders = _get_subdirectories(FBX_ASSETS_PATH)
-	
-	if folders.is_empty():
-		ui_controller.add_export_log("No se encontraron subcarpetas en res://assets/fbx/")
-		ui_controller.show_error("No hay subcarpetas en res://assets/fbx/\nImporta tus archivos FBX en subcarpetas.")
-		return
-	
-	print("Encontradas %d carpetas: %s" % [folders.size(), str(folders)])
-	ui_controller.display_folder_list(folders)
+	# Escanear archivos FBX en la carpeta
+	var fbx_files = _scan_for_fbx_files(path)
+	ui_controller.display_fbx_list(fbx_files)
 
-func _get_subdirectories(path: String) -> Array:
-	"""Obtiene lista de subcarpetas en la ruta especificada"""
-	var folders = []
-	var dir = DirAccess.open(path)
-	
-	if not dir:
-		push_error("No se pudo abrir directorio: " + path)
-		return folders
-	
-	dir.list_dir_begin()
-	var item_name = dir.get_next()
-	
-	while item_name != "":
-		if dir.current_is_dir() and not item_name.begins_with("."):
-			# Verificar que la carpeta tiene archivos FBX
-			var folder_path = path.path_join(item_name)
-			var fbx_files = _scan_fbx_files_in_folder(folder_path)
-			
-			if fbx_files.size() > 0:
-				folders.append(item_name)
-				print("Carpeta válida encontrada: %s (%d archivos FBX)" % [item_name, fbx_files.size()])
-			else:
-				print("Carpeta sin FBX ignorada: %s" % item_name)
-		
-		item_name = dir.get_next()
-	
-	dir.list_dir_end()
-	return folders
-
-func _scan_fbx_files_in_folder(folder_path: String) -> Array:
-	"""Escanea archivos FBX en una carpeta específica"""
+func _scan_for_fbx_files(folder_path: String) -> Array:
 	var files = []
 	var dir = DirAccess.open(folder_path)
 	
-	if not dir:
-		return files
-	
-	dir.list_dir_begin()
-	var file_name = dir.get_next()
-	
-	while file_name != "":
-		if not dir.current_is_dir():
+	if dir:
+		dir.list_dir_begin()
+		var file_name = dir.get_next()
+		
+		while file_name != "":
 			if file_name.ends_with(".fbx") or file_name.ends_with(".FBX"):
 				files.append(file_name)
-		file_name = dir.get_next()
+			file_name = dir.get_next()
+		
+		dir.list_dir_end()
 	
-	dir.list_dir_end()
 	return files
 
-func _on_folder_selected(folder_name: String):
-	"""Se llama cuando el usuario selecciona una carpeta"""
-	current_project_data.selected_folder = folder_name
-	current_project_data.folder_path = FBX_ASSETS_PATH.path_join(folder_name)
-	
-	print("Carpeta seleccionada: %s" % folder_name)
-	print("Ruta completa: %s" % current_project_data.folder_path)
-	
-	# Escanear archivos FBX en la carpeta seleccionada
-	var fbx_files = _scan_fbx_files_in_folder(current_project_data.folder_path)
-	
-	if fbx_files.is_empty():
-		ui_controller.show_error("No se encontraron archivos FBX en la carpeta: " + folder_name)
-		return
-	
-	print("Archivos FBX encontrados: %s" % str(fbx_files))
-	ui_controller.display_fbx_list(fbx_files)
-	ui_controller.add_export_log("Carpeta '%s' seleccionada (%d archivos FBX)" % [folder_name, fbx_files.size()])
-
 func _on_base_fbx_selected(filename: String):
-	"""Se llama cuando el usuario selecciona el archivo base"""
 	current_project_data.base_fbx = filename
 	var full_path = current_project_data.folder_path.path_join(filename)
 	
@@ -174,13 +106,27 @@ func _on_model_loaded(model_data: Dictionary):
 		ui_controller.enable_animation_selection()
 		
 		print("Modelo base cargado exitosamente:")
-		print("- Skeleton: %s" % model_data.skeleton.name)
-		print("- Huesos: %d" % model_data.bone_count)
-		print("- Meshes: %d" % model_data.meshes.size())
+		print("- Skeleton: %s" % (model_data.skeleton.name if model_data.skeleton else "NULL"))
+		
+		# Verificar si existe antes de acceder
+		var bone_count = model_data.get("bone_count", 0)
+		print("- Huesos: %d" % bone_count)
+		
+		var mesh_count = model_data.get("meshes", []).size()
+		print("- Meshes: %d" % mesh_count)
+		
+		# Mostrar información de meshes
+		for mesh_data in model_data.get("meshes", []):
+			print("Mesh encontrado: %s" % mesh_data.name)
 		
 		# Extraer lista de meshes del modelo base
 		var mesh_list = _extract_mesh_list(model_data.node)
 		animation_manager.set_base_meshes(mesh_list)
+		
+		# Advertir si no hay huesos
+		if bone_count == 0:
+			print("⚠️  ADVERTENCIA: El skeleton no tiene huesos!")
+			ui_controller.show_error("El modelo base no tiene estructura de huesos válida. Verifica la importación del FBX.")
 		
 	elif model_data.type == "animation":
 		current_project_data.loaded_animations[model_data.name] = model_data
@@ -190,6 +136,9 @@ func _on_model_loaded(model_data: Dictionary):
 		print("- Animaciones disponibles: %d" % model_data.animations.size())
 		for anim in model_data.animations:
 			print("  * %s (%.2fs)" % [anim.name, anim.length])
+		
+		# Verificar si todo está listo para preview
+		_check_and_activate_preview()
 
 func _extract_mesh_list(node: Node3D) -> Array:
 	var meshes = []
@@ -205,7 +154,6 @@ func _extract_mesh_list(node: Node3D) -> Array:
 					"material": child.get_surface_override_material(0),
 					"name": child.name
 				})
-				print("Mesh encontrado: %s" % child.name)
 	
 	return meshes
 
@@ -221,19 +169,63 @@ func _find_skeleton(node: Node) -> Skeleton3D:
 	return null
 
 func _on_animations_selected(animation_files: Array):
-	"""Se llama cuando el usuario selecciona animaciones"""
 	current_project_data.selected_animations = animation_files
 	
 	print("Animaciones seleccionadas: %s" % str(animation_files))
-	
-	# Limpiar animaciones cargadas anteriormente
-	current_project_data.loaded_animations.clear()
 	
 	# Cargar cada animación seleccionada
 	for anim_file in animation_files:
 		var full_path = current_project_data.folder_path.path_join(anim_file)
 		print("Cargando animación: %s" % full_path)
-		fbx_loader.load_animation_fbx(full_path, anim_file.get_basename())
+		fbx_loader.load_animation_fbx(full_path, anim_file)
+
+# NUEVA función para verificar y activar preview
+func _check_and_activate_preview():
+	print("--- VERIFICANDO ESTADO PARA PREVIEW ---")
+	print("Base cargado: %s" % (current_project_data.loaded_base != null))
+	print("Animaciones cargadas: %d" % current_project_data.loaded_animations.size())
+	print("Animaciones seleccionadas: %d" % current_project_data.selected_animations.size())
+	
+	# Verificar que tenemos todo lo necesario
+	if (current_project_data.loaded_base != null and 
+		current_project_data.loaded_animations.size() > 0 and
+		not current_project_data.selected_animations.is_empty()):
+		
+		print("✅ Todo listo - Activando preview...")
+		_activate_preview_mode()
+	else:
+		print("⏳ Esperando más datos para activar preview...")
+
+func _activate_preview_mode():
+	print("🎬 ACTIVANDO PREVIEW MODE")
+	
+	# Obtener primera animación cargada
+	var first_anim_name = current_project_data.loaded_animations.keys()[0]
+	var first_anim_data = current_project_data.loaded_animations[first_anim_name]
+	
+	print("Combinando para preview: %s" % first_anim_name)
+	
+	# Debug de datos antes de combinar
+	animation_manager.debug_combination(current_project_data.loaded_base, first_anim_data)
+	
+	var combined_model = animation_manager.combine_base_with_animation(
+		current_project_data.loaded_base,
+		first_anim_data
+	)
+	
+	if combined_model:
+		print("✅ Modelo combinado exitosamente - Configurando preview")
+		
+		# Configurar preview en sprite renderer
+		sprite_renderer.setup_preview(combined_model)
+		
+		# Notificar a UI que el preview está listo
+		ui_controller.enable_preview_mode()
+		
+		print("🎬 Preview activado completamente!")
+	else:
+		print("❌ Error al combinar modelo para preview")
+		ui_controller.show_error("No se pudo combinar el modelo para preview. Revisa la consola para detalles.")
 
 func _on_render_settings_changed(settings: Dictionary):
 	current_project_data.render_settings.merge(settings, true)
@@ -247,46 +239,26 @@ func _on_render_requested():
 		ui_controller.show_error("Datos del proyecto incompletos")
 		return
 	
-	print("=== INICIANDO RENDERIZADO ===")
-	print("Carpeta: %s" % current_project_data.selected_folder)
-	print("Base: %s" % current_project_data.base_fbx)
-	print("Animaciones: %s" % str(current_project_data.selected_animations))
-	print("Configuración: %s" % str(current_project_data.render_settings))
-	
 	# Iniciar proceso de renderizado
 	ui_controller.show_progress_dialog()
 	_start_rendering_process()
 
 func _validate_project_data() -> bool:
-	var valid = (
+	return (
 		current_project_data.loaded_base != null and
 		current_project_data.selected_animations.size() > 0 and
-		current_project_data.loaded_animations.size() == current_project_data.selected_animations.size()
+		current_project_data.loaded_animations.size() > 0
 	)
-	
-	if not valid:
-		print("Validación fallida:")
-		print("- Base loaded: %s" % (current_project_data.loaded_base != null))
-		print("- Animations selected: %d" % current_project_data.selected_animations.size())
-		print("- Animations loaded: %d" % current_project_data.loaded_animations.size())
-	
-	return valid
 
 func _start_rendering_process():
 	var total_tasks = current_project_data.selected_animations.size() * current_project_data.render_settings.directions
 	var current_task = 0
 	
-	print("Total de tasks a renderizar: %d" % total_tasks)
-	
 	sprite_renderer.initialize(current_project_data.render_settings)
 	
 	for anim_name in current_project_data.selected_animations:
-		var anim_file_base = anim_name.get_basename()
-		
-		if anim_file_base in current_project_data.loaded_animations:
-			var anim_data = current_project_data.loaded_animations[anim_file_base]
-			
-			print("Procesando animación: %s" % anim_file_base)
+		if anim_name in current_project_data.loaded_animations:
+			var anim_data = current_project_data.loaded_animations[anim_name]
 			
 			# Combinar modelo base con animación
 			var combined_model = animation_manager.combine_base_with_animation(
@@ -294,42 +266,32 @@ func _start_rendering_process():
 				anim_data
 			)
 			
-			if not combined_model:
-				ui_controller.show_error("Error al combinar modelo base con animación: " + anim_file_base)
-				continue
-			
 			# Renderizar en todas las direcciones
 			for direction in range(current_project_data.render_settings.directions):
 				var angle = (360.0 / current_project_data.render_settings.directions) * direction
 				
-				print("Renderizando dirección %d/%d (ángulo %.1f°)" % [direction + 1, current_project_data.render_settings.directions, angle])
-				
 				sprite_renderer.render_animation(
 					combined_model,
-					anim_file_base,
+					anim_name,
 					angle,
 					direction
 				)
 				
 				current_task += 1
 				ui_controller.update_progress(float(current_task) / float(total_tasks))
-		else:
-			print("WARNING: Animación no cargada: %s" % anim_file_base)
 
 func _on_frame_rendered(frame_data: Dictionary):
 	# Acumular frames para el spritesheet
 	export_manager.add_frame(frame_data)
 
 func _on_animation_complete(animation_name: String):
-	print("Animación completada: %s" % animation_name)
-	
 	# Exportar spritesheet de esta animación
 	var output_path = current_project_data.folder_path.path_join("exports")
 	export_manager.export_spritesheet(animation_name, output_path)
 
 func _on_export_complete(file_path: String):
 	emit_signal("export_complete", file_path)
-	ui_controller.add_export_log("Exportado: " + file_path.get_file())
+	ui_controller.add_export_log("Exportado: " + file_path)
 
 func _on_export_failed(error: String):
 	ui_controller.show_error("Error en exportación: " + error)

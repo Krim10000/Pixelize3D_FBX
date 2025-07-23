@@ -306,21 +306,83 @@ func _find_imported_scene_path(fbx_path: String) -> String:
 		dir.list_dir_end()
 	
 	return ""
+#
+#func _analyze_fbx_structure(root: Node3D, type: String, anim_name: String = "") -> Dictionary:
+	#var data = {
+		#"type": type,
+		#"name": anim_name if anim_name != "" else String(root.name),  # Convertir a String
+		#"node": root,
+		#"skeleton": null,
+		#"bone_map": null,  # ← NUEVO
+		#"meshes": [],
+		#"animation_player": null,
+		#"animations": []
+	#}
+	#
+	#
+	#
+	## Buscar Node3D raíz
+	#if not root is Node3D:
+		#push_error("El nodo raíz no es Node3D: " + str(root.get_class()))
+		#return {}
+	#
+	## Buscar Skeleton3D
+	#data.skeleton = _find_node_of_type(root, "Skeleton3D")
+	#
+	#if data.skeleton:
+		## ← CREAR BONE MAP
+		#data.bone_map = _create_bone_map_for_skeleton(data.skeleton)
+		#
+		## Aplicar el bone map al skeleton
+		#_apply_bone_map_to_skeleton(data.skeleton, data.bone_map)
+	#
+	#return data
+	#
+	#if not data.skeleton:
+		#push_error("No se encontró Skeleton3D en el FBX")
+		#return {}
+	#
+	## Buscar AnimationPlayer
+	#data.animation_player = _find_node_of_type(root, "AnimationPlayer")
+	#
+	## Para modelo base: buscar MeshInstance3D dentro del Skeleton3D
+	#if type == "base":
+		#data.meshes = _extract_meshes_from_skeleton(data.skeleton)
+		#if data.meshes.is_empty():
+			#print("Advertencia: No se encontraron meshes en el modelo base")
+			## No retornar error aquí, puede ser que los meshes estén en otro lugar
+	#
+	## Para animaciones: extraer lista de animaciones
+	#if type == "animation" and data.animation_player:
+		#data.animations = _extract_animation_list(data.animation_player)
+		#if data.animations.is_empty():
+			#print("Advertencia: No se encontraron animaciones en el archivo")
+	#
+	## Extraer información adicional
+	#data["bounds"] = _calculate_model_bounds(data)
+	#data["bone_count"] = data.skeleton.get_bone_count() if data.skeleton else 0
+	#
+	#return data
+
+# scripts/core/fbx_loader.gd - Función corregida
 
 func _analyze_fbx_structure(root: Node3D, type: String, anim_name: String = "") -> Dictionary:
 	var data = {
 		"type": type,
-		"name": anim_name if anim_name != "" else String(root.name),  # Convertir a String
+		"name": anim_name if anim_name != "" else root.name,
 		"node": root,
 		"skeleton": null,
 		"meshes": [],
 		"animation_player": null,
-		"animations": []
+		"animations": [],
+		"bone_count": 0,  # ← INICIALIZAR EXPLÍCITAMENTE
+		"bounds": AABB(),
+		"bone_names": []   # ← AGREGAR PARA DEBUG
 	}
 	
 	# Buscar Node3D raíz
 	if not root is Node3D:
-		push_error("El nodo raíz no es Node3D: " + str(root.get_class()))
+		push_error("El nodo raíz no es Node3D")
 		return {}
 	
 	# Buscar Skeleton3D
@@ -329,27 +391,54 @@ func _analyze_fbx_structure(root: Node3D, type: String, anim_name: String = "") 
 		push_error("No se encontró Skeleton3D en el FBX")
 		return {}
 	
+	# ← OBTENER INFORMACIÓN DE HUESOS
+	data.bone_count = data.skeleton.get_bone_count()
+	
+	# ← DEBUG: Obtener nombres de huesos
+	for i in range(data.bone_count):
+		data.bone_names.append(data.skeleton.get_bone_name(i))
+	
+	print("DEBUG - Skeleton encontrado:")
+	print("  - Nombre: %s" % data.skeleton.name)
+	print("  - Huesos: %d" % data.bone_count)
+	print("  - Nombres: %s" % str(data.bone_names))
+	
 	# Buscar AnimationPlayer
 	data.animation_player = _find_node_of_type(root, "AnimationPlayer")
 	
 	# Para modelo base: buscar MeshInstance3D dentro del Skeleton3D
 	if type == "base":
 		data.meshes = _extract_meshes_from_skeleton(data.skeleton)
+		print("DEBUG - Meshes encontrados: %d" % data.meshes.size())
+		
 		if data.meshes.is_empty():
-			print("Advertencia: No se encontraron meshes en el modelo base")
-			# No retornar error aquí, puede ser que los meshes estén en otro lugar
+			push_warning("No se encontraron meshes en el skeleton, pero continuando...")
 	
 	# Para animaciones: extraer lista de animaciones
 	if type == "animation" and data.animation_player:
 		data.animations = _extract_animation_list(data.animation_player)
 		if data.animations.is_empty():
-			print("Advertencia: No se encontraron animaciones en el archivo")
+			push_error("No se encontraron animaciones en el archivo")
+			return {}
 	
 	# Extraer información adicional
-	data["bounds"] = _calculate_model_bounds(data)
-	data["bone_count"] = data.skeleton.get_bone_count() if data.skeleton else 0
+	data.bounds = _calculate_model_bounds(data)
 	
 	return data
+
+
+
+func _create_bone_map_for_skeleton(skeleton: Skeleton3D) -> BoneMap:
+	var bone_map_manager = preload("res://scripts/core/bone_map_manager.gd").new()
+	return bone_map_manager.create_bone_map_for_model(skeleton)
+
+func _apply_bone_map_to_skeleton(skeleton: Skeleton3D, bone_map: BoneMap):
+	# Aplicar el bone map al skeleton para retargeting
+	if skeleton and bone_map:
+		# Esto normalmente se hace en import settings, 
+		# pero podemos aplicarlo programáticamente
+		pass
+
 
 func _find_node_of_type(node: Node, type_name: String) -> Node:
 	# Buscar recursivamente un nodo del tipo especificado
