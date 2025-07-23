@@ -32,6 +32,15 @@ window/size/viewport_width=1280
 
 project/assembly_name="Pixelize3D_FBX"
 
+[file_customization]
+
+folder_colors={
+"res://assets/": "green",
+"res://scenes/": "purple",
+"res://scripts/": "yellow",
+"res://scripts/core/": "yellow"
+}
+
 [input]
 
 camera_left={

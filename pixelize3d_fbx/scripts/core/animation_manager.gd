@@ -73,10 +73,99 @@ func combine_base_with_animation(base_data: Dictionary, animation_data: Dictiona
 	emit_signal("combination_complete", combined_root)
 	return combined_root
 
+#func _duplicate_skeleton(original_skeleton: Skeleton3D) -> Skeleton3D:
+	#print("--- DUPLICANDO SKELETON ---")
+	#var new_skeleton = Skeleton3D.new()
+	#new_skeleton.name = original_skeleton.name + "_combined"
+	#
+	#print("Filtrando meshes del skeleton:")
+	#var valid_bones = 0
+	#for i in range(original_skeleton.get_bone_count()):
+		#var bone_name = original_skeleton.get_bone_name(i)
+		#if !_is_mesh_node(bone_name):
+			#valid_bones += 1
+	#print("Huesos válidos: %d/%d" % [valid_bones, original_skeleton.get_bone_count()])
+	#
+	## Copiar la estructura de huesos
+	#for i in range(original_skeleton.get_bone_count()):
+		#var bone_name = original_skeleton.get_bone_name(i)
+		#var bone_parent = original_skeleton.get_bone_parent(i)
+		#var bone_rest = original_skeleton.get_bone_rest(i)
+		#
+		## Filtrar meshes que no son huesos reales
+		#if _is_mesh_node(bone_name):
+			#print("  Omitiendo mesh: %s" % bone_name)
+			#continue
+		#
+		#new_skeleton.add_bone(bone_name)
+		#var new_bone_index = new_skeleton.get_bone_count() - 1
+		#
+		## Ajustar índice del padre si es necesario
+		#if bone_parent >= 0:
+			#var adjusted_parent = _find_adjusted_parent_index(original_skeleton, new_skeleton, bone_parent)
+			#if adjusted_parent >= 0:
+				#new_skeleton.set_bone_parent(new_bone_index, adjusted_parent)
+		#
+		#new_skeleton.set_bone_rest(new_bone_index, bone_rest)
+		#
+		## Copiar la pose actual
+		#var bone_pose = original_skeleton.get_bone_pose(i)
+		#new_skeleton.set_bone_pose_position(new_bone_index, bone_pose.origin)
+		#new_skeleton.set_bone_pose_rotation(new_bone_index, bone_pose.basis.get_rotation_quaternion())
+		#new_skeleton.set_bone_pose_scale(new_bone_index, bone_pose.basis.get_scale())
+		#
+		#print("  Hueso copiado: %s (índice %d)" % [bone_name, new_bone_index])
+	#
+	#print("Skeleton duplicado: %d huesos reales" % new_skeleton.get_bone_count())
+	#return new_skeleton
+#
+##func _is_mesh_node(bone_name: String) -> bool:
+	### CORRECCIÓN: Lógica específica para detectar meshes vs huesos reales
+	### Input: Nombre de un elemento del skeleton (String)
+	### Output: true si es un mesh que debe filtrarse, false si es un hueso real
+	##
+	### REGLA 1: Si tiene prefijo de hueso conocido, ES un hueso real (mantener)
+	##var known_bone_prefixes = ["mixamorig_", "mixamorig:", "Armature_", "RIG_", "rig_"]
+	##for prefix in known_bone_prefixes:
+		##if bone_name.begins_with(prefix):
+			##return false  # Es un hueso real, no filtrar
+	##
+	### REGLA 2: Si NO tiene prefijo de hueso Y contiene indicadores de mesh, ES un mesh (filtrar)
+	##var mesh_indicators = ["Body", "Pants", "Shirt", "Hair", "Mesh", "Geo", "Clothing"]
+	##for indicator in mesh_indicators:
+		##if indicator in bone_name:
+			##print("  DEBUG: Detectado como mesh por indicador '%s': %s" % [indicator, bone_name])
+			##return true  # Es un mesh, filtrar
+	##
+	### REGLA 3: Patrones específicos que indican meshes (sin prefijo de hueso)
+	##if bone_name.ends_with("_mesh") or bone_name.ends_with("_Mesh"):
+		##print("  DEBUG: Detectado como mesh por sufijo: %s" % bone_name)
+		##return true
+	##
+	### REGLA 4: Si empieza con mayúscula y no tiene prefijo de hueso, probablemente es mesh
+	##if bone_name[0].to_upper() == bone_name[0] and not "_" in bone_name:
+		##print("  DEBUG: Detectado como posible mesh (sin prefijo, mayúscula): %s" % bone_name)
+		##return true
+	##
+	### REGLA 5: En caso de duda, mantener (más seguro para no romper rigs)
+	##print("  DEBUG: Manteniendo elemento ambiguo como hueso: %s" % bone_name)
+	##return false
+
 func _duplicate_skeleton(original_skeleton: Skeleton3D) -> Skeleton3D:
 	print("--- DUPLICANDO SKELETON ---")
 	var new_skeleton = Skeleton3D.new()
 	new_skeleton.name = original_skeleton.name + "_combined"
+	
+	# Lista de huesos críticos que NUNCA deben ser filtrados
+	var critical_bones = [
+		"mixamorig_HeadTop_End", 
+		"mixamorig_Hips", 
+		"mixamorig_Spine",
+		"mixamorig_Spine1",
+		"mixamorig_Spine2",
+		"mixamorig_Neck",
+		"mixamorig_Head"
+	]
 	
 	# Copiar la estructura de huesos
 	for i in range(original_skeleton.get_bone_count()):
@@ -84,17 +173,30 @@ func _duplicate_skeleton(original_skeleton: Skeleton3D) -> Skeleton3D:
 		var bone_parent = original_skeleton.get_bone_parent(i)
 		var bone_rest = original_skeleton.get_bone_rest(i)
 		
-		# Filtrar meshes que no son huesos reales
-		if _is_mesh_node(bone_name):
-			print("  Omitiendo mesh: %s" % bone_name)
-			continue
+		# Verificar si es un hueso crítico (no filtrar)
+		if bone_name in critical_bones:
+			print("  ✅ Hueso crítico preservado: %s" % bone_name)
+		else:
+			# Filtrar meshes que no son huesos reales
+			if _is_mesh_node(bone_name):
+				print("  Omitiendo mesh: %s" % bone_name)
+				continue
 		
 		new_skeleton.add_bone(bone_name)
 		var new_bone_index = new_skeleton.get_bone_count() - 1
 		
 		# Ajustar índice del padre si es necesario
 		if bone_parent >= 0:
-			var adjusted_parent = _find_adjusted_parent_index(original_skeleton, new_skeleton, bone_parent)
+			# Buscar el primer ancestro que exista en el nuevo skeleton
+			var current_parent_idx = bone_parent
+			var adjusted_parent = -1
+			while current_parent_idx >= 0:
+				var parent_name = original_skeleton.get_bone_name(current_parent_idx)
+				adjusted_parent = new_skeleton.find_bone(parent_name)
+				if adjusted_parent >= 0:
+					break
+				current_parent_idx = original_skeleton.get_bone_parent(current_parent_idx)
+			
 			if adjusted_parent >= 0:
 				new_skeleton.set_bone_parent(new_bone_index, adjusted_parent)
 		
@@ -109,39 +211,55 @@ func _duplicate_skeleton(original_skeleton: Skeleton3D) -> Skeleton3D:
 		print("  Hueso copiado: %s (índice %d)" % [bone_name, new_bone_index])
 	
 	print("Skeleton duplicado: %d huesos reales" % new_skeleton.get_bone_count())
+	
+	# Verificar integridad del esqueleto
+	var critical_missing = []
+	for bone in critical_bones:
+		if new_skeleton.find_bone(bone) == -1:
+			critical_missing.append(bone)
+	
+	if critical_missing.size() > 0:
+		printerr("❌ ERROR: Huesos críticos faltantes: ", critical_missing)
+		new_skeleton.queue_free()
+		return null
+	
 	return new_skeleton
 
+# Reemplaza la función _is_mesh_node con esta versión mejorada
+
 func _is_mesh_node(bone_name: String) -> bool:
-	# CORRECCIÓN: Lógica específica para detectar meshes vs huesos reales
-	# Input: Nombre de un elemento del skeleton (String)
-	# Output: true si es un mesh que debe filtrarse, false si es un hueso real
+	# REGLA 0: Excepciones para huesos Mixamo críticos
+	var critical_bones = ["mixamorig_HeadTop_End", "mixamorig_Hips", "mixamorig_Spine"]
+	if bone_name in critical_bones:
+		return false  # Nunca filtrar estos huesos
 	
-	# REGLA 1: Si tiene prefijo de hueso conocido, ES un hueso real (mantener)
-	var known_bone_prefixes = ["mixamorig_", "mixamorig:", "Armature_", "RIG_", "rig_"]
+	# REGLA 1: Prefijos de hueso conocidos
+	var known_bone_prefixes = ["mixamorig_", "Bone_", "bone_", "Bip_", "bip_"]
 	for prefix in known_bone_prefixes:
 		if bone_name.begins_with(prefix):
-			return false  # Es un hueso real, no filtrar
+			return false  # Es un hueso real
 	
-	# REGLA 2: Si NO tiene prefijo de hueso Y contiene indicadores de mesh, ES un mesh (filtrar)
-	var mesh_indicators = ["Body", "Pants", "Shirt", "Hair", "Mesh", "Geo", "Clothing"]
-	for indicator in mesh_indicators:
-		if indicator in bone_name:
-			print("  DEBUG: Detectado como mesh por indicador '%s': %s" % [indicator, bone_name])
-			return true  # Es un mesh, filtrar
+	# REGLA 2: Palabras clave de mesh
+	var mesh_keywords = ["Body", "Top", "Pants", "Shirt", "Hair", "Mesh", "Geo", "Clothing"]
+	for keyword in mesh_keywords:
+		if keyword in bone_name:
+			# Excluir si está en un prefijo de hueso conocido
+			var is_exception = false
+			for prefix in known_bone_prefixes:
+				if bone_name.begins_with(prefix):
+					is_exception = true
+					break
+					
+			if !is_exception:
+				return true
 	
-	# REGLA 3: Patrones específicos que indican meshes (sin prefijo de hueso)
-	if bone_name.ends_with("_mesh") or bone_name.ends_with("_Mesh"):
-		print("  DEBUG: Detectado como mesh por sufijo: %s" % bone_name)
+	# REGLA 3: Formato de nombre de objeto
+	if bone_name[0].to_upper() == bone_name[0] && bone_name.find("_") == -1:
 		return true
 	
-	# REGLA 4: Si empieza con mayúscula y no tiene prefijo de hueso, probablemente es mesh
-	if bone_name[0].to_upper() == bone_name[0] and not "_" in bone_name:
-		print("  DEBUG: Detectado como posible mesh (sin prefijo, mayúscula): %s" % bone_name)
-		return true
-	
-	# REGLA 5: En caso de duda, mantener (más seguro para no romper rigs)
-	print("  DEBUG: Manteniendo elemento ambiguo como hueso: %s" % bone_name)
 	return false
+
+
 
 func _find_adjusted_parent_index(original_skeleton: Skeleton3D, new_skeleton: Skeleton3D, original_parent_index: int) -> int:
 	# Encontrar el índice ajustado del padre en el nuevo skeleton
@@ -160,11 +278,12 @@ func _find_adjusted_parent_index(original_skeleton: Skeleton3D, new_skeleton: Sk
 
 func _attach_meshes_to_skeleton(meshes: Array, skeleton: Skeleton3D) -> void:
 	print("--- ANEXANDO MESHES ---")
+
 	for mesh_data in meshes:
 		var new_mesh_instance = MeshInstance3D.new()
 		new_mesh_instance.name = mesh_data.name
 		new_mesh_instance.mesh = mesh_data.mesh_resource
-		
+		new_mesh_instance.set_meta("is_attached_mesh", true)
 		# Configurar el skeleton path
 		new_mesh_instance.skeleton = NodePath("..")
 		
@@ -474,9 +593,65 @@ func extract_enhanced_mesh_data(skeleton: Skeleton3D) -> Array:
 # Función para retargetear un skin al skeleton combinado
 # Input: Skin original y skeleton combinado
 # Output: Skin nuevo compatible con el skeleton combinado
+#func _retarget_skin_to_skeleton(original_skin: Skin, target_skeleton: Skeleton3D) -> Skin:
+	#if not original_skin or not target_skeleton:
+		#print("    DEBUG: Parámetros inválidos para retargeting")
+		#return null
+	#
+	#print("    DEBUG: Retargeteando skin...")
+	#print("      Skin original bind count: %d" % original_skin.get_bind_count())
+	#print("      Target skeleton bone count: %d" % target_skeleton.get_bone_count())
+	#
+	#var new_skin = Skin.new()
+	#var successful_binds = 0
+	#var failed_binds = []
+	#
+	## Procesar cada bind del skin original
+	#for i in range(original_skin.get_bind_count()):
+		#var bind_name = original_skin.get_bind_name(i)
+		#var bind_pose = original_skin.get_bind_pose(i)
+		#
+		## Buscar el hueso correspondiente en el skeleton de destino
+		#var bone_index = target_skeleton.find_bone(bind_name)
+		#
+		#if bone_index >= 0:
+			## El hueso existe en el skeleton de destino
+			#new_skin.add_bind(bone_index, bind_pose)
+			#new_skin.set_bind_name(new_skin.get_bind_count() - 1, bind_name)
+			#successful_binds += 1
+			#print("        ✅ Bind mapeado: %s -> índice %d" % [bind_name, bone_index])
+		#else:
+			## El hueso no existe, intentar mapeo alternativo
+			#var mapped_name = _try_alternative_bone_mapping(bind_name, target_skeleton)
+			#if mapped_name != "":
+				#var alt_bone_index = target_skeleton.find_bone(mapped_name)
+				#if alt_bone_index >= 0:
+					#new_skin.add_bind(alt_bone_index, bind_pose)
+					#new_skin.set_bind_name(new_skin.get_bind_count() - 1, mapped_name)
+					#successful_binds += 1
+					#print("        ✅ Bind mapeado (alternativo): %s -> %s (índice %d)" % [bind_name, mapped_name, alt_bone_index])
+				#else:
+					#failed_binds.append(bind_name)
+			#else:
+				#failed_binds.append(bind_name)
+				#print("        ❌ Hueso no encontrado: %s" % bind_name)
+	#
+	#print("      Resultado: %d/%d binds exitosos" % [successful_binds, original_skin.get_bind_count()])
+	#
+	#if failed_binds.size() > 0:
+		#print("      Binds fallidos: %s" % str(failed_binds))
+	#
+	## Solo devolver el skin si tenemos un número razonable de binds exitosos
+	#if successful_binds > 0 and (float(successful_binds) / float(original_skin.get_bind_count())) > 0.5:
+		#print("    ✅ Skin retargeteado exitosamente")
+		#return new_skin
+	#else:
+		#print("    ❌ Muy pocos binds exitosos para un skin funcional")
+		#return null
+
 func _retarget_skin_to_skeleton(original_skin: Skin, target_skeleton: Skeleton3D) -> Skin:
 	if not original_skin or not target_skeleton:
-		print("    DEBUG: Parámetros inválidos para retargeting")
+		printerr("❌ Error: Parámetros inválidos para retargeting de skin")
 		return null
 	
 	print("    DEBUG: Retargeteando skin...")
@@ -486,6 +661,11 @@ func _retarget_skin_to_skeleton(original_skin: Skin, target_skeleton: Skeleton3D
 	var new_skin = Skin.new()
 	var successful_binds = 0
 	var failed_binds = []
+	
+	# Crear lista de nombres de huesos en el target skeleton
+	var target_bone_names = []
+	for i in range(target_skeleton.get_bone_count()):
+		target_bone_names.append(target_skeleton.get_bone_name(i))
 	
 	# Procesar cada bind del skin original
 	for i in range(original_skin.get_bind_count()):
@@ -502,33 +682,67 @@ func _retarget_skin_to_skeleton(original_skin: Skin, target_skeleton: Skeleton3D
 			successful_binds += 1
 			print("        ✅ Bind mapeado: %s -> índice %d" % [bind_name, bone_index])
 		else:
-			# El hueso no existe, intentar mapeo alternativo
-			var mapped_name = _try_alternative_bone_mapping(bind_name, target_skeleton)
-			if mapped_name != "":
-				var alt_bone_index = target_skeleton.find_bone(mapped_name)
-				if alt_bone_index >= 0:
-					new_skin.add_bind(alt_bone_index, bind_pose)
-					new_skin.set_bind_name(new_skin.get_bind_count() - 1, mapped_name)
-					successful_binds += 1
-					print("        ✅ Bind mapeado (alternativo): %s -> %s (índice %d)" % [bind_name, mapped_name, alt_bone_index])
-				else:
-					failed_binds.append(bind_name)
+			# Intentar mapeo alternativo
+			var alternative_name = ""
+			var alternative_index = -1
+			
+			# Estrategia 1: Buscar por similitud de nombre
+			for target_name in target_bone_names:
+				if bind_name.similarity(target_name) > 0.85:
+					alternative_name = target_name
+					alternative_index = target_skeleton.find_bone(target_name)
+					break
+			
+			# Estrategia 2: Variaciones comunes
+			if alternative_index == -1:
+				var variations = [
+					bind_name.replace("mixamorig:", "mixamorig_"),
+					bind_name.replace("mixamorig_", "mixamorig:"),
+					bind_name.replace(" ", "_"),
+					bind_name.to_lower(),
+					bind_name.to_upper()
+				]
+				
+				for variant in variations:
+					if variant in target_bone_names:
+						alternative_name = variant
+						alternative_index = target_skeleton.find_bone(variant)
+						break
+			
+			if alternative_index >= 0:
+				new_skin.add_bind(alternative_index, bind_pose)
+				new_skin.set_bind_name(new_skin.get_bind_count() - 1, bind_name)
+				successful_binds += 1
+				print("        🔄 Bind alternativo: %s -> %s (índice %d)" % [bind_name, alternative_name, alternative_index])
 			else:
 				failed_binds.append(bind_name)
 				print("        ❌ Hueso no encontrado: %s" % bind_name)
 	
 	print("      Resultado: %d/%d binds exitosos" % [successful_binds, original_skin.get_bind_count()])
 	
-	if failed_binds.size() > 0:
-		print("      Binds fallidos: %s" % str(failed_binds))
+	# Manejar binds fallidos críticos
+	var critical_bones = ["mixamorig_Hips", "mixamorig_Spine", "mixamorig_Head"]
+	var critical_failed = []
+	for bone in critical_bones:
+		if bone in failed_binds:
+			critical_failed.append(bone)
 	
-	# Solo devolver el skin si tenemos un número razonable de binds exitosos
-	if successful_binds > 0 and (float(successful_binds) / float(original_skin.get_bind_count())) > 0.5:
-		print("    ✅ Skin retargeteado exitosamente")
-		return new_skin
-	else:
-		print("    ❌ Muy pocos binds exitosos para un skin funcional")
+	if critical_failed.size() > 0:
+		printerr("❌ ERROR: Binds críticos faltantes: ", critical_failed)
 		return null
+	
+	# Crear skin solo si tenemos suficientes binds exitosos
+	if successful_binds == 0:
+		printerr("❌ ERROR: Ningún bind exitoso en el skin")
+		return null
+	
+	# Advertencia si faltan muchos binds
+	var success_rate = float(successful_binds) / original_skin.get_bind_count()
+	if success_rate < 0.9:
+		printerr("⚠️ ADVERTENCIA: Solo %.1f%% de binds exitosos" % (success_rate * 100))
+	
+	return new_skin
+
 
 # Función auxiliar para mapeo alternativo de nombres de huesos
 func _try_alternative_bone_mapping(bind_name: String, skeleton: Skeleton3D) -> String:

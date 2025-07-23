@@ -32,6 +32,9 @@ var current_project_data = {
 	"loaded_animations": {}
 }
 
+# NUEVA VARIABLE: Timer para actualizaciones de preview
+var preview_update_timer: Timer
+
 func _ready():
 	# Configurar la aplicación para modo standalone
 	get_window().title = "Pixelize3D FBX - Sprite Generator"
@@ -50,6 +53,11 @@ func _connect_signals():
 	ui_controller.animations_selected.connect(_on_animations_selected)
 	ui_controller.render_settings_changed.connect(_on_render_settings_changed)
 	ui_controller.render_requested.connect(_on_render_requested)
+	
+	# NUEVAS SEÑALES: Controles de preview
+	ui_controller.preview_play_requested.connect(_on_preview_play)
+	ui_controller.preview_pause_requested.connect(_on_preview_pause)
+	ui_controller.preview_stop_requested.connect(_on_preview_stop)
 	
 	# Señales de carga
 	fbx_loader.model_loaded.connect(_on_model_loaded)
@@ -183,27 +191,6 @@ func _on_animations_selected(animation_files: Array):
 		print("Cargando animación: %s" % full_path)
 		fbx_loader.load_animation_fbx(full_path, anim_file)
 
-# NUEVA función para verificar y activar preview
-#func _check_and_activate_preview():
-	#print("--- VERIFICANDO ESTADO PARA PREVIEW ---")
-	#print("Base cargado: %s" % (current_project_data.loaded_base != null))
-	#print("Animaciones cargadas: %d" % current_project_data.loaded_animations.size())
-	#print("Animaciones seleccionadas: %d" % current_project_data.selected_animations.size())
-	#
-	## Verificar que tenemos todo lo necesario
-	#if (current_project_data.loaded_base != null and 
-		#current_project_data.loaded_animations.size() > 0 and
-		#not current_project_data.selected_animations.is_empty()):
-		#
-		#print("✅ Todo listo - Activando preview...")
-		#_activate_preview_mode()
-	#else:
-		#print("⏳ Esperando más datos para activar preview...")
-
-
-# Modificación sugerida para main.gd
-# Buscar la función _check_and_activate_preview y reemplazarla por esta versión:
-
 func _check_and_activate_preview():
 	print("--- VERIFICANDO ESTADO PARA PREVIEW ---")
 	
@@ -215,80 +202,12 @@ func _check_and_activate_preview():
 	print("Animaciones cargadas: %d" % animations_loaded)
 	print("Animaciones seleccionadas: %d" % animations_selected)
 	
-	# MODIFICACIÓN: Activar preview incluso sin animaciones (modo debug)
-	if base_loaded:
-		if animations_selected > 0:
-			print("✅ Todo listo - Activando preview...")
-			_activate_preview_mode()
-		else:
-			print("⚠️  Sin animaciones seleccionadas - Activando modo debug...")
-			_activate_debug_preview_mode()
+	# Verificar que tenemos todo lo necesario
+	if (base_loaded and animations_loaded > 0 and animations_selected > 0):
+		print("✅ Todo listo - Activando preview...")
+		_activate_preview_mode()
 	else:
-		print("⚠️  Esperando que se cargue el modelo base...")
-
-# NUEVA FUNCIÓN: Activar preview normal con animaciones
-#func _activate_preview_mode():
-	#print("🎬 ACTIVANDO PREVIEW MODE")
-	#ui_controller.set_preview_mode(true)
-	#
-	## Tomar la primera animación seleccionada
-	#var selected_anim = current_project_data.selected_animations[0]
-	#print("Combinando para preview: %s" % selected_anim)
-	#
-	## Combinar modelo base con animación
-	#var base_data = current_project_data.loaded_base
-	#var anim_data = current_project_data.loaded_animations[selected_anim]
-	#
-	## Debug de la combinación
-	#animation_manager.debug_combination(base_data, anim_data)
-	#
-	## Realizar la combinación
-	#var combined_model = animation_manager.combine_base_with_animation(base_data, anim_data)
-	#
-	#if combined_model:
-		#print("✅ Modelo combinado exitosamente - Configurando preview")
-		#sprite_renderer.setup_preview(combined_model, false)  # false = modo normal
-		#print("🎬 Preview activado completamente!")
-	#else:
-		#print("❌ Error al combinar modelo - Activando modo debug")
-		#sprite_renderer.setup_preview(null, true)  # true = modo debug
-
-# NUEVA FUNCIÓN: Activar modo debug cuando no hay animaciones
-func _activate_debug_preview_mode():
-	print("🔴 ACTIVANDO PREVIEW MODE DEBUG")
-	ui_controller.set_preview_mode(true)
-	
-	# Activar directamente el modo debug del sprite renderer
-	sprite_renderer.setup_preview(null, true)  # null = sin modelo, true = modo debug
-	
-	print("🔴 Preview debug activado - Deberías ver objetos de prueba")
-
-# OPCIONAL: Función para forzar modo debug desde UI
-func force_debug_preview():
-	print("🔴 FORZANDO MODO DEBUG DESDE UI")
-	sprite_renderer.setup_preview(null, true)
-
-# OPCIONAL: Función para activar preview con modelo base solamente
-func preview_base_model_only():
-	if current_project_data.loaded_base:
-		print("📱 ACTIVANDO PREVIEW SOLO CON MODELO BASE")
-		ui_controller.set_preview_mode(true)
-		
-		# Usar el modelo base sin animaciones
-		var base_data = current_project_data.loaded_base
-		var model_node = base_data.node
-		
-		if model_node:
-			# Crear una copia del nodo base para preview
-			var preview_model = model_node.duplicate()
-			sprite_renderer.setup_preview(preview_model, false)
-			print("📱 Preview del modelo base activado")
-		else:
-			print("❌ No se pudo acceder al nodo del modelo base")
-			sprite_renderer.setup_preview(null, true)  # Fallback a modo debug
-	else:
-		print("❌ No hay modelo base cargado")
-		sprite_renderer.setup_preview(null, true)  # Fallback a modo debug
+		print("⏳ Esperando más datos para activar preview...")
 
 func _activate_preview_mode():
 	print("🎬 ACTIVANDO PREVIEW MODE")
@@ -313,6 +232,14 @@ func _activate_preview_mode():
 		# Configurar preview en sprite renderer
 		sprite_renderer.setup_preview(combined_model)
 		
+		# NUEVA LÍNEA: Conectar viewports para preview en tiempo real
+		if _connect_preview_viewports():
+			print("✅ Preview viewports conectados correctamente")
+			_setup_preview_update_timer()
+		else:
+			print("⚠️ Problemas al conectar viewports, usando método de respaldo")
+			_setup_fallback_preview()
+		
 		# Notificar a UI que el preview está listo
 		ui_controller.enable_preview_mode()
 		
@@ -320,6 +247,110 @@ func _activate_preview_mode():
 	else:
 		print("❌ Error al combinar modelo para preview")
 		ui_controller.show_error("No se pudo combinar el modelo para preview. Revisa la consola para detalles.")
+
+# NUEVA FUNCIÓN: Conectar viewports para preview en tiempo real
+func _connect_preview_viewports() -> bool:
+	print("📺 CONECTANDO SUBVIEWPORT PARA ANIMACIÓN EN TIEMPO REAL")
+	
+	# Obtener referencia al SubViewport del SpriteRenderer
+	var sprite_renderer_viewport = sprite_renderer.get_node_or_null("SubViewport")
+	if not sprite_renderer_viewport:
+		print("❌ ERROR: SubViewport del SpriteRenderer no encontrado")
+		return false
+	
+	print("✅ SubViewport del SpriteRenderer encontrado: %s" % sprite_renderer_viewport.name)
+	
+	# Enviar textura inicial a UI
+	var viewport_texture = sprite_renderer_viewport.get_texture()
+	if viewport_texture:
+		print("✅ Textura obtenida del viewport: %s" % str(viewport_texture.get_size()))
+		ui_controller.set_preview_texture(viewport_texture)
+		print("✅ Textura enviada a UIController.set_preview_texture()")
+	else:
+		print("❌ No se pudo obtener textura del viewport")
+		return false
+	
+	return true
+
+# NUEVA FUNCIÓN: Configurar timer para actualizaciones de preview
+func _setup_preview_update_timer():
+	print("⚡ CONFIGURANDO ACTUALIZACIONES EN TIEMPO REAL")
+	
+	# Crear timer si no existe
+	if not preview_update_timer:
+		preview_update_timer = Timer.new()
+		preview_update_timer.name = "PreviewUpdateTimer"
+		add_child(preview_update_timer)
+	
+	# Configurar timer
+	preview_update_timer.wait_time = 1.0 / 30.0  # 30 FPS para preview
+	preview_update_timer.timeout.connect(_update_preview_texture)
+	preview_update_timer.start()
+	
+	print("✅ Timer de actualización configurado a 30 FPS")
+
+# NUEVA FUNCIÓN: Actualizar textura de preview periódicamente
+#func _update_preview_texture():
+	#var sprite_renderer_viewport = sprite_renderer.get_node_or_null("SubViewport")
+	#if sprite_renderer_viewport and ui_controller:
+		#var texture = sprite_renderer_viewport.get_texture()
+		#if texture:
+			#ui_controller.set_preview_texture(texture)
+
+func _update_preview_texture():
+	"""Actualizar textura de preview con forzado de renderizado"""
+	var sprite_renderer_viewport = sprite_renderer.get_node_or_null("SubViewport")
+	if sprite_renderer_viewport and ui_controller:
+		# CRÍTICO: Forzar actualización del viewport antes de capturar
+		sprite_renderer_viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
+		await get_tree().process_frame
+		sprite_renderer_viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+		
+		# Ahora capturar la textura actualizada
+		var texture = sprite_renderer_viewport.get_texture()
+		if texture:
+			ui_controller.set_preview_texture(texture)
+
+# NUEVA FUNCIÓN: Método de respaldo para preview
+func _setup_fallback_preview():
+	print("🔄 CONFIGURANDO PREVIEW DE RESPALDO")
+	
+	var viewport = sprite_renderer.get_node("SubViewport")
+	if viewport:
+		# Crear timer para actualizar textura periódicamente
+		var fallback_timer = Timer.new()
+		fallback_timer.wait_time = 1.0 / 15.0  # 15 FPS para respaldo
+		fallback_timer.autostart = true
+		add_child(fallback_timer)
+		
+		fallback_timer.timeout.connect(_update_fallback_preview.bind(viewport))
+		print("✅ Preview de respaldo configurado")
+
+func _update_fallback_preview(viewport: SubViewport):
+	if viewport and ui_controller:
+		var texture = viewport.get_texture()
+		if texture:
+			ui_controller.set_preview_texture(texture)
+
+# NUEVAS FUNCIONES: Controles de preview
+func _on_preview_play():
+	print("▶️ PREVIEW PLAY")
+	if sprite_renderer.has_method("_on_preview_play"):
+		sprite_renderer._on_preview_play()
+
+func _on_preview_pause():
+	print("⏸️ PREVIEW PAUSE")
+	if sprite_renderer.has_method("_on_preview_pause"):
+		sprite_renderer._on_preview_pause()
+
+func _on_preview_stop():
+	print("⏹️ PREVIEW STOP")
+	if sprite_renderer.has_method("stop_preview"):
+		sprite_renderer.stop_preview()
+	
+	# Detener timer de actualización
+	if preview_update_timer:
+		preview_update_timer.stop()
 
 func _on_render_settings_changed(settings: Dictionary):
 	current_project_data.render_settings.merge(settings, true)
@@ -397,3 +428,15 @@ func _on_load_failed(error: String):
 # Función para salir de la aplicación
 func _on_quit_requested():
 	get_tree().quit()
+
+# FUNCIÓN DE UTILIDAD: Buscar nodos por nombre
+func _find_node_by_name(parent: Node, target_name: String) -> Node:
+	if parent.name == target_name:
+		return parent
+	
+	for child in parent.get_children():
+		var result = _find_node_by_name(child, target_name)
+		if result:
+			return result
+	
+	return null

@@ -4,9 +4,6 @@
 
 extends Control
 
-# Input: Interacciones del usuario
-# Output: Señales y configuración para el proceso de renderizado
-
 signal folder_selected(path: String)
 signal base_fbx_selected(filename: String)
 signal animations_selected(filenames: Array)
@@ -22,7 +19,7 @@ signal preview_stop_requested()
 var main_panel: PanelContainer
 var progress_dialog: AcceptDialog
 
-var project_folders_list: ItemList  # CAMBIADO: Lista de carpetas de proyecto
+var project_folders_list: ItemList  # Lista de carpetas de proyecto
 var base_fbx_option: OptionButton
 var directions_spinbox: SpinBox
 var sprite_size_spinbox: SpinBox
@@ -39,8 +36,9 @@ var export_log: RichTextLabel
 var log_copy_button: Button
 var log_clear_button: Button
 
-# REFERENCIAS ACTUALIZADAS para controles de preview
+# REFERENCIAS CORREGIDAS para controles de preview
 var viewport_container: SubViewportContainer
+var preview_texture_rect: TextureRect  # NUEVA: Para mostrar la textura
 var play_button: Button
 var pause_button: Button
 var stop_button: Button
@@ -51,7 +49,7 @@ var available_fbx_files: Array = []
 var selected_animations: Array = []
 var preview_mode_active: bool = false
 
-# NUEVOS: Para manejo de carpetas de proyecto
+# Para manejo de carpetas de proyecto
 var project_folders: Array = []
 var current_project_folder: String = ""
 
@@ -152,8 +150,6 @@ func _create_config_panel() -> Control:
 	var anim_vbox = VBoxContainer.new()
 	anim_vbox.name = "AnimationsCheckboxContainer"
 	anim_scroll.add_child(anim_vbox)
-	
-	# Nota: Los checkboxes se crearán dinámicamente en display_fbx_list()
 	
 	# Sección: Configuración de renderizado
 	var render_section = _create_section("Configuración de Renderizado")
@@ -270,12 +266,20 @@ func _create_preview_panel() -> Control:
 	preview_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(preview_status_label)
 	
-	# OPCIÓN B: Usar SubViewportContainer para animación en tiempo real
-	var preview_viewport_container = SubViewportContainer.new()
-	preview_viewport_container.name = "ViewportContainer"
-	preview_viewport_container.stretch = true
-	preview_viewport_container.custom_minimum_size = Vector2(400, 400)
-	vbox.add_child(preview_viewport_container)
+	# CORRECCIÓN CRÍTICA: Usar SubViewportContainer para preview
+	viewport_container = SubViewportContainer.new()
+	viewport_container.name = "ViewportContainer"
+	viewport_container.stretch = true
+	viewport_container.custom_minimum_size = Vector2(400, 400)
+	vbox.add_child(viewport_container)
+	
+	# NUEVA OPCIÓN: TextureRect para mostrar la textura del viewport
+	preview_texture_rect = TextureRect.new()
+	preview_texture_rect.name = "PreviewTextureRect"
+	preview_texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+	preview_texture_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
+	preview_texture_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	viewport_container.add_child(preview_texture_rect)
 	
 	# Mensaje cuando no hay preview (se muestra/oculta según estado)
 	var no_preview_label = Label.new()
@@ -285,7 +289,8 @@ func _create_preview_panel() -> Control:
 	no_preview_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	no_preview_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
 	no_preview_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	preview_viewport_container.add_child(no_preview_label)
+	no_preview_label.z_index = -1  # Detrás del TextureRect
+	viewport_container.add_child(no_preview_label)
 	
 	# NUEVO: Controles de preview (Play/Pause/Stop)
 	var controls_hbox = HBoxContainer.new()
@@ -429,8 +434,6 @@ func _connect_ui_signals():
 	if base_fbx_option:
 		base_fbx_option.item_selected.connect(_on_base_fbx_selected)
 	
-	# NOTA: Los checkboxes de animaciones se conectan dinámicamente en _create_animation_checkboxes()
-	
 	if preview_button:
 		preview_button.pressed.connect(_on_preview_pressed)
 	
@@ -459,9 +462,8 @@ func initialize():
 	add_export_log("Pixelize3D FBX iniciado")
 	add_export_log("Escaneando carpetas de proyecto...")
 	_scan_project_folders()
-	# ELIMINADO: Verificación inicial del SpriteRenderer que causaba errores innecesarios
 
-# NUEVA FUNCIÓN: Escanear carpetas en res://assets/fbx/
+# FUNCIÓN: Escanear carpetas en res://assets/fbx/
 func _scan_project_folders():
 	"""Escanear recursivamente las carpetas en res://assets/fbx/ que contengan archivos FBX"""
 	print("🔍 ESCANEANDO CARPETAS DE PROYECTO")
@@ -534,7 +536,7 @@ func _scan_directory_recursive(dir: DirAccess, base_path: String, relative_path:
 	
 	dir.list_dir_end()
 
-# NUEVA FUNCIÓN: Manejar selección de carpeta de proyecto
+# FUNCIÓN: Manejar selección de carpeta de proyecto
 func _on_project_folder_selected(index: int):
 	"""Callback cuando se selecciona una carpeta de proyecto"""
 	if index >= 0 and index < project_folders.size():
@@ -553,7 +555,6 @@ func _on_project_folder_selected(index: int):
 func display_fbx_list(fbx_files: Array):
 	"""Mostrar lista de archivos FBX - evitar duplicaciones"""
 	if available_fbx_files == fbx_files:
-		# Si ya tenemos los mismos archivos, no duplicar el proceso
 		return
 		
 	available_fbx_files = fbx_files
@@ -568,12 +569,12 @@ func display_fbx_list(fbx_files: Array):
 		
 		base_fbx_option.disabled = false
 	
-	# NUEVO: Crear checkboxes para animaciones
+	# Crear checkboxes para animaciones
 	_create_animation_checkboxes(fbx_files)
 	
 	add_export_log("📋 Disponibles %d archivos FBX para selección" % fbx_files.size())
 
-# NUEVA FUNCIÓN: Crear checkboxes para animaciones (CORREGIDA)
+# FUNCIÓN: Crear checkboxes para animaciones
 func _create_animation_checkboxes(fbx_files: Array):
 	"""Crear checkboxes dinámicamente para cada archivo FBX (animaciones)"""
 	print("📋 CREANDO CHECKBOXES PARA ANIMACIONES")
@@ -596,7 +597,7 @@ func _create_animation_checkboxes(fbx_files: Array):
 		checkbox.text = fbx_file
 		checkbox.button_pressed = false
 		
-		# CORREGIDO: Usar callable para bind correcto
+		# Usar callable para bind correcto
 		var callback = func(pressed: bool): _on_animation_checkbox_toggled(pressed, fbx_file)
 		checkbox.toggled.connect(callback)
 		
@@ -604,7 +605,7 @@ func _create_animation_checkboxes(fbx_files: Array):
 	
 	print("✅ Creados %d checkboxes para animaciones" % fbx_files.size())
 
-# NUEVA FUNCIÓN: Manejar toggle de checkboxes de animaciones (CORREGIDA)
+# FUNCIÓN: Manejar toggle de checkboxes de animaciones
 func _on_animation_checkbox_toggled(pressed: bool, fbx_file: String):
 	"""Callback cuando se marca/desmarca un checkbox de animación"""
 	if pressed and fbx_file not in selected_animations:
@@ -624,8 +625,6 @@ func _on_animation_checkbox_toggled(pressed: bool, fbx_file: String):
 		emit_signal("animations_selected", selected_animations)
 	else:
 		add_export_log("📋 Ninguna animación seleccionada")
-	
-	print("📋 Animaciones seleccionadas: %s" % str(selected_animations))
 
 func _on_base_fbx_selected(index: int):
 	if index > 0:
@@ -635,7 +634,7 @@ func _on_base_fbx_selected(index: int):
 		add_export_log("👆 Ahora selecciona las animaciones que deseas usar")
 
 func enable_animation_selection():
-	# ACTUALIZADO: Habilitar checkboxes de animaciones
+	# Habilitar checkboxes de animaciones
 	var checkbox_container = _find_node_by_name(self, "AnimationsCheckboxContainer")
 	if checkbox_container:
 		for child in checkbox_container.get_children():
@@ -649,23 +648,8 @@ func enable_animation_selection():
 	if preview_button:
 		preview_button.disabled = false
 	add_export_log("✅ Modelo base cargado correctamente")
-#
-#func enable_animation_selection():
-	## ACTUALIZADO: Habilitar checkboxes de animaciones
-	#var checkbox_container = _find_node_by_name(self, "AnimationsCheckboxContainer")
-	#if checkbox_container:
-		#for child in checkbox_container.get_children():
-			#if child is CheckBox:
-				#child.disabled = false
-				#child.modulate = Color(1.0, 1.0, 1.0, 1.0)  # Apariencia normal
-		#
-		#add_export_log("📋 Checkboxes de animaciones habilitados")
-	#
-	#if preview_button:
-		#preview_button.disabled = false
-	#add_export_log("Modelo base cargado correctamente")
 
-# NUEVA FUNCIÓN: Copiar todo el log al clipboard
+# FUNCIÓN: Copiar todo el log al clipboard
 func _on_log_copy_pressed():
 	"""Copiar todo el contenido del log al clipboard"""
 	if export_log:
@@ -674,7 +658,7 @@ func _on_log_copy_pressed():
 		add_export_log("[color=blue]📋 Log copiado al portapapeles[/color]")
 		print("📋 Log copiado al portapapeles")
 
-# NUEVA FUNCIÓN: Limpiar el log
+# FUNCIÓN: Limpiar el log
 func _on_log_clear_pressed():
 	"""Limpiar todo el contenido del log"""
 	if export_log:
@@ -682,7 +666,7 @@ func _on_log_clear_pressed():
 		add_export_log("Pixelize3D FBX - Log reiniciado")
 		print("🗑️ Log limpiado")
 
-# FUNCIÓN MEJORADA: Habilitar modo preview con controles
+# FUNCIÓN CORREGIDA: Habilitar modo preview con controles
 func enable_preview_mode():
 	print("🎬 UI Preview Mode Activado")
 	preview_mode_active = true
@@ -703,7 +687,7 @@ func enable_preview_mode():
 		preview_button.text = "Preview Activo ✓"
 		preview_button.add_theme_color_override("font_color", Color(0.2, 0.8, 0.2))
 	
-	# NUEVO: Habilitar botones de control de animación
+	# Habilitar botones de control de animación
 	if play_button:
 		play_button.disabled = false
 	if pause_button:
@@ -720,88 +704,68 @@ func enable_preview_mode():
 	add_export_log("Controles: Click + Arrastrar para rotar vista")
 	add_export_log("Usa los botones Play/Pause para controlar la animación")
 
-# NUEVA FUNCIÓN: Copiar todo el log al clipboard
-#func _on_log_copy_pressed():
-	#"""Copiar todo el contenido del log al clipboard"""
-	#if export_log:
-		#var log_text = export_log.get_parsed_text()
-		#DisplayServer.clipboard_set(log_text)
-		#add_export_log("[color=blue]📋 Log copiado al portapapeles[/color]")
-		#print("📋 Log copiado al portapapeles")
-#
-## NUEVA FUNCIÓN: Limpiar el log
-#func _on_log_clear_pressed():
-	#"""Limpiar todo el contenido del log"""
-	#if export_log:
-		#export_log.clear()
-		#add_export_log("Pixelize3D FBX - Log reiniciado")
-		#print("🗑️ Log limpiado")
+# FUNCIÓN CRÍTICA CORREGIDA: Conectar textura del viewport
+#func set_preview_texture(texture: ViewportTexture):
+	#"""CORRECCIÓN CRÍTICA: Recibe la textura del SpriteRenderer y la muestra en tiempo real"""
+	#print("📺 RECIBIENDO TEXTURA PARA PREVIEW")
+	#
+	#if not texture:
+		#print("❌ Textura nula recibida")
+		#return
+	#
+	## Buscar el TextureRect para mostrar la textura
+	#if preview_texture_rect:
+		## Asignar textura al TextureRect
+		#preview_texture_rect.texture = texture
+		#
+		## Ocultar mensaje de "no preview"
+		#var no_preview_label = _find_node_by_name(self, "NoPreviewLabel")
+		#if no_preview_label:
+			#no_preview_label.visible = false
+		#
+		#print("✅ Textura asignada al preview: %s" % str(texture.get_size()))
+		#
+		## Actualizar status
+		#if preview_status_label:
+			#preview_status_label.text = "🎬 Preview activo - Animación en tiempo real"
+			#preview_status_label.add_theme_color_override("font_color", Color(0.2, 0.8, 0.2))
+	#else:
+		#print("❌ No se encontró PreviewTextureRect")
 
-# NUEVA FUNCIÓN CRÍTICA: Conectar SubViewport del SpriteRenderer (RUTA CORREGIDA)
-func set_preview_texture(_texture: ViewportTexture):
-	"""Recibe la textura del SpriteRenderer y conecta el SubViewport para animación en tiempo real"""
-	print("📺 CONECTANDO SUBVIEWPORT PARA ANIMACIÓN EN TIEMPO REAL")
+
+
+func set_preview_texture(texture: ViewportTexture):
+	"""CORRECCIÓN CRÍTICA: Recibe la textura del SpriteRenderer y la muestra en tiempo real - OPTIMIZADA"""
 	
-	# CORREGIDO: Usar ruta correcta (main en minúscula)
-	var sprite_renderer = get_node_or_null("/root/main/SpriteRenderer")
+	if not texture:
+		return
 	
-	if not sprite_renderer:
-		print("❌ ERROR: SpriteRenderer no encontrado en /root/main/SpriteRenderer")
-		add_export_log("[color=red]❌ Error: SpriteRenderer no encontrado[/color]")
-		
-		# DEBUG: Mostrar qué nodos existen realmente
-		print("🔍 DEBUG: Nodos disponibles en /root/main/:")
-		var main_scene = get_node_or_null("/root/main")
-		if main_scene:
-			for child in main_scene.get_children():
-				print("  - %s (%s)" % [child.name, child.get_class()])
+	# Buscar el TextureRect para mostrar la textura
+	if preview_texture_rect:
+		# NUEVO: Forzar que la textura se actualice inmediatamente
+		var current_image = texture.get_image()
+		if current_image:
+			# Crear nueva ImageTexture desde la imagen actual
+			var image_texture = ImageTexture.new()
+			image_texture.create_from_image(current_image)
+			
+			# Asignar la nueva textura
+			preview_texture_rect.texture = image_texture
+			
+			# Ocultar mensaje de "no preview"
+			var no_preview_label = _find_node_by_name(self, "NoPreviewLabel")
+			if no_preview_label:
+				no_preview_label.visible = false
 		else:
-			print("  ❌ No se pudo acceder a /root/main")
-		return
+			# Fallback: usar la textura directamente
+			preview_texture_rect.texture = texture
 	
-	var sprite_viewport = sprite_renderer.get_node_or_null("SubViewport")
-	if not sprite_viewport:
-		print("❌ ERROR: SubViewport del SpriteRenderer no encontrado")
-		add_export_log("[color=red]❌ Error: SubViewport del SpriteRenderer no encontrado[/color]")
-		return
-	
-	# Encontrar nuestro ViewportContainer
-	var ui_viewport_container = _find_node_by_name(self, "ViewportContainer")
-	if not ui_viewport_container:
-		print("❌ ERROR: ViewportContainer no encontrado en UI")
-		add_export_log("[color=red]❌ Error: ViewportContainer no encontrado[/color]")
-		return
-	
-	# Actualizar referencia
-	viewport_container = ui_viewport_container
-	
-	print("🔗 REUBICANDO SUBVIEWPORT PARA PREVIEW EN TIEMPO REAL")
-	
-	# Remover SubViewport del SpriteRenderer temporalmente
-	sprite_renderer.remove_child(sprite_viewport)
-	
-	# Limpiar ViewportContainer si tiene hijos
-	for child in viewport_container.get_children():
-		if child.name == "NoPreviewLabel":
-			child.visible = false  # Ocultar mensaje, no eliminar
-		else:
-			viewport_container.remove_child(child)
-			child.queue_free()
-	
-	# Agregar SubViewport a nuestro ViewportContainer
-	viewport_container.add_child(sprite_viewport)
-	
-	print("✅ SubViewport conectado exitosamente al ViewportContainer")
-	
-	# Actualizar status
-	if preview_status_label:
+	# Actualizar status solo la primera vez
+	if preview_status_label and preview_status_label.text != "🎬 Preview activo - Animación en tiempo real":
 		preview_status_label.text = "🎬 Preview activo - Animación en tiempo real"
 		preview_status_label.add_theme_color_override("font_color", Color(0.2, 0.8, 0.2))
-	
-	add_export_log("[color=green]📺 Preview en tiempo real activado exitosamente[/color]")
-	add_export_log("🎬 Ahora deberías ver la animación moviéndose")
 
-# NUEVAS FUNCIONES: Controles de animación
+# FUNCIONES: Controles de animación
 func _on_play_pressed():
 	"""Callback para botón Play"""
 	print("▶️ UI: Play solicitado")
@@ -837,26 +801,6 @@ func _on_stop_pressed():
 		play_button.disabled = false
 	if pause_button:
 		pause_button.disabled = true
-
-# NUEVA FUNCIÓN: Para que el SpriteRenderer notifique cuándo limpiar
-func prepare_for_preview_cleanup():
-	"""Preparar UI para que el SpriteRenderer recupere su SubViewport"""
-	print("🔄 PREPARANDO PARA LIMPIEZA DE PREVIEW")
-	
-	# Buscar y remover el SubViewport de nuestro ViewportContainer
-	if viewport_container:
-		var sprite_viewport = null
-		for child in viewport_container.get_children():
-			if child is SubViewport:
-				sprite_viewport = child
-				break
-		
-		if sprite_viewport:
-			viewport_container.remove_child(sprite_viewport)
-			print("✅ SubViewport removido del ViewportContainer")
-			return sprite_viewport
-	
-	return null
 
 # Función auxiliar para buscar nodos por nombre recursivamente
 func _find_node_by_name(parent: Node, node_name: String) -> Node:
@@ -929,49 +873,3 @@ func add_export_log(message: String):
 
 func is_preview_active() -> bool:
 	return preview_mode_active
-
-# FUNCIÓN ACTUALIZADA: Limpiar preview cuando se cierra
-func clear_preview():
-	"""Limpiar el preview y restablecer controles"""
-	print("🧹 LIMPIANDO PREVIEW Y REUBICANDO SUBVIEWPORT")
-	preview_mode_active = false
-	
-	# Buscar el SubViewport que está en nuestro ViewportContainer
-	if viewport_container:
-		var sprite_viewport = null
-		for child in viewport_container.get_children():
-			if child is SubViewport:
-				sprite_viewport = child
-				break
-		
-		# Si encontramos el SubViewport, devolverlo al SpriteRenderer
-		if sprite_viewport:
-			viewport_container.remove_child(sprite_viewport)
-			
-			# CORREGIDO: Usar ruta correcta (main en minúscula)
-			var sprite_renderer = get_node_or_null("/root/main/SpriteRenderer")
-			if sprite_renderer:
-				sprite_renderer.add_child(sprite_viewport)
-				print("✅ SubViewport devuelto al SpriteRenderer")
-			else:
-				print("❌ No se pudo devolver SubViewport - SpriteRenderer no encontrado")
-	
-	# Mostrar mensaje de "no preview"
-	var no_preview_label = _find_node_by_name(self, "NoPreviewLabel")
-	if no_preview_label:
-		no_preview_label.visible = true
-	
-	# Desactivar controles
-	if play_button:
-		play_button.disabled = true
-	if pause_button:
-		pause_button.disabled = true
-	if stop_button:
-		stop_button.disabled = true
-	
-	# Actualizar status
-	if preview_status_label:
-		preview_status_label.text = "Carga un modelo para ver preview"
-		preview_status_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	
-	add_export_log("🔄 Preview limpiado - SubViewport reubicado")

@@ -1,6 +1,5 @@
 # scripts/rendering/sprite_renderer.gd
-# Input: Modelo 3D combinado con animaciones y configuración de renderizado desde AnimationManager
-# Output: Frames renderizados para cada dirección y animación, preview funcional en UI
+# Versión completa y corregida
 
 extends Node3D
 
@@ -11,6 +10,10 @@ signal preview_updated(texture: ViewportTexture)
 
 @onready var viewport: SubViewport = $SubViewport
 @onready var camera_controller = $SubViewport/CameraController
+
+# Referencias para UI
+var preview_texture_rect: TextureRect
+var preview_status_label: Label
 
 var render_settings: Dictionary
 var current_model: Node3D
@@ -32,6 +35,10 @@ func _ready():
 	_setup_viewport()
 	_setup_render_environment()
 	_connect_to_ui()
+	
+	# Inicializar referencias a los elementos UI
+	preview_texture_rect = _find_node_by_name(get_tree().root, "PreviewTextureRect")
+	preview_status_label = _find_node_by_name(get_tree().root, "PreviewStatusLabel")
 
 func _setup_viewport():
 	"""Configurar SubViewport para renderizado de sprites con correcciones críticas"""
@@ -41,15 +48,12 @@ func _setup_viewport():
 		print("❌ ERROR: SubViewport no encontrado en la escena")
 		return
 	
-	# CORRECCIÓN CRÍTICA 1: Configuración correcta del viewport
-	viewport.size = Vector2i(512, 512)  # Tamaño fijo para consistencia
-	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS  # Forzar actualización continua
+	# Configuración del viewport
+	viewport.size = Vector2i(512, 512)
+	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	viewport.transparent_bg = true
-	viewport.snap_2d_transforms_to_pixel = false  # Evitar pixelización no deseada
-	viewport.physics_object_picking = false  # Desactivar picking para performance
-	
-	# CORRECCIÓN CRÍTICA 2: Forzar que el viewport esté activo
-	viewport.set_update_mode(SubViewport.UPDATE_ALWAYS)
+	viewport.snap_2d_transforms_to_pixel = false
+	viewport.physics_object_picking = false
 	
 	print("✅ Viewport configurado: %s, transparent: %s" % [viewport.size, viewport.transparent_bg])
 	
@@ -71,7 +75,7 @@ func _setup_render_environment():
 	env.ambient_light_color = Color(0.8, 0.8, 0.8)
 	env.ambient_light_energy = 0.4
 	
-	# Desactivar efectos que interfieren con pixel art
+	# Desactivar efectos
 	env.glow_enabled = false
 	env.ssr_enabled = false
 	env.ssao_enabled = false
@@ -79,7 +83,7 @@ func _setup_render_environment():
 	env.sdfgi_enabled = false
 	env.volumetric_fog_enabled = false
 	
-	# Configurar tonemapping para colores precisos
+	# Configurar tonemapping
 	env.tonemap_mode = Environment.TONE_MAPPER_LINEAR
 	env.tonemap_exposure = 1.0
 	
@@ -92,7 +96,7 @@ func _setup_render_environment():
 		print("❌ No se pudo aplicar ambiente - cámara no encontrada")
 
 func _connect_to_ui():
-	"""CORRECCIÓN CRÍTICA: Establecer conexión con UIController"""
+	"""Establecer conexión con UIController"""
 	print("🔗 CONECTANDO CON UI CONTROLLER")
 	
 	# Buscar UIController en la escena
@@ -101,68 +105,14 @@ func _connect_to_ui():
 	
 	if ui_controller:
 		print("✅ UIController encontrado: %s" % ui_controller.name)
-		
-		# Conectar señales para controles de preview
-		if ui_controller.has_signal("preview_play_requested"):
-			ui_controller.preview_play_requested.connect(_on_preview_play)
-		if ui_controller.has_signal("preview_pause_requested"):
-			ui_controller.preview_pause_requested.connect(_on_preview_pause)
-			
-		# Enviar textura del viewport al UI
-		call_deferred("_send_viewport_texture_to_ui")
 	else:
 		print("❌ UIController no encontrado - Preview no se conectará con UI")
-
-func _send_viewport_texture_to_ui():
-	"""CORRECCIÓN CRÍTICA: Enviar textura del viewport al UIController"""
-	print("📺 ENVIANDO TEXTURA A UI CONTROLLER")
-	
-	if not ui_controller:
-		print("❌ No hay UIController para enviar textura")
-		return
-	
-	# Forzar renderizado del viewport
-	await _force_viewport_render()
-	
-	var viewport_texture = viewport.get_texture()
-	if viewport_texture:
-		print("✅ Textura obtenida del viewport: %s" % str(viewport_texture.get_size()))
-		
-		# Verificar si UIController tiene método para recibir textura
-		if ui_controller.has_method("set_preview_texture"):
-			ui_controller.set_preview_texture(viewport_texture)
-			print("✅ Textura enviada a UIController.set_preview_texture()")
-		else:
-			print("❌ UIController no tiene método set_preview_texture()")
-			
-		# Emitir señal con textura
-		emit_signal("preview_updated", viewport_texture)
-	else:
-		print("❌ No se pudo obtener textura del viewport")
-
-func _force_viewport_render():
-	"""Forzar renderizado inmediato del viewport"""
-	print("🔄 FORZANDO RENDERIZADO DEL VIEWPORT")
-	
-	# Múltiples métodos para forzar renderizado
-	viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
-	await get_tree().process_frame
-	await get_tree().process_frame
-	
-	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	await get_tree().process_frame
-	
-	# Forzar actualización del RenderingServer
-	RenderingServer.force_sync()
-	await RenderingServer.frame_post_draw
-	
-	print("✅ Renderizado forzado completado")
 
 func initialize(settings: Dictionary):
 	"""Inicializar renderer con configuraciones"""
 	render_settings = settings
 	
-	# Configurar tamaño del viewport desde settings
+	# Configurar tamaño del viewport
 	var sprite_size = settings.get("sprite_size", 512)
 	viewport.size = Vector2i(sprite_size, sprite_size)
 	
@@ -176,8 +126,7 @@ func initialize(settings: Dictionary):
 	
 	print("🔧 SpriteRenderer inicializado con configuraciones: %s" % str(settings))
 
-# FUNCIÓN CORREGIDA: Setup preview con correcciones críticas
-func setup_preview(model: Node3D = null, debug_mode: bool = false):
+func setup_preview(model: Node3D = null):
 	"""Configurar preview con correcciones para visualización"""
 	print("🎬 CONFIGURANDO PREVIEW CON CORRECCIONES")
 	
@@ -192,24 +141,12 @@ func setup_preview(model: Node3D = null, debug_mode: bool = false):
 		current_model.queue_free()
 		await get_tree().process_frame
 	
-	# Limpiar objetos de debug previos
-	_clear_debug_test_objects()
-	
-	# MODO DEBUG: Solo objetos de prueba
-	if debug_mode or model == null:
-		print("🔴 MODO DEBUG ACTIVADO")
-		_create_debug_test_objects()
-		_setup_emergency_lighting()
-		camera_controller.enable_preview_mode()
-		
-		# CORRECCIÓN: Forzar renderizado y envío a UI
-		await _force_viewport_render()
-		call_deferred("_send_viewport_texture_to_ui")
-		
-		print("🔴 OBJETOS DEBUG: Esfera ROJA, Cubo VERDE, Cilindro AZUL")
+	# Verificar si tenemos modelo
+	if model == null:
+		print("❌ No se proporcionó modelo para preview")
 		return
 	
-	# MODO NORMAL: Mostrar modelo
+	# Mostrar modelo
 	current_model = model
 	viewport.add_child(current_model)
 	print("✅ Modelo añadido: %s" % current_model.name)
@@ -220,29 +157,111 @@ func setup_preview(model: Node3D = null, debug_mode: bool = false):
 	print("📐 Bounds calculados: %s" % str(bounds))
 	
 	# Configurar iluminación
-	_setup_emergency_lighting()
+	_setup_enhanced_lighting()
 	
 	# Activar controles de cámara
+	print("🎬 HABILITANDO PREVIEW MODE EN CÁMARA")
 	camera_controller.enable_preview_mode()
 	
-	# Iniciar animación si existe
-	_start_preview_animation_with_controls()
+	# Configurar animación
+	_setup_animation_with_controls()
 	
-	# CORRECCIÓN CRÍTICA: Forzar renderizado y envío a UI
+	# Forzar renderizado inicial
 	await _force_viewport_render()
-	call_deferred("_send_viewport_texture_to_ui")
 	
-	# Debug del setup
-	_debug_preview_setup()
+	# Actualizar preview UI
+	update_preview_display(viewport.get_texture())
 	
 	print("🎬 PREVIEW CONFIGURADO EXITOSAMENTE")
 
-func _start_preview_animation_with_controls():
-	"""Iniciar animación con controles de play/pause"""
+func _setup_enhanced_lighting():
+	"""Configurar iluminación visible y funcional"""
+	print("💡 CONFIGURANDO ILUMINACIÓN MEJORADA")
+	
+	var existing_lights = _find_lights_in_viewport()
+	
+	if existing_lights.size() == 0:
+		print("  ⚠️ Creando iluminación de emergencia")
+		
+		# Luz principal
+		var main_light = DirectionalLight3D.new()
+		main_light.name = "FillLight"
+		main_light.light_energy = 2.5
+		main_light.light_color = Color(1.0, 1.0, 1.0)
+		main_light.position = Vector3(5, 10, 5)
+		main_light.rotation_degrees = Vector3(-45, -30, 0)
+		main_light.shadow_enabled = true
+		main_light.shadow_blur = 0.5
+		viewport.add_child(main_light)
+		
+		# Luz de relleno
+		var fill_light = DirectionalLight3D.new()
+		fill_light.name = "RimLight"
+		fill_light.light_energy = 1.2
+		fill_light.light_color = Color(0.9, 0.95, 1.0)
+		fill_light.position = Vector3(-3, 8, -3)
+		fill_light.rotation_degrees = Vector3(-30, 120, 0)
+		fill_light.shadow_enabled = false
+		viewport.add_child(fill_light)
+		
+		# Luz ambiental
+		var ambient_light = OmniLight3D.new()
+		ambient_light.name = "AmbientLight"
+		ambient_light.light_energy = 0.8
+		ambient_light.light_color = Color(1.0, 1.0, 1.0)
+		ambient_light.position = Vector3(0, 5, 0)
+		ambient_light.omni_range = 20.0
+		ambient_light.shadow_enabled = false
+		viewport.add_child(ambient_light)
+		
+		print("  ✅ Iluminación creada (3 luces)")
+	else:
+		print("  ✅ Luces existentes: %d" % existing_lights.size())
+		for light in existing_lights:
+			if light.name.contains("FillLight"):
+				light.light_energy = 1.5
+				print("    🔆 Energía de FillLight aumentada a 1.5")
+			elif light.name.contains("RimLight"):
+				light.light_energy = 1.5
+				print("    🔆 Energía de RimLight aumentada a 1.5")
+
+func _find_lights_in_viewport() -> Array:
+	"""Buscar luces existentes en el viewport"""
+	var lights = []
+	_search_lights_recursive(viewport, lights)
+	return lights
+
+func _search_lights_recursive(node: Node, lights: Array):
+	"""Búsqueda recursiva de luces"""
+	if node is Light3D:
+		lights.append(node)
+	
+	for child in node.get_children():
+		_search_lights_recursive(child, lights)
+
+func ensure_animation_updates():
+	"""Asegurar que la animación se actualice correctamente"""
+	if not current_model:
+		return
+	
+	var anim_player = current_model.get_node_or_null("AnimationPlayer")
+	if not anim_player:
+		return
+	
+	if anim_player.is_playing():
+		var current_pos = anim_player.current_animation_position
+		var current_anim_name = anim_player.current_animation
+		anim_player.seek(current_pos, true)
+		
+		var skeleton = current_model.get_node_or_null("Skeleton3D_combined")
+		if skeleton:
+			skeleton.force_update_all_bone_transforms()
+
+func _setup_animation_with_controls():
+	"""Configurar animación con controles de reproducción"""
 	print("🎮 CONFIGURANDO ANIMACIÓN CON CONTROLES")
 	
 	if not current_model:
-		print("❌ No hay modelo para animar")
 		return
 	
 	var anim_player = current_model.get_node_or_null("AnimationPlayer")
@@ -263,15 +282,101 @@ func _start_preview_animation_with_controls():
 		anim.loop_mode = Animation.LOOP_LINEAR
 		print("🔄 Animación configurada para loop: %s (%.2fs)" % [first_anim, anim.length])
 	
+	# Conectar signal
+	if not anim_player.is_connected("animation_changed", _on_animation_frame_changed):
+		anim_player.animation_changed.connect(_on_animation_frame_changed)
+	
 	# Reproducir animación
 	anim_player.play(first_anim)
 	print("▶️ Animación iniciada: %s" % first_anim)
+	
+	# Crear timer para actualizaciones
+	_create_skeleton_update_timer()
+
+func _create_skeleton_update_timer():
+	"""Crear timer para actualizaciones del skeleton"""
+	var skeleton_timer = Timer.new()
+	skeleton_timer.name = "SkeletonUpdateTimer"
+	skeleton_timer.wait_time = 1.0 / 60.0
+	skeleton_timer.autostart = true
+	skeleton_timer.timeout.connect(_force_skeleton_update)
+	add_child(skeleton_timer)
+	print("⚡ Timer de skeleton creado a 60 FPS")
+
+func _force_skeleton_update():
+	"""Forzar actualización del skeleton cada frame"""
+	if not current_model or not preview_active:
+		return
+	
+	var skeleton = current_model.get_node_or_null("Skeleton3D_combined")
+	if skeleton:
+		skeleton.force_update_all_bone_transforms()
+		
+		for child in skeleton.get_children():
+			if child is MeshInstance3D:
+				child.force_update_transform()
+	
+	# Actualizar preview cada 2 frames
+	if preview_active and not preview_paused and Engine.get_frames_drawn() % 2 == 0:
+		update_preview_display(viewport.get_texture())
+
+func _on_animation_frame_changed():
+	"""Callback cuando la animación cambia de frame"""
+	ensure_animation_updates()
+
+func _force_viewport_render():
+	"""Forzar renderizado inmediato del viewport"""
+	if not viewport:
+		return
+	
+	ensure_animation_updates()
+	await get_tree().process_frame
+	
+	viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
+	await RenderingServer.frame_post_draw
+	
+	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	await get_tree().process_frame
+
+func update_preview_display(texture: ViewportTexture):
+	"""Actualizar la visualización del preview en tiempo real"""
+	if not texture:
+		return
+	
+	if preview_texture_rect:
+		var current_image = texture.get_image()
+		if current_image:
+			var image_texture = ImageTexture.new()
+			image_texture.create_from_image(current_image)
+			preview_texture_rect.texture = image_texture
+			
+			# Ocultar mensaje de "no preview"
+			var no_preview_label = _find_node_by_name(get_tree().root, "NoPreviewLabel")
+			if no_preview_label:
+				no_preview_label.visible = false
+		else:
+			preview_texture_rect.texture = texture
+	
+	if preview_status_label and preview_status_label.text != "🎬 Preview activo - Animación en tiempo real":
+		preview_status_label.text = "🎬 Preview activo - Animación en tiempo real"
+		preview_status_label.add_theme_color_override("font_color", Color(0.2, 0.8, 0.2))
+
+func _find_node_by_name(root: Node, name: String) -> Node:
+	"""Buscar nodo recursivamente por nombre"""
+	if root.get_name() == name:
+		return root
+	
+	for child in root.get_children():
+		var result = _find_node_by_name(child, name)
+		if result:
+			return result
+	
+	return null
 
 # CONTROLES DE PREVIEW
 func _on_preview_play():
 	"""Callback para botón play"""
 	print("▶️ PREVIEW PLAY")
-	
 	preview_paused = false
 	
 	if current_model:
@@ -283,7 +388,6 @@ func _on_preview_play():
 func _on_preview_pause():
 	"""Callback para botón pause"""
 	print("⏸️ PREVIEW PAUSE")
-	
 	preview_paused = true
 	
 	if current_model:
@@ -292,229 +396,28 @@ func _on_preview_pause():
 			anim_player.pause()
 			print("✅ Animación pausada")
 
-func toggle_preview_playback():
-	"""Toggle entre play y pause"""
-	if preview_paused:
-		_on_preview_play()
-	else:
-		_on_preview_pause()
-
-# FUNCIÓN CORREGIDA: Objetos de debug con materiales más visibles
-func _create_debug_test_objects():
-	"""Crear objetos de prueba más visibles"""
-	print("🔴 CREANDO OBJETOS DEBUG MEJORADOS")
+func stop_preview():
+	"""Detener preview"""
+	print("⏹️ DETENIENDO PREVIEW")
+	preview_active = false
+	preview_paused = false
 	
-	# Esfera roja brillante
-	var test_sphere = MeshInstance3D.new()
-	test_sphere.name = "DEBUG_TestSphere"
-	var sphere_mesh = SphereMesh.new()
-	sphere_mesh.radius = 0.8
-	sphere_mesh.height = 1.6
-	test_sphere.mesh = sphere_mesh
+	if camera_controller.has_method("disable_preview_mode"):
+		camera_controller.disable_preview_mode()
 	
-	var sphere_material = StandardMaterial3D.new()
-	sphere_material.albedo_color = Color.RED
-	sphere_material.emission_enabled = true
-	sphere_material.emission = Color(0.8, 0.0, 0.0)
-	sphere_material.emission_energy = 2.0
-	sphere_material.roughness = 0.1
-	sphere_material.metallic = 0.0
-	test_sphere.set_surface_override_material(0, sphere_material)
-	
-	test_sphere.position = Vector3(0, 1, 0)
-	viewport.add_child(test_sphere)
-	print("  ✅ Esfera ROJA creada en %s" % str(test_sphere.position))
-	
-	# Cubo verde brillante
-	var test_cube = MeshInstance3D.new()
-	test_cube.name = "DEBUG_TestCube"
-	var box_mesh = BoxMesh.new()
-	box_mesh.size = Vector3(0.8, 0.8, 0.8)
-	test_cube.mesh = box_mesh
-	
-	var cube_material = StandardMaterial3D.new()
-	cube_material.albedo_color = Color.GREEN
-	cube_material.emission_enabled = true
-	cube_material.emission = Color(0.0, 0.8, 0.0)
-	cube_material.emission_energy = 2.0
-	cube_material.roughness = 0.1
-	test_cube.set_surface_override_material(0, cube_material)
-	
-	test_cube.position = Vector3(2, 0.5, 0)
-	viewport.add_child(test_cube)
-	print("  ✅ Cubo VERDE creado en %s" % str(test_cube.position))
-	
-	# Cilindro azul brillante
-	var test_cylinder = MeshInstance3D.new()
-	test_cylinder.name = "DEBUG_TestCylinder"
-	var cylinder_mesh = CylinderMesh.new()
-	cylinder_mesh.height = 1.5
-	cylinder_mesh.top_radius = 0.4
-	cylinder_mesh.bottom_radius = 0.4
-	test_cylinder.mesh = cylinder_mesh
-	
-	var cylinder_material = StandardMaterial3D.new()
-	cylinder_material.albedo_color = Color.BLUE
-	cylinder_material.emission_enabled = true
-	cylinder_material.emission = Color(0.0, 0.0, 0.8)
-	cylinder_material.emission_energy = 2.0
-	cylinder_material.roughness = 0.1
-	test_cylinder.set_surface_override_material(0, cylinder_material)
-	
-	test_cylinder.position = Vector3(-2, 0.75, 0)
-	viewport.add_child(test_cylinder)
-	print("  ✅ Cilindro AZUL creado en %s" % str(test_cylinder.position))
-	
-	# Configurar cámara para ver objetos
-	var debug_bounds = AABB(Vector3(-3, 0, -2), Vector3(6, 3, 4))
-	camera_controller.setup_for_model(debug_bounds)
-	
-	print("🔴 OBJETOS DEBUG CREADOS Y CONFIGURADOS")
-
-func _clear_debug_test_objects():
-	"""Limpiar objetos de debug"""
-	var objects_to_remove = []
-	
-	for child in viewport.get_children():
-		if child.name.begins_with("DEBUG_Test"):
-			objects_to_remove.append(child)
-	
-	for obj in objects_to_remove:
-		viewport.remove_child(obj)
-		obj.queue_free()
-
-# FUNCIÓN CORREGIDA: Iluminación de emergencia más intensa
-func _setup_emergency_lighting():
-	"""Configurar iluminación visible y funcional"""
-	print("💡 CONFIGURANDO ILUMINACIÓN MEJORADA")
-	
-	var existing_lights = _find_lights_in_viewport()
-	
-	if existing_lights.size() == 0:
-		print("  ⚠️ Creando iluminación de emergencia")
-		
-		# Luz principal más intensa
-		var main_light = DirectionalLight3D.new()
-		main_light.name = "EmergencyMainLight"
-		main_light.light_energy = 2.5
-		main_light.light_color = Color(1.0, 1.0, 1.0)
-		main_light.position = Vector3(5, 10, 5)
-		main_light.rotation_degrees = Vector3(-45, -30, 0)
-		main_light.shadow_enabled = true
-		main_light.shadow_blur = 0.5
-		viewport.add_child(main_light)
-		
-		# Luz de relleno
-		var fill_light = DirectionalLight3D.new()
-		fill_light.name = "EmergencyFillLight"
-		fill_light.light_energy = 1.2
-		fill_light.light_color = Color(0.9, 0.95, 1.0)
-		fill_light.position = Vector3(-3, 8, -3)
-		fill_light.rotation_degrees = Vector3(-30, 120, 0)
-		fill_light.shadow_enabled = false
-		viewport.add_child(fill_light)
-		
-		# Luz ambiental adicional
-		var ambient_light = OmniLight3D.new()
-		ambient_light.name = "EmergencyAmbientLight"
-		ambient_light.light_energy = 0.8
-		ambient_light.light_color = Color(1.0, 1.0, 1.0)
-		ambient_light.position = Vector3(0, 5, 0)
-		ambient_light.omni_range = 20.0
-		ambient_light.shadow_enabled = false
-		viewport.add_child(ambient_light)
-		
-		print("  ✅ Iluminación de emergencia creada (3 luces)")
-	else:
-		print("  ✅ Luces existentes: %d" % existing_lights.size())
-		for light in existing_lights:
-			if light.light_energy < 1.0:
-				light.light_energy = 1.5  # Aumentar energía
-				print("    🔆 Energía de %s aumentada a %.1f" % [light.name, light.light_energy])
-
-func _find_lights_in_viewport() -> Array:
-	"""Buscar luces existentes en el viewport"""
-	var lights = []
-	_search_lights_recursive(viewport, lights)
-	return lights
-
-func _search_lights_recursive(node: Node, lights: Array):
-	"""Búsqueda recursiva de luces"""
-	if node is Light3D:
-		lights.append(node)
-	
-	for child in node.get_children():
-		_search_lights_recursive(child, lights)
-
-# FUNCIONES DE DEBUG MEJORADAS
-func _debug_preview_setup():
-	"""Debug completo del estado del preview"""
-	print("🔍 DEBUG PREVIEW COMPLETO")
-	print("  Current model: %s" % (current_model.name if current_model else "NULL"))
-	print("  Viewport size: %s" % str(viewport.size))
-	print("  Preview active: %s" % preview_active)
-	print("  Preview paused: %s" % preview_paused)
-	
-	# Debug de la cámara
-	var camera = camera_controller.get_camera()
-	if camera:
-		print("  Cámara: %s en %s" % [camera.name, camera.global_position])
-		print("  Mirando hacia: %s" % str(camera_controller.target_position if camera_controller.has_method("get_target_position") else "N/A"))
-	
-	# Debug del modelo
 	if current_model:
-		_debug_model_state()
-	
-	# Debug del viewport
-	_debug_viewport_state()
-
-func _debug_model_state():
-	"""Debug del estado del modelo"""
-	print("  🎭 DEBUG MODELO:")
-	print("    Nombre: %s" % current_model.name)
-	print("    Posición: %s" % str(current_model.global_position))
-	print("    Visible: %s" % current_model.visible)
-	
-	# Debug del skeleton
-	var skeleton = current_model.get_node_or_null("Skeleton3D_combined")
-	if skeleton:
-		print("    Skeleton: %s (%d huesos)" % [skeleton.name, skeleton.get_bone_count()])
+		var anim_player = current_model.get_node_or_null("AnimationPlayer")
+		if anim_player:
+			anim_player.stop()
 		
-		# Debug de meshes
-		var mesh_count = 0
-		for child in skeleton.get_children():
-			if child is MeshInstance3D:
-				mesh_count += 1
-				print("      Mesh: %s (visible: %s)" % [child.name, child.visible])
-		print("    Total meshes: %d" % mesh_count)
+		if current_model.get_parent() == viewport:
+			viewport.remove_child(current_model)
+		
+		current_model = null
 	
-	# Debug de animación
-	var anim_player = current_model.get_node_or_null("AnimationPlayer")
-	if anim_player:
-		print("    AnimationPlayer: %s" % anim_player.name)
-		print("      Animaciones: %s" % str(anim_player.get_animation_list()))
-		print("      Actual: %s (playing: %s)" % [anim_player.current_animation, anim_player.is_playing()])
+	print("✅ Preview detenido completamente")
 
-func _debug_viewport_state():
-	"""Debug del estado del viewport"""
-	print("  📺 DEBUG VIEWPORT:")
-	print("    Size: %s" % str(viewport.size))
-	print("    Transparent BG: %s" % viewport.transparent_bg)
-	print("    Update mode: %s" % viewport.render_target_update_mode)
-	print("    Hijos: %d" % viewport.get_child_count())
-	
-	# Listar hijos
-	for child in viewport.get_children():
-		print("      - %s (%s)" % [child.name, child.get_class()])
-	
-	# Debug de textura
-	var texture = viewport.get_texture()
-	if texture:
-		print("    Textura: %s (%s)" % [texture.get_class(), str(texture.get_size())])
-	else:
-		print("    ❌ Sin textura")
-
-# FUNCIONES DE RENDERIZADO (originales mejoradas)
+# FUNCIONES DE RENDERIZADO
 func render_animation(model: Node3D, animation_name: String, angle: float, direction_index: int):
 	"""Renderizar animación completa"""
 	if is_rendering:
@@ -528,7 +431,7 @@ func render_animation(model: Node3D, animation_name: String, angle: float, direc
 	current_direction = direction_index
 	current_frame = 0
 	
-	# Preparar modelo para renderizado
+	# Preparar modelo
 	if current_model and current_model.get_parent() == viewport:
 		viewport.remove_child(current_model)
 		current_model.queue_free()
@@ -563,13 +466,11 @@ func _render_next_frame():
 		return
 	
 	# Preparar modelo para el frame actual
-	var anim_manager = get_node("/root/Main/AnimationManager")
+	var anim_manager = get_node("/root/main/AnimationManager")
 	if anim_manager and anim_manager.has_method("prepare_model_for_rendering"):
 		anim_manager.prepare_model_for_rendering(current_model, current_frame, total_frames, current_animation)
 	
 	await get_tree().process_frame
-	
-	# Renderizar frame
 	await _force_viewport_render()
 	
 	# Capturar imagen
@@ -583,7 +484,7 @@ func _render_next_frame():
 		"animation": current_animation,
 		"direction": current_direction,
 		"frame": current_frame,
-		"angle": camera_controller.pivot_node.rotation_degrees.y if camera_controller.has_method("get_pivot_rotation") else 0.0,
+		"angle": camera_controller.pivot_node.rotation_degrees.y if "pivot_node" in camera_controller else 0.0,
 		"image": image
 	}
 	
@@ -679,48 +580,14 @@ func _find_all_mesh_instances(node: Node) -> Array:
 	
 	return meshes
 
-# FUNCIONES PÚBLICAS PARA CONTROL EXTERNO
-func activate_debug_mode():
-	"""Activar modo debug (llamada externa)"""
-	print("🔴 ACTIVANDO MODO DEBUG EXTERNO")
-	setup_preview(null, true)
+func update_camera_settings(settings: Dictionary):
+	"""Actualizar configuraciones de cámara"""
+	camera_controller.set_camera_settings(settings)
 
-func stop_preview():
-	"""Detener preview"""
-	print("⏹️ DETENIENDO PREVIEW")
-	
-	preview_active = false
-	preview_paused = false
-	
-	if camera_controller.has_method("disable_preview_mode"):
-		camera_controller.disable_preview_mode()
-	
-	if current_model:
-		var anim_player = current_model.get_node_or_null("AnimationPlayer")
-		if anim_player:
-			anim_player.stop()
-		
-		if current_model.get_parent() == viewport:
-			viewport.remove_child(current_model)
-		
-		current_model = null
-	
-	_clear_debug_test_objects()
-	print("✅ Preview detenido completamente")
-
+# FUNCIONES PÚBLICAS
 func get_viewport_texture() -> ViewportTexture:
 	"""Obtener textura actual del viewport"""
 	return viewport.get_texture()
-
-func get_viewport_image_texture() -> ImageTexture:
-	"""Obtener textura del viewport convertida a ImageTexture"""
-	var viewport_texture = viewport.get_texture()
-	if viewport_texture:
-		var image = viewport_texture.get_image()
-		var image_texture = ImageTexture.new()
-		image_texture.create_from_image(image)
-		return image_texture
-	return null
 
 func is_preview_active() -> bool:
 	"""Verificar si el preview está activo"""
