@@ -310,7 +310,7 @@ func _find_imported_scene_path(fbx_path: String) -> String:
 func _analyze_fbx_structure(root: Node3D, type: String, anim_name: String = "") -> Dictionary:
 	var data = {
 		"type": type,
-		"name": anim_name if anim_name != "" else root.name,
+		"name": anim_name if anim_name != "" else String(root.name),  # Convertir a String
 		"node": root,
 		"skeleton": null,
 		"meshes": [],

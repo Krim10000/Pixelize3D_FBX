@@ -261,8 +261,8 @@ func apply_preset(preset_name: String) -> void:
 			save_config()
 			emit_signal("preset_loaded", preset_name)
 
-func save_custom_preset(name: String, description: String = "") -> void:
-	var preset_key = name.replace(" ", "_")
+func save_custom_preset(preset_name: String, description: String = "") -> void:
+	var preset_key = preset_name.replace(" ", "_")
 	
 	presets[preset_key] = {
 		"name": name,

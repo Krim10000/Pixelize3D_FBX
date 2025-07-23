@@ -132,9 +132,9 @@ func _process(delta: float):
 		_update_display()
 
 func _update_display():
-	# Actualizar FPS
 	var fps = Engine.get_frames_per_second()
-	fps_label.text = "FPS: %d (%.2f ms)" % [fps, 1000.0 / fps if fps > 0 else 0]
+	var frame_time = 1000.0 / fps if fps > 0 else 0.0
+	fps_label.text = "FPS: %d (%.2f ms)" % [fps, frame_time]
 	
 	# Añadir a historial
 	fps_history.append(fps)
@@ -174,25 +174,56 @@ func _update_display():
 		if child.has_method("queue_redraw"):
 			child.queue_redraw()
 
+#func _draw_fps_graph(graph: Control):
+	#if fps_history.is_empty():
+		#return
+	#
+	#var size = graph.size
+	#var max_fps = 120.0
+	#var min_fps = 0.0
+	#
+	## Dibujar líneas de referencia
+	#graph.draw_line(Vector2(0, size.y * 0.5), Vector2(size.x, size.y * 0.5), 
+		#Color(0.3, 0.3, 0.3, 0.5), 1.0)
+	#graph.draw_string(graph.get_theme_default_font(), Vector2(5, size.y * 0.5), 
+		#"60", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(0.5, 0.5, 0.5))
+	#
+	## Dibujar gráfico
+	#var points = PackedVector2Array()
+	#for i in range(fps_history.size()):
+		#var x = (i / float(max_history_points - 1)) * size.x
+		#var y = size.y - (fps_history[i] / max_fps) * size.y
+		#points.append(Vector2(x, y))
+	#
+	#if points.size() > 1:
+		## Color basado en FPS
+		#var current_fps = fps_history[-1]
+		#var color = Color.GREEN if current_fps >= 60 else Color.YELLOW if current_fps >= 30 else Color.RED
+		#
+		#for i in range(points.size() - 1):
+			#graph.draw_line(points[i], points[i + 1], color, 2.0)
+
+
 func _draw_fps_graph(graph: Control):
 	if fps_history.is_empty():
 		return
 	
-	var size = graph.size
+	# 1. Corregir variable shadowing: renombrar 'size' a 'graph_size'
+	var graph_size = graph.size
 	var max_fps = 120.0
-	var min_fps = 0.0
+	# 2. Eliminar variable no utilizada 'min_fps'
 	
 	# Dibujar líneas de referencia
-	graph.draw_line(Vector2(0, size.y * 0.5), Vector2(size.x, size.y * 0.5), 
+	graph.draw_line(Vector2(0, graph_size.y * 0.5), Vector2(graph_size.x, graph_size.y * 0.5), 
 		Color(0.3, 0.3, 0.3, 0.5), 1.0)
-	graph.draw_string(graph.get_theme_default_font(), Vector2(5, size.y * 0.5), 
+	graph.draw_string(graph.get_theme_default_font(), Vector2(5, graph_size.y * 0.5), 
 		"60", HORIZONTAL_ALIGNMENT_LEFT, -1, 10, Color(0.5, 0.5, 0.5))
 	
 	# Dibujar gráfico
 	var points = PackedVector2Array()
 	for i in range(fps_history.size()):
-		var x = (i / float(max_history_points - 1)) * size.x
-		var y = size.y - (fps_history[i] / max_fps) * size.y
+		var x = (i / float(max_history_points - 1)) * graph_size.x
+		var y = graph_size.y - (fps_history[i] / max_fps) * graph_size.y
 		points.append(Vector2(x, y))
 	
 	if points.size() > 1:
@@ -202,12 +233,12 @@ func _draw_fps_graph(graph: Control):
 		
 		for i in range(points.size() - 1):
 			graph.draw_line(points[i], points[i + 1], color, 2.0)
-
+			
 func _draw_memory_graph(graph: Control):
 	if memory_history.is_empty():
 		return
 	
-	var size = graph.size
+	var graph_size = graph.size
 	var max_memory = 0.0
 	
 	# Encontrar máximo
@@ -219,8 +250,8 @@ func _draw_memory_graph(graph: Control):
 	# Dibujar líneas de referencia
 	var ref_lines = [0.25, 0.5, 0.75]
 	for ref in ref_lines:
-		var y = size.y * (1.0 - ref)
-		graph.draw_line(Vector2(0, y), Vector2(size.x, y), 
+		var y = graph_size.y * (1.0 - ref)
+		graph.draw_line(Vector2(0, y), Vector2(graph_size.x, y), 
 			Color(0.3, 0.3, 0.3, 0.3), 1.0)
 		graph.draw_string(graph.get_theme_default_font(), Vector2(5, y), 
 			"%.0f MB" % (max_memory * ref), HORIZONTAL_ALIGNMENT_LEFT, -1, 10, 
@@ -229,11 +260,11 @@ func _draw_memory_graph(graph: Control):
 	# Dibujar gráfico
 	var points = PackedVector2Array()
 	for i in range(memory_history.size()):
-		var x = (i / float(max_history_points - 1)) * size.x
-		var y = size.y - (memory_history[i] / max_memory) * size.y
+		var x = (i / float(max_history_points - 1)) * graph_size.x
+		var y = graph_size.y - (memory_history[i] / max_memory) * graph_size.y
 		points.append(Vector2(x, y))
 	
-	if points.size() > 1:
+	if points.graph_size() > 1:
 		for i in range(points.size() - 1):
 			graph.draw_line(points[i], points[i + 1], Color.CYAN, 2.0)
 
@@ -260,18 +291,33 @@ func _get_log_color(level: String) -> String:
 		"DEBUG": return "#4444ff"
 		_: return "#ffffff"
 
+#func _make_draggable(panel: Control):
+	#var dragging = false
+	#var drag_offset = Vector2.ZERO
+	#
+	#panel.gui_input.connect(func(event):
+		#if event is InputEventMouseButton:
+			#if event.button_index == MOUSE_BUTTON_LEFT:
+				#dragging = event.pressed
+				#drag_offset = event.position
+		#elif event is InputEventMouseMotion and dragging:
+			#panel.position += event.position - drag_offset
+	#)
+
+
+
 func _make_draggable(panel: Control):
-	var dragging = false
-	var drag_offset = Vector2.ZERO
+	# Usamos un diccionario para mantener el estado
+	var drag_state = {"dragging": false, "drag_offset": Vector2.ZERO}
 	
 	panel.gui_input.connect(func(event):
-		if event is InputEventMouseButton:
-			if event.button_index == MOUSE_BUTTON_LEFT:
-				dragging = event.pressed
-				drag_offset = event.position
-		elif event is InputEventMouseMotion and dragging:
-			panel.position += event.position - drag_offset
+		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
+			drag_state["dragging"] = event.pressed
+			drag_state["drag_offset"] = event.position
+		elif event is InputEventMouseMotion and drag_state["dragging"]:
+			panel.position += event.position - drag_state["drag_offset"]
 	)
+
 
 func _on_clear_pressed():
 	log_viewer.clear()

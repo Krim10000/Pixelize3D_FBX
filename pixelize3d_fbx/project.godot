@@ -20,6 +20,10 @@ ConfigManager="*res://scripts/core/config_manager.gd"
 DebugSystem="*res://scripts/core/debug_system.gd"
 Utils="*res://scripts/utils/utils.gd"
 
+[debug]
+
+gdscript/warnings/integer_division=0
+
 [display]
 
 window/size/viewport_width=1280
