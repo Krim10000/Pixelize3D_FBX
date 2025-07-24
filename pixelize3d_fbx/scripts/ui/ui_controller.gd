@@ -1,26 +1,36 @@
-# scripts/ui/ui_controller.gd
-# Input: Interacciones del usuario y textura del SpriteRenderer
-# Output: Señales y configuración para el proceso de renderizado, controles de preview
+# pixelize3d_fbx/scripts/ui/ui_controller.gd
+# Script de interfaz de usuario corregido para exploración de assets/fbx/ y checkboxes de animaciones
+# Input: Interacciones del usuario (incluyendo orientación del modelo y selección por unidades)
+# Output: Señales y configuración para el proceso de renderizado con orientación coherente
 
 extends Control
 
+signal unit_selected(unit_data: Dictionary)
 signal folder_selected(path: String)
 signal base_fbx_selected(filename: String)
 signal animations_selected(filenames: Array)
 signal render_settings_changed(settings: Dictionary)
 signal render_requested()
-
-# SEÑALES para control de preview
-signal preview_play_requested()
-signal preview_pause_requested()
-signal preview_stop_requested()
+signal export_requested(settings: Dictionary)
 
 # Referencias a controles UI (sin @onready ya que se crean dinámicamente)
 var main_panel: PanelContainer
+var folder_dialog: FileDialog
 var progress_dialog: AcceptDialog
+var preview_viewport: SubViewport
 
-var project_folders_list: ItemList  # Lista de carpetas de proyecto
+# NUEVO: Controles para exploración de unidades
+var units_option: OptionButton
+var unit_info_label: Label
+
+var folder_path_label: Label
+var fbx_list: ItemList
 var base_fbx_option: OptionButton
+
+# MODIFICADO: Contenedor para checkboxes de animaciones en lugar de ItemList
+var animations_container: VBoxContainer
+var animation_checkboxes: Array = []
+
 var directions_spinbox: SpinBox
 var sprite_size_spinbox: SpinBox
 var camera_angle_slider: HSlider
@@ -32,26 +42,18 @@ var preview_button: Button
 var render_button: Button
 var export_log: RichTextLabel
 
-# NUEVAS REFERENCIAS para log mejorado
-var log_copy_button: Button
-var log_clear_button: Button
-
-# REFERENCIAS CORREGIDAS para controles de preview
-var viewport_container: SubViewportContainer
-var preview_texture_rect: TextureRect  # NUEVA: Para mostrar la textura
-var play_button: Button
-var pause_button: Button
-var stop_button: Button
-var preview_status_label: Label
+# Control para orientación norte
+var north_offset_slider: HSlider
+var north_offset_label: Label
 
 var current_folder_path: String = ""
 var available_fbx_files: Array = []
 var selected_animations: Array = []
 var preview_mode_active: bool = false
 
-# Para manejo de carpetas de proyecto
-var project_folders: Array = []
-var current_project_folder: String = ""
+# NUEVO: Datos de unidades disponibles
+var available_units: Array = []
+var current_unit_data: Dictionary = {}
 
 func _ready():
 	_create_ui()
@@ -106,50 +108,58 @@ func _create_config_panel() -> Control:
 	var vbox = VBoxContainer.new()
 	panel.add_child(vbox)
 	
-	# Sección: Selección de carpeta de proyecto
-	var folder_section = _create_section("Carpetas de Proyecto")
-	vbox.add_child(folder_section)
+	# NUEVA SECCIÓN: Selección de Unidad
+	var unit_section = _create_section("📁 Seleccionar Unidad")
+	vbox.add_child(unit_section)
 	
-	var folder_info = Label.new()
-	folder_info.text = "Carpetas encontradas en res://assets/fbx/"
-	folder_info.add_theme_font_size_override("font_size", 12)
-	folder_info.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-	folder_section.add_child(folder_info)
+	var unit_desc = Label.new()
+	unit_desc.text = "Unidades encontradas en res://assets/fbx/"
+	unit_desc.add_theme_font_size_override("font_size", 10)
+	unit_desc.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	unit_section.add_child(unit_desc)
 	
-	project_folders_list = ItemList.new()
-	project_folders_list.name = "ProjectFoldersList"
-	project_folders_list.custom_minimum_size.y = 120
-	project_folders_list.select_mode = ItemList.SELECT_SINGLE
-	project_folders_list.item_selected.connect(_on_project_folder_selected)
-	folder_section.add_child(project_folders_list)
+	units_option = OptionButton.new()
+	units_option.add_item("-- Cargando unidades... --")
+	units_option.disabled = true
+	unit_section.add_child(units_option)
+	
+	unit_info_label = Label.new()
+	unit_info_label.text = ""
+	unit_info_label.add_theme_font_size_override("font_size", 10)
+	unit_info_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+	unit_info_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	unit_section.add_child(unit_info_label)
 	
 	# Sección: Selección de FBX base
 	var base_section = _create_section("Modelo Base")
 	vbox.add_child(base_section)
 	
 	base_fbx_option = OptionButton.new()
-	base_fbx_option.add_item("-- Seleccionar carpeta primero --")
+	base_fbx_option.add_item("-- Seleccionar unidad primero --")
 	base_fbx_option.disabled = true
 	base_section.add_child(base_fbx_option)
 	
-	# Sección: Selección de animaciones CON CHECKBOXES
-	var anim_section = _create_section("Animaciones")
+	# SECCIÓN MODIFICADA: Selección de animaciones con checkboxes
+	var anim_section = _create_section("📋 Animaciones")
 	vbox.add_child(anim_section)
 	
-	var anim_info = Label.new()
-	anim_info.text = "Marca las animaciones que deseas usar:"
-	anim_info.add_theme_font_size_override("font_size", 12)
-	anim_info.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
-	anim_section.add_child(anim_info)
+	var anim_desc = Label.new()
+	anim_desc.text = "Selecciona las animaciones a renderizar:"
+	anim_desc.add_theme_font_size_override("font_size", 10)
+	anim_desc.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	anim_section.add_child(anim_desc)
 	
-	# Contenedor scroll para animaciones con checkboxes
-	var anim_scroll = ScrollContainer.new()
-	anim_scroll.custom_minimum_size.y = 150
-	anim_section.add_child(anim_scroll)
+	# Contenedor para checkboxes de animaciones
+	animations_container = VBoxContainer.new()
+	animations_container.name = "AnimationsContainer"
+	anim_section.add_child(animations_container)
 	
-	var anim_vbox = VBoxContainer.new()
-	anim_vbox.name = "AnimationsCheckboxContainer"
-	anim_scroll.add_child(anim_vbox)
+	var no_animations_label = Label.new()
+	no_animations_label.name = "NoAnimationsLabel"
+	no_animations_label.text = "Selecciona una unidad para ver animaciones disponibles"
+	no_animations_label.add_theme_font_size_override("font_size", 10)
+	no_animations_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+	animations_container.add_child(no_animations_label)
 	
 	# Sección: Configuración de renderizado
 	var render_section = _create_section("Configuración de Renderizado")
@@ -224,6 +234,77 @@ func _create_config_panel() -> Control:
 	camera_distance_slider = _create_slider(5, 100, 15)
 	camera_section.add_child(camera_distance_slider)
 	
+	# Sección: Orientación del Modelo
+	var orientation_section = _create_section("🧭 Orientación del Modelo")
+	vbox.add_child(orientation_section)
+	
+	# Descripción de la orientación
+	var orientation_desc = Label.new()
+	orientation_desc.text = "Ajusta la orientación del modelo para que todos los sprites sean coherentes"
+	orientation_desc.add_theme_font_size_override("font_size", 10)
+	orientation_desc.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	orientation_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	orientation_section.add_child(orientation_desc)
+	
+	# Control de orientación norte con container horizontal
+	var north_container = HBoxContainer.new()
+	orientation_section.add_child(north_container)
+	
+	var north_label_static = Label.new()
+	north_label_static.text = "Norte del modelo:"
+	north_label_static.custom_minimum_size.x = 120
+	north_container.add_child(north_label_static)
+	
+	# Slider de orientación norte (0-360 grados)
+	north_offset_slider = HSlider.new()
+	north_offset_slider.min_value = 0.0
+	north_offset_slider.max_value = 360.0
+	north_offset_slider.step = 1.0
+	north_offset_slider.value = 0.0
+	north_offset_slider.custom_minimum_size.x = 200
+	north_container.add_child(north_offset_slider)
+	
+	# Label para mostrar el valor actual
+	north_offset_label = Label.new()
+	north_offset_label.text = "0°"
+	north_offset_label.custom_minimum_size.x = 40
+	north_offset_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	north_container.add_child(north_offset_label)
+	
+	# Botones de preset para orientaciones comunes
+	var preset_container = HBoxContainer.new()
+	orientation_section.add_child(preset_container)
+	
+	var preset_label = Label.new()
+	preset_label.text = "Presets:"
+	preset_label.custom_minimum_size.x = 120
+	preset_container.add_child(preset_label)
+	
+	# Botones de preset
+	var north_preset = Button.new()
+	north_preset.text = "Norte"
+	north_preset.custom_minimum_size.x = 60
+	north_preset.pressed.connect(_on_north_preset_pressed.bind(0.0))
+	preset_container.add_child(north_preset)
+	
+	var east_preset = Button.new()
+	east_preset.text = "Este"
+	east_preset.custom_minimum_size.x = 60
+	east_preset.pressed.connect(_on_north_preset_pressed.bind(90.0))
+	preset_container.add_child(east_preset)
+	
+	var south_preset = Button.new()
+	south_preset.text = "Sur"
+	south_preset.custom_minimum_size.x = 60
+	south_preset.pressed.connect(_on_north_preset_pressed.bind(180.0))
+	preset_container.add_child(south_preset)
+	
+	var west_preset = Button.new()
+	west_preset.text = "Oeste"
+	west_preset.custom_minimum_size.x = 60
+	west_preset.pressed.connect(_on_north_preset_pressed.bind(270.0))
+	preset_container.add_child(west_preset)
+	
 	# Opciones adicionales
 	pixelize_checkbox = CheckBox.new()
 	pixelize_checkbox.text = "Aplicar pixelización"
@@ -259,65 +340,24 @@ func _create_preview_panel() -> Control:
 	vbox.add_child(label)
 	
 	# Status del preview
-	preview_status_label = Label.new()
-	preview_status_label.name = "PreviewStatus"
-	preview_status_label.text = "Carga un modelo para ver preview"
-	preview_status_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	preview_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	vbox.add_child(preview_status_label)
+	var status_label = Label.new()
+	status_label.name = "PreviewStatus"
+	status_label.text = "Selecciona una unidad para ver preview"
+	status_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	vbox.add_child(status_label)
 	
-	# CORRECCIÓN CRÍTICA: Usar SubViewportContainer para preview
-	viewport_container = SubViewportContainer.new()
+	var viewport_container = SubViewportContainer.new()
 	viewport_container.name = "ViewportContainer"
 	viewport_container.stretch = true
 	viewport_container.custom_minimum_size = Vector2(400, 400)
 	vbox.add_child(viewport_container)
 	
-	# NUEVA OPCIÓN: TextureRect para mostrar la textura del viewport
-	preview_texture_rect = TextureRect.new()
-	preview_texture_rect.name = "PreviewTextureRect"
-	preview_texture_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
-	preview_texture_rect.expand_mode = TextureRect.EXPAND_FIT_WIDTH_PROPORTIONAL
-	preview_texture_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	viewport_container.add_child(preview_texture_rect)
-	
-	# Mensaje cuando no hay preview (se muestra/oculta según estado)
-	var no_preview_label = Label.new()
-	no_preview_label.name = "NoPreviewLabel"
-	no_preview_label.text = "No hay preview disponible"
-	no_preview_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	no_preview_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
-	no_preview_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
-	no_preview_label.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
-	no_preview_label.z_index = -1  # Detrás del TextureRect
-	viewport_container.add_child(no_preview_label)
-	
-	# NUEVO: Controles de preview (Play/Pause/Stop)
-	var controls_hbox = HBoxContainer.new()
-	controls_hbox.name = "PreviewControls"
-	controls_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
-	vbox.add_child(controls_hbox)
-	
-	play_button = Button.new()
-	play_button.name = "PlayButton"
-	play_button.text = "▶️ Play"
-	play_button.disabled = true
-	play_button.pressed.connect(_on_play_pressed)
-	controls_hbox.add_child(play_button)
-	
-	pause_button = Button.new()
-	pause_button.name = "PauseButton"
-	pause_button.text = "⏸️ Pause"
-	pause_button.disabled = true
-	pause_button.pressed.connect(_on_pause_pressed)
-	controls_hbox.add_child(pause_button)
-	
-	stop_button = Button.new()
-	stop_button.name = "StopButton"
-	stop_button.text = "⏹️ Stop"
-	stop_button.disabled = true
-	stop_button.pressed.connect(_on_stop_pressed)
-	controls_hbox.add_child(stop_button)
+	preview_viewport = SubViewport.new()
+	preview_viewport.name = "SubViewport"
+	preview_viewport.size = Vector2i(400, 400)
+	preview_viewport.transparent_bg = true
+	viewport_container.add_child(preview_viewport)
 	
 	# Instrucciones de controles
 	var controls_label = Label.new()
@@ -339,47 +379,16 @@ func _create_log_panel() -> Control:
 	var vbox = VBoxContainer.new()
 	panel.add_child(vbox)
 	
-	# Header con título y botones
-	var header_hbox = HBoxContainer.new()
-	vbox.add_child(header_hbox)
-	
 	var label = Label.new()
-	label.text = "Log de Eventos"
-	header_hbox.add_child(label)
-	
-	# Spacer para empujar botones a la derecha
-	var spacer = Control.new()
-	spacer.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	header_hbox.add_child(spacer)
-	
-	# Botones del log
-	log_copy_button = Button.new()
-	log_copy_button.text = "📋 Copiar Todo"
-	log_copy_button.custom_minimum_size.x = 100
-	log_copy_button.pressed.connect(_on_log_copy_pressed)
-	header_hbox.add_child(log_copy_button)
-	
-	log_clear_button = Button.new()
-	log_clear_button.text = "🗑️ Limpiar"
-	log_clear_button.custom_minimum_size.x = 80
-	log_clear_button.pressed.connect(_on_log_clear_pressed)
-	header_hbox.add_child(log_clear_button)
-	
-	# ScrollContainer para el log con scroll mejorado
-	var log_scroll = ScrollContainer.new()
-	log_scroll.custom_minimum_size.y = 100
-	log_scroll.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	vbox.add_child(log_scroll)
+	label.text = "Log de Exportación"
+	vbox.add_child(label)
 	
 	export_log = RichTextLabel.new()
 	export_log.custom_minimum_size.y = 100
-	export_log.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	export_log.size_flags_vertical = Control.SIZE_EXPAND_FILL
 	export_log.scroll_following = true
 	export_log.bbcode_enabled = true
 	export_log.fit_content = true
-	export_log.selection_enabled = true  # Permitir selección de texto
-	log_scroll.add_child(export_log)
+	vbox.add_child(export_log)
 	
 	return panel
 
@@ -405,6 +414,14 @@ func _create_slider(min_val: float, max_val: float, default: float) -> HSlider:
 	return slider
 
 func _create_dialogs():
+	# Diálogo de selección de carpeta (mantenido para compatibilidad)
+	folder_dialog = FileDialog.new()
+	folder_dialog.name = "FileDialog"
+	folder_dialog.file_mode = FileDialog.FILE_MODE_OPEN_DIR
+	folder_dialog.title = "Seleccionar carpeta del proyecto"
+	folder_dialog.dir_selected.connect(_on_folder_selected)
+	add_child(folder_dialog)
+	
 	# Diálogo de progreso
 	progress_dialog = AcceptDialog.new()
 	progress_dialog.name = "ProgressDialog"
@@ -430,6 +447,10 @@ func _create_dialogs():
 	add_child(progress_dialog)
 
 func _connect_ui_signals():
+	# NUEVO: Conectar señal de selección de unidad
+	if units_option:
+		units_option.item_selected.connect(_on_unit_selected)
+	
 	# Conectar señales de UI
 	if base_fbx_option:
 		base_fbx_option.item_selected.connect(_on_base_fbx_selected)
@@ -440,8 +461,8 @@ func _connect_ui_signals():
 	if render_button:
 		render_button.pressed.connect(_on_render_pressed)
 	
-	# Conectar sliders
-	for slider in [camera_angle_slider, camera_height_slider, camera_distance_slider]:
+	# Conectar sliders (incluyendo el nuevo slider de orientación norte)
+	for slider in [camera_angle_slider, camera_height_slider, camera_distance_slider, north_offset_slider]:
 		if slider:
 			slider.value_changed.connect(_on_camera_setting_changed)
 	
@@ -453,6 +474,10 @@ func _connect_ui_signals():
 	# Conectar checkbox
 	if pixelize_checkbox:
 		pixelize_checkbox.toggled.connect(_on_camera_setting_changed)
+	
+	# Conectar slider de orientación norte para actualizar el label
+	if north_offset_slider:
+		north_offset_slider.value_changed.connect(_on_north_offset_changed)
 
 func _apply_theme():
 	# Aplicar tema personalizado si es necesario
@@ -460,347 +485,195 @@ func _apply_theme():
 
 func initialize():
 	add_export_log("Pixelize3D FBX iniciado")
-	add_export_log("Escaneando carpetas de proyecto...")
-	_scan_project_folders()
+	add_export_log("🔍 Explorando res://assets/fbx/ para encontrar unidades...")
 
-# FUNCIÓN: Escanear carpetas en res://assets/fbx/
-func _scan_project_folders():
-	"""Escanear recursivamente las carpetas en res://assets/fbx/ que contengan archivos FBX"""
-	print("🔍 ESCANEANDO CARPETAS DE PROYECTO")
+# NUEVA FUNCIÓN: Mostrar unidades disponibles
+func display_available_units(units: Array):
+	available_units = units
 	
-	project_folders.clear()
+	if units_option:
+		units_option.clear()
+		units_option.add_item("-- Seleccionar unidad --")
+		
+		for unit in units:
+			var display_name = "%s (%d FBX)" % [unit.name, unit.all_fbx.size()]
+			units_option.add_item(display_name)
+		
+		units_option.disabled = false
 	
-	var base_path = "res://assets/fbx/"
-	var dir = DirAccess.open(base_path)
-	
-	if dir == null:
-		add_export_log("[color=red]❌ Error: No se pudo acceder a res://assets/fbx/[/color]")
+	add_export_log("✅ Encontradas %d unidades en res://assets/fbx/" % units.size())
+
+# NUEVA FUNCIÓN: Manejar selección de unidad
+func _on_unit_selected(index: int):
+	if index == 0:  # "-- Seleccionar unidad --"
 		return
 	
-	_scan_directory_recursive(dir, base_path, "")
-	
-	# Llenar la lista de carpetas
-	if project_folders_list:
-		project_folders_list.clear()
+	var unit_index = index - 1
+	if unit_index >= 0 and unit_index < available_units.size():
+		current_unit_data = available_units[unit_index]
 		
-		if project_folders.is_empty():
-			project_folders_list.add_item("No se encontraron carpetas con archivos FBX")
-			project_folders_list.set_item_disabled(0, true)
-			add_export_log("[color=yellow]⚠️ No se encontraron carpetas con archivos FBX[/color]")
-		else:
-			for folder_info in project_folders:
-				var display_name = "%s (%d archivos FBX)" % [folder_info.name, folder_info.fbx_count]
-				project_folders_list.add_item(display_name)
-			
-			add_export_log("📁 Encontradas %d carpetas con archivos FBX" % project_folders.size())
-			add_export_log("✨ Selecciona una carpeta para comenzar")
+		# Actualizar información de la unidad
+		if unit_info_label:
+			var info_text = "📁 %s\n📄 Base: %s\n🎬 Animaciones: %d" % [
+				current_unit_data.name,
+				current_unit_data.base_file,
+				current_unit_data.animations.size()
+			]
+			unit_info_label.text = info_text
+		
+		# Emitir señal para que main.gd procese la unidad
+		emit_signal("unit_selected", current_unit_data)
+		
+		add_export_log("📁 Unidad seleccionada: %s" % current_unit_data.name)
 
-func _scan_directory_recursive(dir: DirAccess, base_path: String, relative_path: String):
-	"""Escanear directorio recursivamente buscando archivos FBX"""
-	var current_path = base_path + relative_path
-	var fbx_files = []
-	
-	# Escanear archivos en el directorio actual
-	dir.list_dir_begin()
-	var file_name = dir.get_next()
-	
-	while file_name != "":
-		if not dir.current_is_dir():
-			if file_name.ends_with(".fbx"):
-				fbx_files.append(file_name)
-		file_name = dir.get_next()
-	
-	dir.list_dir_end()
-	
-	# Si encontramos archivos FBX, agregar esta carpeta
-	if fbx_files.size() > 0:
-		var folder_name = relative_path if relative_path != "" else "raíz"
-		project_folders.append({
-			"name": folder_name,
-			"path": current_path,
-			"fbx_files": fbx_files,
-			"fbx_count": fbx_files.size()
-		})
-	
-	# Escanear subdirectorios
-	dir.list_dir_begin()
-	file_name = dir.get_next()
-	
-	while file_name != "":
-		if dir.current_is_dir() and not file_name.begins_with("."):
-			var sub_path = relative_path + file_name + "/"
-			var sub_dir = DirAccess.open(current_path + file_name)
-			if sub_dir:
-				_scan_directory_recursive(sub_dir, base_path, sub_path)
-		file_name = dir.get_next()
-	
-	dir.list_dir_end()
-
-# FUNCIÓN: Manejar selección de carpeta de proyecto
-func _on_project_folder_selected(index: int):
-	"""Callback cuando se selecciona una carpeta de proyecto"""
-	if index >= 0 and index < project_folders.size():
-		var folder_info = project_folders[index]
-		current_project_folder = folder_info.path
-		current_folder_path = folder_info.path
-		
-		add_export_log("📁 Carpeta seleccionada: %s" % folder_info.name)
-		add_export_log("🔍 Cargando archivos FBX de la carpeta...")
-		
-		emit_signal("folder_selected", folder_info.path)
-		
-		# Cargar archivos FBX de esta carpeta
-		display_fbx_list(folder_info.fbx_files)
-
-func display_fbx_list(fbx_files: Array):
-	"""Mostrar lista de archivos FBX - evitar duplicaciones"""
-	if available_fbx_files == fbx_files:
-		return
-		
-	available_fbx_files = fbx_files
+# NUEVA FUNCIÓN: Mostrar archivos FBX de la unidad seleccionada
+func display_unit_fbx_files(unit_data: Dictionary):
+	current_unit_data = unit_data
 	
 	# Llenar lista de FBX base
 	if base_fbx_option:
 		base_fbx_option.clear()
 		base_fbx_option.add_item("-- Seleccionar modelo base --")
 		
-		for file in fbx_files:
-			base_fbx_option.add_item(file)
+		# Añadir archivo base sugerido primero
+		if unit_data.base_file != "":
+			var base_display = "%s (sugerido)" % unit_data.base_file
+			base_fbx_option.add_item(base_display)
+		
+		# Añadir todos los archivos FBX
+		for file in unit_data.all_fbx:
+			if file != unit_data.base_file:  # Evitar duplicados
+				base_fbx_option.add_item(file)
 		
 		base_fbx_option.disabled = false
 	
-	# Crear checkboxes para animaciones
-	_create_animation_checkboxes(fbx_files)
+	# CREAR CHECKBOXES PARA ANIMACIONES
+	_create_animation_checkboxes(unit_data.animations)
 	
-	add_export_log("📋 Disponibles %d archivos FBX para selección" % fbx_files.size())
+	add_export_log("✅ Archivos FBX cargados para %s" % unit_data.name)
 
-# FUNCIÓN: Crear checkboxes para animaciones
-func _create_animation_checkboxes(fbx_files: Array):
-	"""Crear checkboxes dinámicamente para cada archivo FBX (animaciones)"""
+# NUEVA FUNCIÓN: Crear checkboxes para animaciones
+func _create_animation_checkboxes(animations: Array):
 	print("📋 CREANDO CHECKBOXES PARA ANIMACIONES")
 	
-	# Encontrar el contenedor de checkboxes
-	var checkbox_container = _find_node_by_name(self, "AnimationsCheckboxContainer")
-	if not checkbox_container:
-		print("❌ No se encontró AnimationsCheckboxContainer")
+	# Limpiar checkboxes anteriores
+	_clear_animation_checkboxes()
+	
+	if animations.is_empty():
+		var no_anims_label = Label.new()
+		no_anims_label.text = "No se encontraron animaciones en esta unidad"
+		no_anims_label.add_theme_color_override("font_color", Color(0.5, 0.5, 0.5))
+		animations_container.add_child(no_anims_label)
 		return
 	
-	# Limpiar checkboxes existentes
-	for child in checkbox_container.get_children():
-		checkbox_container.remove_child(child)
+	# Crear checkbox para cada animación
+	for anim_file in animations:
+		var checkbox = CheckBox.new()
+		checkbox.text = anim_file
+		checkbox.toggled.connect(_on_animation_checkbox_toggled.bind(anim_file))
+		
+		animations_container.add_child(checkbox)
+		animation_checkboxes.append(checkbox)
+	
+	print("✅ Creados %d checkboxes para animaciones" % animations.size())
+	add_export_log("📋 %d animaciones disponibles para selección" % animations.size())
+
+# NUEVA FUNCIÓN: Limpiar checkboxes de animaciones
+func _clear_animation_checkboxes():
+	# Eliminar todos los hijos del contenedor de animaciones
+	for child in animations_container.get_children():
 		child.queue_free()
 	
-	# Crear checkbox para cada archivo FBX
-	for fbx_file in fbx_files:
-		var checkbox = CheckBox.new()
-		checkbox.name = "AnimCheckbox_" + fbx_file.get_basename()
-		checkbox.text = fbx_file
-		checkbox.button_pressed = false
-		
-		# Usar callable para bind correcto
-		var callback = func(pressed: bool): _on_animation_checkbox_toggled(pressed, fbx_file)
-		checkbox.toggled.connect(callback)
-		
-		checkbox_container.add_child(checkbox)
-	
-	print("✅ Creados %d checkboxes para animaciones" % fbx_files.size())
+	animation_checkboxes.clear()
 
-# FUNCIÓN: Manejar toggle de checkboxes de animaciones
-func _on_animation_checkbox_toggled(pressed: bool, fbx_file: String):
-	"""Callback cuando se marca/desmarca un checkbox de animación"""
-	if pressed and fbx_file not in selected_animations:
-		selected_animations.append(fbx_file)
-		add_export_log("✅ Animación seleccionada: %s" % fbx_file)
-	elif not pressed and fbx_file in selected_animations:
-		selected_animations.erase(fbx_file)
-		add_export_log("❌ Animación deseleccionada: %s" % fbx_file)
+# NUEVA FUNCIÓN: Manejar toggle de checkbox de animación
+func _on_animation_checkbox_toggled(animation_file: String, pressed: bool):
+	if pressed:
+		if not animation_file in selected_animations:
+			selected_animations.append(animation_file)
+	else:
+		selected_animations.erase(animation_file)
 	
-	# Actualizar estado del botón de renderizado
+	# Habilitar/deshabilitar botón de renderizado
 	if render_button:
 		render_button.disabled = selected_animations.is_empty()
 	
-	# Mostrar resumen de selecciones
-	if selected_animations.size() > 0:
-		add_export_log("📋 Total animaciones seleccionadas: %d" % selected_animations.size())
+	# Emitir señal con animaciones seleccionadas
+	if not selected_animations.is_empty():
 		emit_signal("animations_selected", selected_animations)
-	else:
-		add_export_log("📋 Ninguna animación seleccionada")
+		add_export_log("🎬 Animaciones seleccionadas: %s" % str(selected_animations))
+
+func _on_browse_folder():
+	if folder_dialog:
+		folder_dialog.popup_centered(Vector2(800, 600))
+
+func _on_folder_selected(path: String):
+	# Esta función se mantiene para compatibilidad con exploración manual
+	emit_signal("folder_selected", path)
+
+# Función legacy mantenida para compatibilidad
+func display_fbx_list(fbx_files: Array):
+	available_fbx_files = fbx_files
+	add_export_log("Encontrados %d archivos FBX" % fbx_files.size())
 
 func _on_base_fbx_selected(index: int):
 	if index > 0:
 		var filename = base_fbx_option.get_item_text(index)
+		# Limpiar "(sugerido)" del nombre si existe
+		filename = filename.replace(" (sugerido)", "")
 		emit_signal("base_fbx_selected", filename)
-		add_export_log("🎯 Modelo base seleccionado: " + filename)
-		add_export_log("👆 Ahora selecciona las animaciones que deseas usar")
+		add_export_log("Modelo base seleccionado: " + filename)
 
 func enable_animation_selection():
-	# Habilitar checkboxes de animaciones
-	var checkbox_container = _find_node_by_name(self, "AnimationsCheckboxContainer")
-	if checkbox_container:
-		for child in checkbox_container.get_children():
-			if child is CheckBox:
-				child.disabled = false
-				child.modulate = Color(1.0, 1.0, 1.0, 1.0)  # Apariencia normal
-		
-		add_export_log("📋 Checkboxes de animaciones habilitados")
-		add_export_log("☑️ Marca las animaciones que quieres incluir")
-	
+	# Esta función se mantiene para compatibilidad
 	if preview_button:
 		preview_button.disabled = false
-	add_export_log("✅ Modelo base cargado correctamente")
+	add_export_log("Modelo base cargado correctamente")
 
-# FUNCIÓN: Copiar todo el log al clipboard
-func _on_log_copy_pressed():
-	"""Copiar todo el contenido del log al clipboard"""
-	if export_log:
-		var log_text = export_log.get_parsed_text()
-		DisplayServer.clipboard_set(log_text)
-		add_export_log("[color=blue]📋 Log copiado al portapapeles[/color]")
-		print("📋 Log copiado al portapapeles")
+# Función para manejar el cambio de orientación norte
+func _on_north_offset_changed(value: float):
+	if north_offset_label:
+		north_offset_label.text = "%.0f°" % value
+	
+	# Emitir cambio de configuración
+	_on_camera_setting_changed()
 
-# FUNCIÓN: Limpiar el log
-func _on_log_clear_pressed():
-	"""Limpiar todo el contenido del log"""
-	if export_log:
-		export_log.clear()
-		add_export_log("Pixelize3D FBX - Log reiniciado")
-		print("🗑️ Log limpiado")
+# Función para manejar presets de orientación
+func _on_north_preset_pressed(angle: float):
+	if north_offset_slider:
+		north_offset_slider.value = angle
+		add_export_log("🧭 Orientación aplicada: %.0f°" % angle)
 
-# FUNCIÓN CORREGIDA: Habilitar modo preview con controles
+# Función para habilitar modo preview
 func enable_preview_mode():
 	print("🎬 UI Preview Mode Activado")
 	preview_mode_active = true
 	
-	# Actualizar status del preview
-	if preview_status_label:
-		preview_status_label.text = "✅ Preview Activo - Modelo cargado"
-		preview_status_label.add_theme_color_override("font_color", Color(0.2, 0.8, 0.2))
+	# Actualizar status del preview usando búsqueda más robusta
+	var status_label = _find_node_by_name(self, "PreviewStatus")
+	if status_label:
+		status_label.text = "✅ Preview Activo - Modelo cargado"
+		status_label.add_theme_color_override("font_color", Color(0.2, 0.8, 0.2))
 	
 	# Mostrar controles de ayuda
 	var controls_help = _find_node_by_name(self, "ControlsHelp")
 	if controls_help:
 		controls_help.visible = true
 	
-	# Habilitar controles de preview
+	# Habilitar controles de preview si existen
 	if preview_button:
 		preview_button.disabled = false
 		preview_button.text = "Preview Activo ✓"
 		preview_button.add_theme_color_override("font_color", Color(0.2, 0.8, 0.2))
 	
-	# Habilitar botones de control de animación
-	if play_button:
-		play_button.disabled = false
-	if pause_button:
-		pause_button.disabled = false
-	if stop_button:
-		stop_button.disabled = false
-	
 	# Habilitar renderizado
 	if render_button:
-		render_button.disabled = false
+		render_button.disabled = selected_animations.is_empty()
 	
 	# Mostrar mensaje en el log
 	add_export_log("[color=green]✅ Preview activado - Modelo visible en viewport[/color]")
+	add_export_log("🧭 Usa los controles de orientación para ajustar el norte del modelo")
 	add_export_log("Controles: Click + Arrastrar para rotar vista")
-	add_export_log("Usa los botones Play/Pause para controlar la animación")
-
-# FUNCIÓN CRÍTICA CORREGIDA: Conectar textura del viewport
-#func set_preview_texture(texture: ViewportTexture):
-	#"""CORRECCIÓN CRÍTICA: Recibe la textura del SpriteRenderer y la muestra en tiempo real"""
-	#print("📺 RECIBIENDO TEXTURA PARA PREVIEW")
-	#
-	#if not texture:
-		#print("❌ Textura nula recibida")
-		#return
-	#
-	## Buscar el TextureRect para mostrar la textura
-	#if preview_texture_rect:
-		## Asignar textura al TextureRect
-		#preview_texture_rect.texture = texture
-		#
-		## Ocultar mensaje de "no preview"
-		#var no_preview_label = _find_node_by_name(self, "NoPreviewLabel")
-		#if no_preview_label:
-			#no_preview_label.visible = false
-		#
-		#print("✅ Textura asignada al preview: %s" % str(texture.get_size()))
-		#
-		## Actualizar status
-		#if preview_status_label:
-			#preview_status_label.text = "🎬 Preview activo - Animación en tiempo real"
-			#preview_status_label.add_theme_color_override("font_color", Color(0.2, 0.8, 0.2))
-	#else:
-		#print("❌ No se encontró PreviewTextureRect")
-
-
-
-func set_preview_texture(texture: ViewportTexture):
-	"""CORRECCIÓN CRÍTICA: Recibe la textura del SpriteRenderer y la muestra en tiempo real - OPTIMIZADA"""
-	
-	if not texture:
-		return
-	
-	# Buscar el TextureRect para mostrar la textura
-	if preview_texture_rect:
-		# NUEVO: Forzar que la textura se actualice inmediatamente
-		var current_image = texture.get_image()
-		if current_image:
-			# Crear nueva ImageTexture desde la imagen actual
-			var image_texture = ImageTexture.new()
-			image_texture.create_from_image(current_image)
-			
-			# Asignar la nueva textura
-			preview_texture_rect.texture = image_texture
-			
-			# Ocultar mensaje de "no preview"
-			var no_preview_label = _find_node_by_name(self, "NoPreviewLabel")
-			if no_preview_label:
-				no_preview_label.visible = false
-		else:
-			# Fallback: usar la textura directamente
-			preview_texture_rect.texture = texture
-	
-	# Actualizar status solo la primera vez
-	if preview_status_label and preview_status_label.text != "🎬 Preview activo - Animación en tiempo real":
-		preview_status_label.text = "🎬 Preview activo - Animación en tiempo real"
-		preview_status_label.add_theme_color_override("font_color", Color(0.2, 0.8, 0.2))
-
-# FUNCIONES: Controles de animación
-func _on_play_pressed():
-	"""Callback para botón Play"""
-	print("▶️ UI: Play solicitado")
-	emit_signal("preview_play_requested")
-	add_export_log("▶️ Reproduciendo animación")
-	
-	# Actualizar estados de botones
-	if play_button:
-		play_button.disabled = true
-	if pause_button:
-		pause_button.disabled = false
-
-func _on_pause_pressed():
-	"""Callback para botón Pause"""
-	print("⏸️ UI: Pause solicitado")
-	emit_signal("preview_pause_requested")
-	add_export_log("⏸️ Animación pausada")
-	
-	# Actualizar estados de botones
-	if play_button:
-		play_button.disabled = false
-	if pause_button:
-		pause_button.disabled = true
-
-func _on_stop_pressed():
-	"""Callback para botón Stop"""
-	print("⏹️ UI: Stop solicitado")
-	emit_signal("preview_stop_requested")
-	add_export_log("⏹️ Animación detenida")
-	
-	# Actualizar estados de botones
-	if play_button:
-		play_button.disabled = false
-	if pause_button:
-		pause_button.disabled = true
 
 # Función auxiliar para buscar nodos por nombre recursivamente
 func _find_node_by_name(parent: Node, node_name: String) -> Node:
@@ -814,6 +687,7 @@ func _find_node_by_name(parent: Node, node_name: String) -> Node:
 	
 	return null
 
+# Función de configuración de cámara que incluye north_offset
 func _on_camera_setting_changed(_value = null):
 	var settings = {
 		"camera_angle": camera_angle_slider.value if camera_angle_slider else 45.0,
@@ -822,22 +696,19 @@ func _on_camera_setting_changed(_value = null):
 		"directions": int(directions_spinbox.value) if directions_spinbox else 16,
 		"sprite_size": int(sprite_size_spinbox.value) if sprite_size_spinbox else 256,
 		"fps": int(fps_spinbox.value) if fps_spinbox else 12,
-		"pixelize": pixelize_checkbox.button_pressed if pixelize_checkbox else true
+		"pixelize": pixelize_checkbox.button_pressed if pixelize_checkbox else true,
+		# Incluir orientación norte en la configuración
+		"north_offset": north_offset_slider.value if north_offset_slider else 0.0
 	}
 	emit_signal("render_settings_changed", settings)
 
 func _on_preview_pressed():
 	if preview_mode_active:
-		add_export_log("✅ Preview ya está activo")
+		add_export_log("Preview ya está activo")
 	else:
-		add_export_log("⏳ Esperando que se carguen los modelos para activar preview...")
+		add_export_log("Esperando que se carguen los modelos para activar preview...")
 
 func _on_render_pressed():
-	if selected_animations.is_empty():
-		add_export_log("[color=yellow]⚠️ Selecciona al menos una animación antes de renderizar[/color]")
-		return
-	
-	add_export_log("🚀 Iniciando renderizado...")
 	emit_signal("render_requested")
 
 func show_loading_message(message: String):

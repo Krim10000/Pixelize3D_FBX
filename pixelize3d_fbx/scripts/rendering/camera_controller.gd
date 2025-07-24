@@ -1,8 +1,9 @@
-# scripts/rendering/camera_controller.gd
-extends Node3D
+# pixelize3d_fbx/scripts/rendering/camera_controller.gd
+# Script de control de cámara modificado para soportar orientación norte coherente
+# Input: Configuración de renderizado (ángulo, altura, distancia, orientación norte)
+# Output: Posicionamiento correcto de la cámara para cada dirección con orientación aplicada
 
-# Input: Configuración de renderizado (ángulo, altura, distancia)
-# Output: Posicionamiento correcto de la cámara para cada dirección
+extends Node3D
 
 signal camera_ready()
 
@@ -23,6 +24,9 @@ var is_rotating = false
 var is_panning = false
 var pan_start_pos: Vector2
 var preview_mode_enabled = false
+
+# NUEVO: Variable para tracking de orientación norte
+var current_north_offset: float = 0.0
 
 func _ready():
 	_setup_camera_rig()
@@ -103,10 +107,16 @@ func update_camera_position():
 	# Rotar la cámara para mirar al objetivo
 	camera_3d.look_at(target_position, Vector3.UP)
 
+# FUNCIÓN EXISTENTE: Aplicar rotación específica (ya funciona perfectamente)
 func set_rotation_angle(degrees: float):
 	# Rotar el pivot para cambiar la dirección de vista
 	pivot_node.rotation_degrees.y = degrees
+	
+	# Debug ocasional para verificar orientación
+	if abs(degrees - current_north_offset) > 0.1:  # Solo si hay cambio significativo
+		print("🧭 Cámara rotada a: %.1f° (offset norte: %.1f°)" % [degrees, current_north_offset])
 
+# MODIFICADO: Configurar cámara con soporte para orientación norte
 func set_camera_settings(settings: Dictionary):
 	print("--- CONFIGURANDO CÁMARA ---")
 	print("Settings recibidos: %s" % str(settings))
@@ -123,6 +133,15 @@ func set_camera_settings(settings: Dictionary):
 	if settings.has("target_position"):
 		target_position = settings.target_position
 		print("  Target: %s" % str(target_position))
+	
+	# NUEVO: Manejar orientación norte desde configuración
+	if settings.has("north_offset"):
+		current_north_offset = settings.north_offset
+		print("  🧭 Orientación norte: %.1f°" % current_north_offset)
+		
+		# Aplicar orientación inmediatamente en preview mode
+		if preview_mode_enabled:
+			set_rotation_angle(current_north_offset)
 	
 	update_camera_position()
 	
@@ -172,6 +191,11 @@ func enable_preview_mode():
 	preview_mode_enabled = true
 	set_process_input(true)
 	
+	# NUEVO: Aplicar orientación norte actual al entrar en preview
+	if current_north_offset != 0.0:
+		print("🧭 Aplicando orientación norte en preview: %.1f°" % current_north_offset)
+		set_rotation_angle(current_north_offset)
+	
 	# Debug de estado inicial
 	print("Preview mode habilitado")
 	print("  - Input processing: %s" % is_processing_input())
@@ -215,7 +239,7 @@ func _input(event):
 	
 	elif event is InputEventMouseMotion:
 		if is_rotating:
-			# Rotación horizontal (Y)
+			# Rotación horizontal (Y) - MANTENER rotación manual en preview
 			pivot_node.rotation_degrees.y -= event.relative.x * mouse_sensitivity
 			
 			# Rotación vertical (limitada)
@@ -263,6 +287,15 @@ func zoom_out():
 		update_camera_position()
 		print("  Zoom out: distance=%.2f" % camera_distance)
 
+# NUEVA FUNCIÓN: Resetear a orientación norte predeterminada
+func reset_to_north():
+	print("🧭 Reseteando a orientación norte: %.1f°" % current_north_offset)
+	set_rotation_angle(current_north_offset)
+
+# NUEVA FUNCIÓN: Obtener ángulo actual relativo al norte
+func get_relative_angle() -> float:
+	return pivot_node.rotation_degrees.y - current_north_offset
+
 func focus_on_units(units: Array):
 	if units.is_empty():
 		return
@@ -285,6 +318,8 @@ func get_view_info() -> Dictionary:
 		"camera_position": camera_3d.global_position,
 		"camera_rotation": camera_3d.global_rotation_degrees,
 		"pivot_rotation": pivot_node.rotation_degrees.y,
+		"north_offset": current_north_offset,
+		"relative_angle": get_relative_angle(),
 		"target": target_position,
 		"orthographic_size": camera_3d.size if use_orthographic else 0.0,
 		"preview_mode": preview_mode_enabled,
