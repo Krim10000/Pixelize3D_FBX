@@ -393,8 +393,58 @@ func _find_node_of_type(node: Node, type_name: String) -> Node:
 	
 	return null
 
+#func _extract_meshes_from_skeleton(skeleton: Skeleton3D) -> Array:
+	#var meshes = []
+	#
+	## Buscar MeshInstance3D directamente en el skeleton
+	#for child in skeleton.get_children():
+		#if child is MeshInstance3D:
+			#var mesh_data = {
+				#"node": child,
+				#"mesh_resource": child.mesh,
+				#"name": child.name,
+				#"materials": [],
+				#"skeleton_path": child.get_path_to(skeleton)
+			#}
+			#
+			## Extraer materiales
+			#if child.mesh and child.mesh.get_surface_count() > 0:
+				#for i in range(child.mesh.get_surface_count()):
+					#var material = child.get_surface_override_material(i)
+					#if material:
+						#mesh_data.materials.append(material)
+					#else:
+						## Usar material por defecto del mesh
+						#var default_material = child.mesh.surface_get_material(i)
+						#if default_material:
+							#mesh_data.materials.append(default_material)
+			#
+			#meshes.append(mesh_data)
+	#
+	## Si no encontramos meshes en el skeleton, buscar en el padre
+	#if meshes.is_empty():
+		#var parent = skeleton.get_parent()
+		#if parent:
+			#for child in parent.get_children():
+				#if child is MeshInstance3D:
+					#var mesh_data = {
+						#"node": child,
+						#"mesh_resource": child.mesh,
+						#"name": child.name,
+						#"materials": [],
+						#"skeleton_path": child.get_path_to(skeleton) if skeleton else NodePath()
+					#}
+					#meshes.append(mesh_data)
+	#
+	#return meshes
+
+# Archivo: scripts/core/fbx_loader.gd
+# Función para extraer meshes del skeleton con generación automática de skins
+
 func _extract_meshes_from_skeleton(skeleton: Skeleton3D) -> Array:
 	var meshes = []
+	
+	print("--- EXTRAYENDO MESHES CON SKIN AUTO-GENERATION ---")
 	
 	# Buscar MeshInstance3D directamente en el skeleton
 	for child in skeleton.get_children():
@@ -404,39 +454,177 @@ func _extract_meshes_from_skeleton(skeleton: Skeleton3D) -> Array:
 				"mesh_resource": child.mesh,
 				"name": child.name,
 				"materials": [],
-				"skeleton_path": child.get_path_to(skeleton)
+				"skeleton_path": child.get_path_to(skeleton),
+				"original_skin": null  # Se llenará a continuación
 			}
 			
 			# Extraer materiales
 			if child.mesh and child.mesh.get_surface_count() > 0:
 				for i in range(child.mesh.get_surface_count()):
-					var material = child.get_surface_override_material(i)
-					if material:
-						mesh_data.materials.append(material)
-					else:
-						# Usar material por defecto del mesh
-						var default_material = child.mesh.surface_get_material(i)
-						if default_material:
-							mesh_data.materials.append(default_material)
+					var material = null
+					
+					# Prioridad a material override
+					if child.get_surface_override_material(i):
+						material = child.get_surface_override_material(i)
+					# Si no hay override, usar material del mesh
+					elif child.mesh.surface_get_material(i):
+						material = child.mesh.surface_get_material(i)
+					
+					mesh_data.materials.append(material)
+			
+			# ✅ CORRECCIÓN CLAVE: Crear skin automático si no existe
+			if child.skin != null:
+				# Usar skin existente
+				mesh_data.original_skin = child.skin
+				print("  Mesh: %s - Skin existente detectado" % child.name)
+			else:
+				# Crear skin automático para el mesh
+				print("  Mesh: %s - Creando skin automático..." % child.name)
+				var auto_skin = _create_automatic_skin_for_mesh(child, skeleton)
+				if auto_skin:
+					mesh_data.original_skin = auto_skin
+					print("    ✅ Skin automático creado con %d binds" % auto_skin.get_bind_count())
+				else:
+					print("    ❌ Error creando skin automático")
+			
+			# Debug información del mesh
+			print("  Mesh encontrado: %s" % child.name)
+			print("    Mesh resource: %s" % (child.mesh.get_class() if child.mesh else "NULL"))
+			print("    Surfaces: %d" % (child.mesh.get_surface_count() if child.mesh else 0))
+			print("    Materiales extraídos: %d" % mesh_data.materials.size())
+			print("    Skin disponible: %s" % (mesh_data.original_skin != null))
 			
 			meshes.append(mesh_data)
 	
-	# Si no encontramos meshes en el skeleton, buscar en el padre
-	if meshes.is_empty():
-		var parent = skeleton.get_parent()
-		if parent:
-			for child in parent.get_children():
-				if child is MeshInstance3D:
-					var mesh_data = {
-						"node": child,
-						"mesh_resource": child.mesh,
-						"name": child.name,
-						"materials": [],
-						"skeleton_path": child.get_path_to(skeleton) if skeleton else NodePath()
-					}
-					meshes.append(mesh_data)
-	
+	print("Total meshes extraídos: %d" % meshes.size())
 	return meshes
+
+# ✅ NUEVA FUNCIÓN: Crear skin automático para un mesh
+func _create_automatic_skin_for_mesh(mesh_instance: MeshInstance3D, skeleton: Skeleton3D) -> Skin:
+	if not mesh_instance or not mesh_instance.mesh or not skeleton:
+		print("    ERROR: Parámetros inválidos para crear skin automático")
+		return null
+	
+	print("    Creando skin automático para: %s" % mesh_instance.name)
+	print("      Skeleton: %s (%d huesos)" % [skeleton.name, skeleton.get_bone_count()])
+	
+	var new_skin = Skin.new()
+	var bind_count = 0
+	
+	# Estrategia: Bindear todos los huesos del skeleton al mesh
+	# Esto funciona bien para modelos Mixamo donde todo el skeleton afecta al mesh
+	for bone_idx in range(skeleton.get_bone_count()):
+		var bone_name = skeleton.get_bone_name(bone_idx)
+		
+		# Obtener la pose de bind (transform del hueso)
+		var bone_pose = skeleton.get_bone_pose(bone_idx)
+		var bind_pose = Transform3D()
+		
+		# Para modelos Mixamo, usar la pose actual como bind pose
+		# (esto funciona porque el modelo base está en T-pose)
+		if bone_pose != Transform3D.IDENTITY:
+			bind_pose = bone_pose.inverse()
+		else:
+			# Si no hay pose específica, usar transform global
+			var bone_global = skeleton.get_bone_global_pose(bone_idx)
+			bind_pose = bone_global.inverse()
+		
+		# Añadir bind al skin
+		new_skin.add_bind(bone_idx, bind_pose)
+		new_skin.set_bind_name(bind_count, bone_name)
+		bind_count += 1
+		
+		# Debug para huesos importantes
+		if bone_name in ["mixamorig_Hips", "mixamorig_Spine", "mixamorig_Head"]:
+			print("      ✅ Hueso crítico bindeado: %s (idx: %d)" % [bone_name, bone_idx])
+	
+	print("    Skin automático completado: %d binds creados" % bind_count)
+	
+	# Validar que el skin es funcional
+	if bind_count == 0:
+		print("    ❌ ERROR: Skin automático sin binds")
+		return null
+	
+	# Verificar huesos críticos
+	var critical_bones = ["mixamorig_Hips", "mixamorig_Spine"]
+	var critical_found = 0
+	
+	for i in range(new_skin.get_bind_count()):
+		var bind_name = new_skin.get_bind_name(i)
+		if bind_name in critical_bones:
+			critical_found += 1
+	
+	if critical_found == 0:
+		print("    ⚠️ ADVERTENCIA: Skin automático sin huesos críticos")
+	
+	return new_skin
+
+# ✅ FUNCIÓN AUXILIAR: Crear skin simplificado para debugging
+func _create_simple_debug_skin(skeleton: Skeleton3D) -> Skin:
+	"""
+	Crea un skin muy básico solo con huesos esenciales
+	Útil para debugging cuando el skin automático completo falla
+	"""
+	var debug_skin = Skin.new()
+	
+	# Solo bindear huesos esenciales para debugging
+	var essential_bones = [
+		"mixamorig_Hips",
+		"mixamorig_Spine", 
+		"mixamorig_Spine1",
+		"mixamorig_Spine2",
+		"mixamorig_Neck",
+		"mixamorig_Head",
+		"mixamorig_LeftArm",
+		"mixamorig_RightArm",
+		"mixamorig_LeftUpLeg",
+		"mixamorig_RightUpLeg"
+	]
+	
+	var bind_count = 0
+	for bone_name in essential_bones:
+		var bone_idx = skeleton.find_bone(bone_name)
+		if bone_idx >= 0:
+			var bind_pose = skeleton.get_bone_global_pose(bone_idx).inverse()
+			debug_skin.add_bind(bone_idx, bind_pose)
+			debug_skin.set_bind_name(bind_count, bone_name)
+			bind_count += 1
+			print("      DEBUG: Hueso esencial bindeado: %s" % bone_name)
+	
+	print("    Skin DEBUG creado con %d huesos esenciales" % bind_count)
+	return debug_skin if bind_count > 0 else null
+
+# ✅ FUNCIÓN AUXILIAR: Detectar y corregir problemas comunes de skins
+func _validate_and_fix_skin(skin: Skin, skeleton: Skeleton3D) -> Skin:
+	if not skin or not skeleton:
+		return null
+	
+	print("    Validando skin...")
+	
+	var valid_binds = 0
+	var invalid_binds = []
+	
+	# Verificar que todos los binds referencian huesos válidos
+	for i in range(skin.get_bind_count()):
+		var bind_name = skin.get_bind_name(i)
+		var bone_idx = skeleton.find_bone(bind_name)
+		
+		if bone_idx >= 0:
+			valid_binds += 1
+		else:
+			invalid_binds.append(bind_name)
+	
+	print("      Binds válidos: %d/%d" % [valid_binds, skin.get_bind_count()])
+	
+	if invalid_binds.size() > 0:
+		print("      ⚠️ Binds inválidos encontrados: %s" % str(invalid_binds))
+	
+	# Si hay muy pocos binds válidos, el skin no funcionará
+	if valid_binds < 3:
+		print("      ❌ Muy pocos binds válidos, skin no funcional")
+		return null
+	
+	return skin
 
 func _extract_animation_list(anim_player: AnimationPlayer) -> Array:
 	var animations = []

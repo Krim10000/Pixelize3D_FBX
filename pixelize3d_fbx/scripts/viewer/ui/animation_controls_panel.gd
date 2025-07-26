@@ -78,7 +78,8 @@ func _create_ui():
 	timeline_slider.min_value = 0.0
 	timeline_slider.max_value = 1.0
 	timeline_slider.step = 0.01
-#	timeline_slider.disabled = true
+	# ✅ CORREGIDO: Usar editable en lugar de disabled para HSlider
+	timeline_slider.editable = false
 	timeline_slider.value_changed.connect(_on_timeline_changed)
 	add_child(timeline_slider)
 	
@@ -131,17 +132,19 @@ func _find_animation_player(node: Node) -> AnimationPlayer:
 	
 	return null
 
+# ✅ CORREGIDO: Usar editable en lugar de disabled para HSlider
 func _disable_all_controls():
 	play_button.disabled = true
 	pause_button.disabled = true
 	stop_button.disabled = true
-	timeline_slider.disabled = true
+	timeline_slider.editable = false
 
+# ✅ CORREGIDO: Usar editable en lugar de disabled para HSlider
 func _enable_controls():
 	play_button.disabled = false
 	pause_button.disabled = false
 	stop_button.disabled = false
-	timeline_slider.disabled = false
+	timeline_slider.editable = true
 
 func _on_animation_selected(index: int):
 	if index <= 0 or index > available_animations.size():
