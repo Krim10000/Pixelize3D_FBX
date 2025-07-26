@@ -59,17 +59,29 @@ func _ready():
 	
 	# NUEVO: Escanear carpetas del proyecto automáticamente
 	_scan_project_folders()
-
+	var preview_fix = preload("res://scripts/fixes/quick_preview_fix.gd").new()
+	preview_fix.name = "PreviewFix"
+	add_child(preview_fix)
 # NUEVO: Configurar ViewportConnector
+#func _setup_viewport_connector():
+	#print("🔧 CONFIGURANDO CONEXIÓN DE VIEWPORTS")
+	#
+	## Crear ViewportConnector si no existe
+	#viewport_connector = preload("res://scripts/debug/viewport_connection_fix.gd").new()
+	#viewport_connector.name = "ViewportConnector"
+	#add_child(viewport_connector)
+	#
+	#print("✅ ViewportConnector añadido")
+
+
 func _setup_viewport_connector():
-	print("🔧 CONFIGURANDO CONEXIÓN DE VIEWPORTS")
+	print("🔧 APLICANDO CORRECCIÓN DE PREVIEW DIRECTA")
 	
-	# Crear ViewportConnector si no existe
-	viewport_connector = preload("res://scripts/debug/viewport_connection_fix.gd").new()
-	viewport_connector.name = "ViewportConnector"
-	add_child(viewport_connector)
+	# Usar el parche en lugar del ViewportConnector original
+	var preview_fix = preload("res://scripts/fixes/quick_preview_fix.gd")
+	preview_fix.apply_to_scene(self)
 	
-	print("✅ ViewportConnector añadido")
+	print("✅ Parche de preview aplicado")
 
 # NUEVO: Escanear carpetas del proyecto
 func _scan_project_folders():

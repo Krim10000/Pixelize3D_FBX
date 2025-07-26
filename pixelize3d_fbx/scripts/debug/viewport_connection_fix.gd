@@ -7,37 +7,72 @@ extends Node
 
 # Este script debe ejecutarse desde main.gd para conectar los viewports
 
+#func connect_preview_viewports():
+	#print("🔗 CONECTANDO VIEWPORTS PARA PREVIEW")
+	#
+	## CORREGIDO: Referencias desde viewport_connector (hijo de main)
+	#var ui_controller = get_node("../UIController")
+	#var sprite_renderer = get_node("../SpriteRenderer")
+	#
+	## Viewport del renderizado (estructura: SpriteRenderer/SubViewport)
+	#var render_viewport = sprite_renderer.get_node_or_null("SubViewport")
+	#
+	## CORREGIDO: Buscar ViewportContainer en lugar de preview_viewport
+	#var viewport_container = _find_viewport_container(ui_controller)
+	#
+	#if not render_viewport:
+		#print("❌ No se encontró render_viewport en SpriteRenderer")
+		#print("   Buscando en: %s" % sprite_renderer.get_path())
+		#for child in sprite_renderer.get_children():
+			#print("   Hijo disponible: %s" % child.name)
+		#return false
+		#
+	#if not viewport_container:
+		#print("❌ No se encontró ViewportContainer en UIController")
+		#return false
+	#
+	#print("✅ Render viewport y ViewportContainer encontrados")
+	#print("  Render viewport: %s" % render_viewport.name)
+	#print("  ViewportContainer: %s" % viewport_container.name)
+	#
+	## NUEVA SOLUCIÓN: Usar el método de TextureRect directamente
+	#return _setup_texture_based_preview(render_viewport, viewport_container)
+
+# Reemplaza la función problemática con:
 func connect_preview_viewports():
-	print("🔗 CONECTANDO VIEWPORTS PARA PREVIEW")
+	print("🔗 CONECTANDO VIEWPORTS - VERSIÓN CORREGIDA")
 	
-	# CORREGIDO: Referencias desde viewport_connector (hijo de main)
 	var ui_controller = get_node("../UIController")
 	var sprite_renderer = get_node("../SpriteRenderer")
 	
-	# Viewport del renderizado (estructura: SpriteRenderer/SubViewport)
 	var render_viewport = sprite_renderer.get_node_or_null("SubViewport")
-	
-	# CORREGIDO: Buscar ViewportContainer en lugar de preview_viewport
-	var viewport_container = _find_viewport_container(ui_controller)
-	
 	if not render_viewport:
-		print("❌ No se encontró render_viewport en SpriteRenderer")
-		print("   Buscando en: %s" % sprite_renderer.get_path())
-		for child in sprite_renderer.get_children():
-			print("   Hijo disponible: %s" % child.name)
-		return false
-		
-	if not viewport_container:
-		print("❌ No se encontró ViewportContainer en UIController")
 		return false
 	
-	print("✅ Render viewport y ViewportContainer encontrados")
-	print("  Render viewport: %s" % render_viewport.name)
-	print("  ViewportContainer: %s" % viewport_container.name)
+	# Buscar cualquier container en la UI
+	for child in ui_controller.get_children():
+		if "viewport" in child.name.to_lower() or "preview" in child.name.to_lower():
+			# Crear TextureRect directamente
+			var tex_rect = TextureRect.new()
+			tex_rect.name = "PreviewTexture"
+			tex_rect.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
+			tex_rect.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+			child.add_child(tex_rect)
+			
+			# Timer para actualizar
+			var timer = Timer.new()
+			timer.wait_time = 0.033
+			timer.timeout.connect(func(): 
+				if render_viewport.get_texture():
+					tex_rect.texture = render_viewport.get_texture()
+			)
+			add_child(timer)
+			timer.start()
+			
+			return true
 	
-	# NUEVA SOLUCIÓN: Usar el método de TextureRect directamente
-	return _setup_texture_based_preview(render_viewport, viewport_container)
-
+	return false
+	
 # NUEVA FUNCIÓN: Configurar preview basado en TextureRect
 func _setup_texture_based_preview(render_viewport: SubViewport, viewport_container: Control) -> bool:
 	print("🖼️ CONFIGURANDO PREVIEW BASADO EN TEXTURERECT")

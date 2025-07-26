@@ -1,0 +1,111 @@
+[gd_scene load_steps=12 format=3 uid="uid://cpfsrbac4ufiv"]
+
+[ext_resource type="Script" uid="uid://cvttc5083m3ec" path="res://scripts/viewer/viewer_coordinator.gd" id="1_gl66s"]
+[ext_resource type="Script" uid="uid://c7x323fdvpcdb" path="res://scripts/core/fbx_loader.gd" id="2_yh1ys"]
+[ext_resource type="Script" uid="uid://dssat5n0ns8ae" path="res://scripts/core/animation_manager.gd" id="3_xctl6"]
+[ext_resource type="Script" uid="uid://e2r0fgmqqc2v" path="res://scripts/rendering/sprite_renderer.gd" id="4_yifrl"]
+[ext_resource type="Script" uid="uid://tbkmyljsm6g2" path="res://scripts/viewer/ui/file_loader_panel.gd" id="5_ta1ix"]
+[ext_resource type="Script" uid="uid://dakx8iex3bx3v" path="res://scripts/viewer/ui/settings_panel.gd" id="6_7uiof"]
+[ext_resource type="Script" uid="uid://demegdxv3p5au" path="res://scripts/viewer/ui/actions_panel.gd" id="7_kmjc1"]
+[ext_resource type="Script" uid="uid://eswml280qdb8" path="res://scripts/viewer/ui/model_preview_panel.gd" id="8_6t80q"]
+[ext_resource type="Script" uid="uid://b320thfq078lj" path="res://scripts/viewer/ui/animation_controls_panel.gd" id="9_6txo2"]
+[ext_resource type="Script" uid="uid://do8lqfm8i3vcb" path="res://scripts/rendering/camera_controller.gd" id="9_xctl6"]
+[ext_resource type="Script" uid="uid://doey2y10rxsun" path="res://scripts/viewer/ui/log_panel.gd" id="10_635jc"]
+
+[node name="ViewerModular" type="Control"]
+layout_mode = 3
+anchors_preset = 0
+offset_right = 40.0
+offset_bottom = 40.0
+script = ExtResource("1_gl66s")
+
+[node name="FBXLoader" type="Node" parent="."]
+script = ExtResource("2_yh1ys")
+
+[node name="AnimationManager" type="Node" parent="."]
+script = ExtResource("3_xctl6")
+
+[node name="SpriteRenderer" type="Node3D" parent="."]
+script = ExtResource("4_yifrl")
+
+[node name="HSplitContainer" type="HSplitContainer" parent="."]
+layout_mode = 0
+offset_right = 1267.0
+offset_bottom = 624.0
+split_offset = 600
+
+[node name="LeftPanel" type="ScrollContainer" parent="HSplitContainer"]
+layout_mode = 2
+
+[node name="VBoxContainer" type="VBoxContainer" parent="HSplitContainer/LeftPanel"]
+layout_mode = 2
+
+[node name="HeaderLabel" type="Label" parent="HSplitContainer/LeftPanel/VBoxContainer"]
+layout_mode = 2
+text = "HeaderLabel
+"
+
+[node name="FileLoaderPanel" type="VBoxContainer" parent="HSplitContainer/LeftPanel/VBoxContainer"]
+layout_mode = 2
+script = ExtResource("5_ta1ix")
+
+[node name="Label_FileLoaderPanel" type="Label" parent="HSplitContainer/LeftPanel/VBoxContainer/FileLoaderPanel"]
+layout_mode = 2
+text = "Label_FileLoaderPanel"
+
+[node name="SettingsPanel" type="VBoxContainer" parent="HSplitContainer/LeftPanel/VBoxContainer"]
+layout_mode = 2
+script = ExtResource("6_7uiof")
+
+[node name="Label_SettingsPanel" type="Label" parent="HSplitContainer/LeftPanel/VBoxContainer/SettingsPanel"]
+layout_mode = 2
+text = "Label_SettingsPanel"
+
+[node name="ActionsPanel" type="VBoxContainer" parent="HSplitContainer/LeftPanel/VBoxContainer"]
+layout_mode = 2
+script = ExtResource("7_kmjc1")
+
+[node name="Label_ActionsPanel" type="Label" parent="HSplitContainer/LeftPanel/VBoxContainer/ActionsPanel"]
+layout_mode = 2
+text = "Label_ActionsPanel"
+
+[node name="RightPanel" type="VBoxContainer" parent="HSplitContainer"]
+layout_mode = 2
+
+[node name="ModelPreviewPanel" type="VBoxContainer" parent="HSplitContainer/RightPanel"]
+layout_mode = 2
+script = ExtResource("8_6t80q")
+
+[node name="PreviewLabel" type="Label" parent="HSplitContainer/RightPanel/ModelPreviewPanel"]
+layout_mode = 2
+
+[node name="PreviewStatusLabel" type="Label" parent="HSplitContainer/RightPanel/ModelPreviewPanel"]
+layout_mode = 2
+
+[node name="ViewportContainer" type="SubViewportContainer" parent="HSplitContainer/RightPanel/ModelPreviewPanel"]
+custom_minimum_size = Vector2(256, 256)
+layout_mode = 2
+stretch = true
+mouse_target = true
+
+[node name="SubViewport" type="SubViewport" parent="HSplitContainer/RightPanel/ModelPreviewPanel/ViewportContainer"]
+handle_input_locally = false
+size = Vector2i(655, 256)
+render_target_update_mode = 4
+
+[node name="Camera3D" type="Camera3D" parent="HSplitContainer/RightPanel/ModelPreviewPanel/ViewportContainer/SubViewport"]
+
+[node name="DirectionalLight3D" type="DirectionalLight3D" parent="HSplitContainer/RightPanel/ModelPreviewPanel/ViewportContainer/SubViewport"]
+
+[node name="ModelContainer" type="Node3D" parent="HSplitContainer/RightPanel/ModelPreviewPanel/ViewportContainer/SubViewport"]
+
+[node name="CameraController" type="Node3D" parent="HSplitContainer/RightPanel/ModelPreviewPanel/ViewportContainer/SubViewport"]
+script = ExtResource("9_xctl6")
+
+[node name="AnimationControlsPanel" type="HBoxContainer" parent="HSplitContainer/RightPanel"]
+layout_mode = 2
+script = ExtResource("9_6txo2")
+
+[node name="LogPanel" type="VBoxContainer" parent="HSplitContainer/RightPanel"]
+layout_mode = 2
+script = ExtResource("10_635jc")

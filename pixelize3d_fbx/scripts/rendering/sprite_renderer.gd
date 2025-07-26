@@ -9,8 +9,9 @@ signal frame_rendered(frame_data: Dictionary)
 signal animation_complete(animation_name: String)
 signal rendering_progress(current: int, total: int)
 
-@onready var viewport: SubViewport = $SubViewport
-@onready var camera_controller = $SubViewport/CameraController
+#@onready var viewport: SubViewport = $SubViewport
+@onready var viewport: SubViewport = $/root/ViewerModular/HSplitContainer/RightPanel/ModelPreviewPanel/ViewportContainer/SubViewport
+@onready var camera_controller = $/root/ViewerModular/HSplitContainer/RightPanel/ModelPreviewPanel/ViewportContainer/SubViewport/CameraController
 
 var render_settings: Dictionary
 var current_model: Node3D

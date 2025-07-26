@@ -36,6 +36,7 @@ project/assembly_name="Pixelize3D_FBX"
 
 folder_colors={
 "res://assets/": "green",
+"res://output/": "pink",
 "res://scenes/": "purple",
 "res://scripts/": "yellow",
 "res://scripts/core/": "yellow"
