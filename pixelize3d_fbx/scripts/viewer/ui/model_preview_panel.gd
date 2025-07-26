@@ -279,10 +279,13 @@ func disable_preview_mode():
 	
 	print("🛑 Preview mode deshabilitado")
 
-# === CONTROL DE ANIMACIONES ===
+# === CONTROL DE ANIMACIONES CON LOOPS (100% SINCRÓNICO) ===
+
+# Cargar el gestor de loops
+var loop_manager = preload("res://scripts/core/animation_loop_manager.gd")
 
 func play_animation(animation_name: String):
-	"""Reproducir animación específica"""
+	"""Reproducir animación específica con loop infinito y cambio limpio"""
 	if not animation_player:
 		print("❌ No hay AnimationPlayer disponible")
 		return
@@ -291,27 +294,59 @@ func play_animation(animation_name: String):
 		print("❌ Animación no encontrada: %s" % animation_name)
 		return
 	
-	print("▶️ Reproduciendo animación: %s" % animation_name)
-	animation_player.play(animation_name)
-	status_label.text = "▶️ Reproduciendo: " + animation_name
-	emit_signal("animation_playing", animation_name)
+	print("🎭 Cambiando a animación: %s" % animation_name)
+	status_label.text = "🔄 Cambiando animación..."
+	
+	# Usar el cambio limpio sincrónico
+	var success = loop_manager.change_animation_clean(animation_player, animation_name)
+	
+	if success:
+		status_label.text = "🔄 Reproduciendo en loop: " + animation_name
+		emit_signal("animation_playing", animation_name)
+		print("✅ Animación iniciada en loop: %s" % animation_name)
+	else:
+		status_label.text = "❌ Error al cambiar animación"
+		print("❌ Error al cambiar animación: %s" % animation_name)
 
 func stop_animation():
-	"""Detener animación actual"""
+	"""Detener animación actual completamente"""
 	if animation_player:
-		animation_player.stop()
+		loop_manager.stop_animation_clean(animation_player)
 		status_label.text = "⏹️ Animación detenida"
-		print("⏹️ Animación detenida")
+		print("⏹️ Animación detenida completamente")
 
 func _start_default_animation():
-	"""Iniciar primera animación disponible"""
+	"""Iniciar primera animación disponible con loop"""
 	if not animation_player:
 		return
+	
+	# Configurar todas las animaciones para loop infinito
+	loop_manager.setup_animation_player_with_loops(animation_player)
 	
 	var animations = animation_player.get_animation_list()
 	if animations.size() > 0:
 		var first_animation = animations[0]
-		play_animation(first_animation)
+		print("🎭 Iniciando animación por defecto con loop: %s" % first_animation)
+		# Usar call_deferred para evitar conflictos de inicialización
+		call_deferred("_play_first_animation", first_animation)
+
+func _play_first_animation(animation_name: String):
+	"""Helper para reproducir primera animación de forma diferida"""
+	if animation_player and animation_player.has_animation(animation_name):
+		# Usar el método limpio sincrónico
+		loop_manager.change_animation_clean(animation_player, animation_name)
+
+func toggle_pause_animation():
+	"""Pausar/reanudar animación manteniendo el loop"""
+	if not animation_player:
+		return
+	
+	var is_playing = loop_manager.toggle_pause_with_loop(animation_player)
+	
+	if is_playing:
+		status_label.text = "▶️ Reproduciendo en loop: " + animation_player.current_animation
+	else:
+		status_label.text = "⏸️ Pausado: " + animation_player.current_animation
 
 func _find_animation_player(node: Node) -> AnimationPlayer:
 	"""Buscar AnimationPlayer recursivamente"""

@@ -9,8 +9,9 @@ signal combination_failed(error: String)
 
 var base_meshes_cache = []
 
-# Cargar el script de retargeting fix
+# Cargar el script de retargeting fix y loop manager
 var retargeting_fix = preload("res://scripts/core/animation_retargeting_fix.gd")
+var loop_manager = preload("res://scripts/core/animation_loop_manager.gd")
 
 func set_base_meshes(meshes: Array) -> void:
 	base_meshes_cache = meshes
@@ -71,13 +72,23 @@ func combine_base_with_animation(base_data: Dictionary, animation_data: Dictiona
 	
 	print("✅ Animaciones retargeteadas correctamente")
 	
+	# NUEVO: Configurar loops infinitos en todas las animaciones
+	loop_manager.setup_infinite_loops(new_anim_player)
+	print("🔄 Loops infinitos configurados")
+	
 	# Aplicar la pose inicial de la primera animación
 	if new_anim_player.get_animation_list().size() > 0:
 		var first_anim = new_anim_player.get_animation_list()[0]
 		print("✅ Aplicando pose inicial: %s" % first_anim)
 		
-		# Usar el nuevo sistema para aplicar pose
-		retargeting_fix.apply_animation_pose(new_anim_player, first_anim, 0.0)
+		# Configurar loop y aplicar pose inicial de forma segura
+		var anim_lib = new_anim_player.get_animation_library("")
+		var animation = anim_lib.get_animation(first_anim)
+		if animation:
+			animation.loop_mode = Animation.LOOP_LINEAR
+		
+		# Como el AnimationPlayer ya está en el modelo combinado, puede usar play directamente
+		new_anim_player.play(first_anim)
 	
 	print("✅ Combinación completada exitosamente")
 	emit_signal("combination_complete", combined_root)

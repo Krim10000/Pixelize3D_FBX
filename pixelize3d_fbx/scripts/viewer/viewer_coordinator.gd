@@ -1,5 +1,5 @@
 # scripts/viewer/viewer_coordinator.gd
-# Coordinador principal del visor modular - SOLO conecta señales entre componentes
+# Coordinador MEJORADO con manejo seguro de señales y debugging
 # Input: Señales de componentes UI (selección de archivos, configuraciones, etc.)
 # Output: Coordinación entre componentes, delegación al sistema de renderizado principal
 
@@ -29,48 +29,110 @@ func _ready():
 	_connect_system_signals()
 	log_panel.add_log("✅ Coordinador inicializado - Todos los componentes conectados")
 	
-	# 🐛 DEBUG: Verificar fbx_loader
-	print("🐛 DEBUG - FBXLoader encontrado: ", fbx_loader != null)
-	if fbx_loader:
-		print("🐛 DEBUG - FBXLoader señales: ", fbx_loader.get_signal_list())
+	# Debug de componentes encontrados
+	_debug_component_status()
+
+func _debug_component_status():
+	"""Debug de estado de componentes al inicio"""
+	print("\n🔍 === DEBUG COMPONENTES ===")
+	
+	var components = {
+		"fbx_loader": fbx_loader,
+		"animation_manager": animation_manager,
+		"sprite_renderer": sprite_renderer,
+		"camera_controller": camera_controller,
+		"file_loader_panel": file_loader_panel,
+		"settings_panel": settings_panel,
+		"actions_panel": actions_panel,
+		"model_preview_panel": model_preview_panel,
+		"animation_controls_panel": animation_controls_panel,
+		"log_panel": log_panel
+	}
+	
+	for comp_name in components:
+		var comp = components[comp_name]
+		if comp:
+			print("✅ %s: %s" % [comp_name, comp.name])
+			if comp_name == "animation_controls_panel":
+				# Debug especial para animation controls
+				var signals = comp.get_signal_list()
+				print("  Señales disponibles: %s" % str(signals.map(func(s): return s.name)))
+		else:
+			print("❌ %s: NO ENCONTRADO" % comp_name)
+	
+	print("🔍 =========================\n")
 
 func _connect_ui_signals():
-	# Conectar señales entre paneles UI
-	file_loader_panel.file_selected.connect(_on_file_selected)
-	file_loader_panel.unit_selected.connect(_on_unit_selected)
-	file_loader_panel.animations_selected.connect(_on_animations_selected)
+	"""Conectar señales de UI con manejo seguro de errores"""
+	print("🔗 Conectando señales de UI...")
 	
-	if settings_panel.has_signal("settings_changed"):
-		settings_panel.settings_changed.connect(_on_settings_changed)
+	# Conexiones básicas de file loader
+	if file_loader_panel:
+		_safe_connect(file_loader_panel, "file_selected", _on_file_selected)
+		_safe_connect(file_loader_panel, "unit_selected", _on_unit_selected)
+		_safe_connect(file_loader_panel, "animations_selected", _on_animations_selected)
 	
-	if actions_panel.has_signal("preview_requested"):
-		actions_panel.preview_requested.connect(_on_preview_requested)
+	# Conexiones de settings panel
+	if settings_panel:
+		_safe_connect(settings_panel, "settings_changed", _on_settings_changed)
 	
-	if actions_panel.has_signal("render_requested"):
-		actions_panel.render_requested.connect(_on_render_requested)
+	# Conexiones de actions panel
+	if actions_panel:
+		_safe_connect(actions_panel, "preview_requested", _on_preview_requested)
+		_safe_connect(actions_panel, "render_requested", _on_render_requested)
 	
-	animation_controls_panel.animation_selected.connect(_on_animation_selected)
-	animation_controls_panel.play_requested.connect(_on_play_requested)
-	animation_controls_panel.stop_requested.connect(_on_stop_requested)
+	# CONEXIONES CRÍTICAS: Animation controls panel
+	if animation_controls_panel:
+		print("🎭 Conectando señales de animation_controls_panel...")
+		
+		# Conectar con manejo seguro
+		_safe_connect(animation_controls_panel, "animation_selected", _on_animation_selected)
+		_safe_connect(animation_controls_panel, "play_requested", _on_play_requested)
+		_safe_connect(animation_controls_panel, "pause_requested", _on_pause_requested)
+		_safe_connect(animation_controls_panel, "stop_requested", _on_stop_requested)
+		_safe_connect(animation_controls_panel, "timeline_changed", _on_timeline_changed)
+		
+		print("✅ Señales de animation_controls_panel conectadas")
+	else:
+		print("❌ animation_controls_panel no encontrado")
+
+func _safe_connect(source: Node, signal_name: String, target_method: Callable):
+	"""Conectar señal de forma segura con manejo de errores"""
+	if not source:
+		print("❌ Fuente nula para señal: %s" % signal_name)
+		return false
+	
+	if not source.has_signal(signal_name):
+		print("⚠️ Señal '%s' no existe en %s" % [signal_name, source.name])
+		return false
+	
+	if source.get_signal_connection_list(signal_name).size() > 0:
+		# Ya está conectada
+		print("ℹ️ Señal '%s' ya está conectada en %s" % [signal_name, source.name])
+		return true
+	
+	var result = source.connect(signal_name, target_method)
+	if result == OK:
+		print("✅ Conectada: %s.%s" % [source.name, signal_name])
+		return true
+	else:
+		print("❌ Error conectando %s.%s: %d" % [source.name, signal_name, result])
+		return false
 
 func _connect_system_signals():
-	# 🐛 DEBUG: Verificar conexiones de señales
-	print("🐛 DEBUG - Conectando señales del sistema...")
+	"""Conectar señales del sistema con debugging"""
+	print("🔗 Conectando señales del sistema...")
 	
-	if fbx_loader and fbx_loader.has_signal("model_loaded"):
-		fbx_loader.model_loaded.connect(_on_model_loaded)
-		print("🐛 DEBUG - Señal model_loaded conectada")
-	else:
-		print("🐛 ERROR - No se pudo conectar model_loaded")
+	if fbx_loader:
+		_safe_connect(fbx_loader, "model_loaded", _on_model_loaded)
+		_safe_connect(fbx_loader, "load_failed", _on_load_failed)
+		print("✅ Señales de FBXLoader conectadas")
 	
-	if fbx_loader and fbx_loader.has_signal("load_failed"):
-		fbx_loader.load_failed.connect(_on_load_failed)
-		print("🐛 DEBUG - Señal load_failed conectada")
-	
-	if sprite_renderer and sprite_renderer.has_signal("frame_rendered"):
-		sprite_renderer.frame_rendered.connect(_on_frame_rendered)
+	if sprite_renderer:
+		_safe_connect(sprite_renderer, "frame_rendered", _on_frame_rendered)
+		print("✅ Señales de SpriteRenderer conectadas")
 
-# Funciones de coordinación para manejo de archivos
+# === MANEJADORES DE SEÑALES DE ARCHIVOS ===
 func _on_file_selected(file_path: String):
 	log_panel.add_log("📁 Archivo seleccionado: " + file_path.get_file())
 	_load_fbx_file(file_path)
@@ -89,19 +151,17 @@ func _on_animations_selected(animation_files: Array):
 		if file_loader_panel.current_unit_data.has("path"):
 			var full_path = file_loader_panel.current_unit_data.path + "/" + anim_file
 			log_panel.add_log("📥 Cargando animación: " + anim_file)
-			
-			# 🐛 DEBUG: Verificar llamada a carga de animación
-			print("🐛 DEBUG - Llamando load_animation_fbx: ", full_path)
+			print("🔄 Llamando load_animation_fbx: %s" % full_path)
 			fbx_loader.load_animation_fbx(full_path, anim_file.get_basename())
 
-# Funciones de coordinación para configuraciones
+# === MANEJADORES DE SEÑALES DE CONFIGURACIÓN ===
 func _on_settings_changed(settings: Dictionary):
 	log_panel.add_log("⚙️ Configuración actualizada")
 	# Aplicar a cámara si es necesario
 	if camera_controller.has_method("apply_settings"):
 		camera_controller.apply_settings(settings)
 
-# Funciones de coordinación para acciones
+# === MANEJADORES DE SEÑALES DE ACCIONES ===
 func _on_preview_requested():
 	log_panel.add_log("🎬 Preview solicitado")
 	if current_combined_model:
@@ -112,7 +172,7 @@ func _on_preview_requested():
 func _on_render_requested():
 	log_panel.add_log("🎨 Renderizado solicitado")
 	# Delegar al sistema existente
-	var selected_animations = file_loader_panel.get_selected_animations()
+	var selected_animations = file_loader_panel.get_selected_animations() if file_loader_panel.has_method("get_selected_animations") else []
 	var render_settings = settings_panel.get_settings() if settings_panel.has_method("get_settings") else {}
 	
 	if selected_animations.is_empty():
@@ -125,118 +185,78 @@ func _on_render_requested():
 	
 	_start_rendering(selected_animations, render_settings)
 
-# Funciones de coordinación para controles de animación
+# === MANEJADORES DE SEÑALES DE CONTROLES DE ANIMACIÓN ===
 func _on_animation_selected(animation_name: String):
+	print("🎭 COORDINATOR: Animación seleccionada: %s" % animation_name)
 	log_panel.add_log("🎭 Animación seleccionada: " + animation_name)
-
-func _on_play_requested(animation_name: String):
-	log_panel.add_log("▶️ Reproduciendo: " + animation_name)
-	if model_preview_panel.has_method("play_animation"):
+	
+	# Opcional: Delegar al model_preview_panel para cambiar animación
+	if model_preview_panel and model_preview_panel.has_method("play_animation"):
+		print("🔄 Delegando cambio al model_preview_panel")
 		model_preview_panel.play_animation(animation_name)
 
+func _on_play_requested(animation_name: String):
+	print("▶️ COORDINATOR: Play solicitado: %s" % animation_name)
+	log_panel.add_log("▶️ Reproduciendo: " + animation_name)
+
+func _on_pause_requested():
+	print("⏸️ COORDINATOR: Pause solicitado")
+	log_panel.add_log("⏸️ Animación pausada")
+
 func _on_stop_requested():
+	print("⏹️ COORDINATOR: Stop solicitado")
 	log_panel.add_log("⏹️ Animación detenida")
-	if model_preview_panel.has_method("stop_animation"):
-		model_preview_panel.stop_animation()
 
-# 🐛 DEBUG: Función principal para manejo de modelos cargados con debugging extensivo
-func _on_model_loaded(model_data: Dictionary):
-	print("🐛 DEBUG - _on_model_loaded ejecutado!")
-	print("🐛 DEBUG - Claves en model_data: ", model_data.keys())
-	print("🐛 DEBUG - Contenido completo: ", model_data)
-	
-	# Intentar diferentes nombres de campos para file_type
-	var file_type = "unknown"
-	if model_data.has("file_type"):
-		file_type = model_data.file_type
-	elif model_data.has("type"):
-		file_type = model_data.type
-	elif model_data.has("kind"):
-		file_type = model_data.kind
-	
-	var model_name = "unknown"
-	if model_data.has("name"):
-		model_name = model_data.name
-	elif model_data.has("filename"):
-		model_name = model_data.filename
-	elif model_data.has("file_name"):
-		model_name = model_data.file_name
-	
-	print("🐛 DEBUG - file_type detectado: ", file_type)
-	print("🐛 DEBUG - model_name detectado: ", model_name)
-	
-	if file_type == "base":
-		loaded_base_data = model_data
-		log_panel.add_log("✅ Modelo base cargado: " + model_name)
-		print("🐛 DEBUG - Modelo base almacenado")
-		
-	elif file_type == "animation":
-		loaded_animations[model_name] = model_data
-		log_panel.add_log("✅ Animación cargada: " + model_name)
-		print("🐛 DEBUG - Animación almacenada: ", model_name)
-	
-	else:
-		# Si no reconocemos el tipo, intentar detectar por contenido
-		log_panel.add_log("⚠️ Tipo de archivo no reconocido: " + str(file_type))
-		print("🐛 DEBUG - Tipo no reconocido, analizando contenido...")
-		
-		# Si tiene meshes, probablemente es base
-		if model_data.has("meshes") and model_data.meshes.size() > 0:
-			loaded_base_data = model_data
-			log_panel.add_log("✅ Modelo base detectado por contenido: " + model_name)
-		# Si solo tiene animaciones, probablemente es animación
-		elif model_data.has("animation_player") or model_data.has("animations"):
-			loaded_animations[model_name] = model_data
-			log_panel.add_log("✅ Animación detectada por contenido: " + model_name)
-	
-	# Intentar combinación automática si tenemos base + al menos 1 animación
-	print("🐛 DEBUG - Llamando _try_combine_and_preview...")
-	_try_combine_and_preview()
-
-func _on_load_failed(error_message: String):
-	log_panel.add_log("❌ Error al cargar FBX: " + error_message)
-	print("🐛 DEBUG - _on_load_failed ejecutado: ", error_message)
-
-func _on_frame_rendered(frame_data: Dictionary):
-	# El sistema existente ya maneja esto
+func _on_timeline_changed(position: float):
+	# Debug opcional para timeline
+	# print("📍 Timeline: %.2fs" % position)
 	pass
 
-# Función auxiliar para cargar archivos FBX con debugging
+# === MANEJADORES DE SEÑALES DEL SISTEMA ===
+func _on_model_loaded(model_data: Dictionary):
+	print("📦 COORDINATOR: Modelo cargado - %s" % model_data.get("name", "Desconocido"))
+	
+	var file_type = model_data.get("type", "unknown")
+	var model_name = model_data.get("name", "Unnamed")
+	
+	if file_type == "base":
+		print("🏗️ Modelo base detectado: %s" % model_name)
+		loaded_base_data = model_data
+		log_panel.add_log("✅ Modelo base cargado: " + model_name)
+	elif file_type == "animation":
+		print("🎭 Animación detectada: %s" % model_name)
+		loaded_animations[model_name] = model_data
+		log_panel.add_log("✅ Animación cargada: " + model_name)
+	
+	# Intentar combinación automática
+	_try_combine_and_preview()
+
+func _on_load_failed(error: String):
+	print("❌ COORDINATOR: Error de carga - %s" % error)
+	log_panel.add_log("❌ Error de carga: " + error)
+
+func _on_frame_rendered(frame_data: Dictionary):
+	# Manejar frames renderizados si es necesario
+	pass
+
+# === FUNCIONES DE COMBINACIÓN ===
 func _load_fbx_file(file_path: String):
-	print("🐛 DEBUG - _load_fbx_file llamado con: ", file_path)
+	"""Cargar archivo FBX detectando tipo automáticamente"""
+	var file_name = file_path.get_file().get_basename()
 	
-	# Determinar si es archivo base basándose en el nombre
-	var filename = file_path.get_file().to_lower()
-	var is_base_file = false
+	# Detectar tipo por nombre
+	var is_base = file_name.to_lower().contains("base") or not file_name.to_lower().contains("walk") and not file_name.to_lower().contains("run") and not file_name.to_lower().contains("idle")
 	
-	# Heurística para determinar si es archivo base
-	var base_keywords = ["base", "idle", "static", "t-pose", "tpose"]
-	for keyword in base_keywords:
-		if keyword in filename:
-			is_base_file = true
-			break
-	
-	# Si no se detecta como base, asumir que es base si no tenemos uno cargado
-	if not is_base_file and loaded_base_data.is_empty():
-		is_base_file = true
-		log_panel.add_log("🔍 Asumiendo como modelo base (no hay base cargado)")
-	
-	print("🐛 DEBUG - Detectado como base: ", is_base_file)
-	
-	# Cargar según el tipo detectado
-	if is_base_file:
-		print("🐛 DEBUG - Llamando load_base_model...")
+	if is_base:
+		print("🏗️ Cargando como base: %s" % file_path)
 		fbx_loader.load_base_model(file_path)
 	else:
-		var anim_name = file_path.get_file().get_basename()
-		print("🐛 DEBUG - Llamando load_animation_fbx con nombre: ", anim_name)
-		fbx_loader.load_animation_fbx(file_path, anim_name)
+		print("🎭 Cargando como animación: %s" % file_path)
+		fbx_loader.load_animation_fbx(file_path, file_name)
 
-# Función clave para combinar base + animaciones y mostrar preview
 func _try_combine_and_preview():
-	print("🐛 DEBUG - _try_combine_and_preview ejecutado")
-	print("🐛 DEBUG - Base vacío: ", loaded_base_data.is_empty())
-	print("🐛 DEBUG - Animaciones count: ", loaded_animations.size())
+	"""Intentar combinar y configurar preview si tenemos datos suficientes"""
+	print("🔄 Intentando combinación - Base: %s, Anims: %d" % [not loaded_base_data.is_empty(), loaded_animations.size()])
 	
 	# Verificar que tenemos los datos necesarios
 	if loaded_base_data.is_empty():
@@ -248,7 +268,7 @@ func _try_combine_and_preview():
 		return
 	
 	log_panel.add_log("🔄 Combinando modelo base con animaciones...")
-	print("🐛 DEBUG - Iniciando combinación...")
+	print("🔄 Iniciando combinación...")
 	
 	# Limpiar modelo combinado anterior
 	if current_combined_model:
@@ -260,7 +280,7 @@ func _try_combine_and_preview():
 	var first_anim_data = loaded_animations[first_anim_name]
 	
 	log_panel.add_log("🎭 Combinando con: " + first_anim_name)
-	print("🐛 DEBUG - Usando animación: ", first_anim_name)
+	print("🎭 Usando animación: %s" % first_anim_name)
 	
 	# Usar animation_manager para combinar
 	current_combined_model = animation_manager.combine_base_with_animation(
@@ -270,29 +290,33 @@ func _try_combine_and_preview():
 	
 	if current_combined_model:
 		log_panel.add_log("✅ Modelo combinado exitosamente")
-		print("🐛 DEBUG - Combinación exitosa, configurando preview...")
+		print("✅ Combinación exitosa, configurando preview...")
 		
 		# Configurar preview con modelo combinado
 		if model_preview_panel.has_method("set_model"):
 			model_preview_panel.set_model(current_combined_model)
-			print("🐛 DEBUG - Modelo pasado a preview panel")
+			print("✅ Modelo pasado a preview panel")
 		
-		# Poblar controles de animación con modelo combinado (que tiene AnimationPlayer)
-		animation_controls_panel.populate_animations(current_combined_model)
-		print("🐛 DEBUG - Controles de animación poblados")
+		# CRÍTICO: Poblar controles de animación con modelo combinado
+		if animation_controls_panel.has_method("populate_animations"):
+			animation_controls_panel.populate_animations(current_combined_model)
+			print("✅ Controles de animación poblados")
+		else:
+			print("❌ animation_controls_panel no tiene populate_animations")
 		
 		# Habilitar botón de preview en acciones
-		if actions_panel.has_method("enable_preview_button"):
+		if actions_panel and actions_panel.has_method("enable_preview_button"):
 			actions_panel.enable_preview_button()
 		
 		log_panel.add_log("🎬 Preview listo para usar")
 		
 	else:
 		log_panel.add_log("❌ Error al combinar modelo - revisa los logs de animation_manager")
-		print("🐛 DEBUG - Error en combinación")
+		print("❌ Error en combinación")
 
-# Función para limpiar datos cargados
+# === FUNCIONES DE LIMPIEZA ===
 func _clear_loaded_data():
+	"""Limpiar datos cargados"""
 	loaded_base_data.clear()
 	loaded_animations.clear()
 	
@@ -301,16 +325,17 @@ func _clear_loaded_data():
 		current_combined_model = null
 	
 	# Resetear controles de animación
-	animation_controls_panel.reset_controls()
+	if animation_controls_panel and animation_controls_panel.has_method("reset_controls"):
+		animation_controls_panel.reset_controls()
 	
 	log_panel.add_log("🧹 Datos de modelos limpiados")
 
-# Función para delegar renderizado al sistema principal
+# === FUNCIONES DE RENDERIZADO ===
 func _start_rendering(animations: Array, settings: Dictionary):
+	"""Delegar renderizado al sistema principal"""
 	log_panel.add_log("🚀 Iniciando renderizado de %d animaciones" % animations.size())
 	
 	# Esta función debe conectar con tu sistema de renderizado principal (main.gd)
-	# Por ahora solo registra la solicitud
 	log_panel.add_log("📝 Datos de renderizado:")
 	log_panel.add_log("  • Base: " + loaded_base_data.get("name", "desconocido"))
 	log_panel.add_log("  • Animaciones: " + str(animations))
@@ -319,11 +344,42 @@ func _start_rendering(animations: Array, settings: Dictionary):
 	# TODO: Aquí conectarías con tu main.gd existente o sprite_renderer
 	# Ejemplo: get_tree().call_group("main_system", "start_batch_rendering", loaded_base_data, loaded_animations, settings)
 
-# Función para obtener estado actual (útil para debugging)
+# === FUNCIONES DE DEBUG ===
 func get_current_state() -> Dictionary:
+	"""Obtener estado actual (útil para debugging)"""
 	return {
 		"base_loaded": not loaded_base_data.is_empty(),
 		"animations_loaded": loaded_animations.size(),
 		"combined_model_ready": current_combined_model != null,
 		"animation_names": loaded_animations.keys()
 	}
+
+func debug_all_connections():
+	"""Debug de todas las conexiones de señales"""
+	print("\n🔍 === DEBUG CONEXIONES ===")
+	
+	if animation_controls_panel:
+		print("🎭 Animation Controls Panel:")
+		var signals = ["animation_selected", "play_requested", "pause_requested", "stop_requested"]
+		
+		for signal_name in signals:
+			if animation_controls_panel.has_signal(signal_name):
+				var connections = animation_controls_panel.get_signal_connection_list(signal_name)
+				print("  %s: %d conexiones" % [signal_name, connections.size()])
+			else:
+				print("  %s: ❌ SEÑAL NO EXISTE" % signal_name)
+	
+	print("🔍 =======================\n")
+
+func test_animation_controls():
+	"""Función de test para animation controls"""
+	print("🧪 PROBANDO ANIMATION CONTROLS...")
+	
+	if animation_controls_panel:
+		if animation_controls_panel.has_method("debug_state"):
+			animation_controls_panel.debug_state()
+		
+		if animation_controls_panel.has_method("test_change_animation"):
+			animation_controls_panel.test_change_animation()
+	else:
+		print("❌ animation_controls_panel no disponible")
