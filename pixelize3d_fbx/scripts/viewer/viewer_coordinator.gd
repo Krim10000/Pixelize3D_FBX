@@ -1,7 +1,7 @@
 # scripts/viewer/viewer_coordinator.gd
-# Coordinador MEJORADO con manejo seguro de señales y debugging
+# Coordinador CORREGIDO - ACUMULA animaciones en lugar de reemplazar el modelo
 # Input: Señales de componentes UI (selección de archivos, configuraciones, etc.)
-# Output: Coordinación entre componentes, delegación al sistema de renderizado principal
+# Output: Coordinación entre componentes, modelo combinado con TODAS las animaciones
 
 extends Control
 
@@ -219,6 +219,14 @@ func _on_model_loaded(model_data: Dictionary):
 	var file_type = model_data.get("type", "unknown")
 	var model_name = model_data.get("name", "Unnamed")
 	
+	# CORRECCIÓN CRÍTICA: Arreglar nombres de animaciones antes de procesar
+	if file_type == "animation" and model_data.has("animation_player"):
+		var name_fix = preload("res://scripts/core/animation_name_fix.gd")
+		model_data = name_fix.process_loaded_model(model_data)
+		
+		# Debug de animaciones después de la corrección
+		name_fix.debug_animation_names(model_data.animation_player, "Después de corrección")
+	
 	if file_type == "base":
 		print("🏗️ Modelo base detectado: %s" % model_name)
 		loaded_base_data = model_data
@@ -255,7 +263,7 @@ func _load_fbx_file(file_path: String):
 		fbx_loader.load_animation_fbx(file_path, file_name)
 
 func _try_combine_and_preview():
-	"""Intentar combinar y configurar preview si tenemos datos suficientes"""
+	"""CORREGIDO: Combinar y acumular animaciones en lugar de reemplazar"""
 	print("🔄 Intentando combinación - Base: %s, Anims: %d" % [not loaded_base_data.is_empty(), loaded_animations.size()])
 	
 	# Verificar que tenemos los datos necesarios
@@ -267,52 +275,177 @@ func _try_combine_and_preview():
 		log_panel.add_log("⏳ Esperando animaciones...")
 		return
 	
-	log_panel.add_log("🔄 Combinando modelo base con animaciones...")
-	print("🔄 Iniciando combinación...")
-	
-	# Limpiar modelo combinado anterior
-	if current_combined_model:
-		current_combined_model.queue_free()
-		current_combined_model = null
-	
-	# Obtener primera animación para la combinación inicial
-	var first_anim_name = loaded_animations.keys()[0]
-	var first_anim_data = loaded_animations[first_anim_name]
-	
-	log_panel.add_log("🎭 Combinando con: " + first_anim_name)
-	print("🎭 Usando animación: %s" % first_anim_name)
-	
-	# Usar animation_manager para combinar
-	current_combined_model = animation_manager.combine_base_with_animation(
-		loaded_base_data, 
-		first_anim_data
-	)
-	
-	if current_combined_model:
-		log_panel.add_log("✅ Modelo combinado exitosamente")
-		print("✅ Combinación exitosa, configurando preview...")
+	# CORRECCIÓN CRÍTICA: Verificar si ya tenemos un modelo combinado
+	if current_combined_model == null:
+		# Primera vez: crear modelo combinado
+		log_panel.add_log("🔄 Creando modelo combinado inicial...")
+		print("🔄 Primera combinación - Creando modelo base...")
 		
-		# Configurar preview con modelo combinado
+		# Obtener primera animación para la combinación inicial
+		var first_anim_name = loaded_animations.keys()[0]
+		var first_anim_data = loaded_animations[first_anim_name]
+		
+		log_panel.add_log("🎭 Combinando con: " + first_anim_name)
+		print("🎭 Usando animación inicial: %s" % first_anim_name)
+		
+		# Crear modelo combinado inicial
+		current_combined_model = animation_manager.combine_base_with_animation(
+			loaded_base_data, 
+			first_anim_data
+		)
+		
+		if current_combined_model:
+			log_panel.add_log("✅ Modelo combinado inicial creado")
+			print("✅ Modelo base creado exitosamente")
+		else:
+			log_panel.add_log("❌ Error al crear modelo inicial")
+			print("❌ Error en combinación inicial")
+			return
+	
+	# NUEVA FUNCIONALIDAD: Agregar animaciones adicionales al modelo existente
+	var existing_anim_player = current_combined_model.get_node_or_null("AnimationPlayer")
+	if existing_anim_player:
+		var existing_anims = existing_anim_player.get_animation_list()
+		print("🎭 Modelo actual tiene: %s" % str(existing_anims))
+		
+		# Verificar qué animaciones nuevas necesitamos agregar
+		var new_animations_to_add = []
+		for anim_name in loaded_animations.keys():
+			if not existing_anim_player.has_animation(anim_name):
+				new_animations_to_add.append(anim_name)
+		
+		# Agregar animaciones nuevas
+		for anim_name in new_animations_to_add:
+			var anim_data = loaded_animations[anim_name]
+			print("➕ Agregando nueva animación: %s" % anim_name)
+			log_panel.add_log("➕ Agregando animación: " + anim_name)
+			
+			if _add_animation_to_existing_model(current_combined_model, anim_data):
+				print("✅ Animación agregada: %s" % anim_name)
+			else:
+				print("❌ Error agregando: %s" % anim_name)
+	
+	# Configurar preview con modelo combinado (actualizado)
+	if current_combined_model:
+		log_panel.add_log("✅ Modelo con todas las animaciones listo")
+		print("✅ Configurando preview con modelo actualizado...")
+		
+		# Configurar preview panel
 		if model_preview_panel.has_method("set_model"):
 			model_preview_panel.set_model(current_combined_model)
 			print("✅ Modelo pasado a preview panel")
 		
-		# CRÍTICO: Poblar controles de animación con modelo combinado
+		# CRÍTICO: Actualizar controles de animación con TODAS las animaciones
 		if animation_controls_panel.has_method("populate_animations"):
 			animation_controls_panel.populate_animations(current_combined_model)
-			print("✅ Controles de animación poblados")
+			print("✅ Controles de animación actualizados")
 		else:
 			print("❌ animation_controls_panel no tiene populate_animations")
 		
-		# Habilitar botón de preview en acciones
+		# Habilitar botón de preview
 		if actions_panel and actions_panel.has_method("enable_preview_button"):
 			actions_panel.enable_preview_button()
 		
-		log_panel.add_log("🎬 Preview listo para usar")
+		# Debug del modelo final
+		var final_anim_player = current_combined_model.get_node_or_null("AnimationPlayer")
+		if final_anim_player:
+			print("🎯 MODELO FINAL: %d animaciones total" % final_anim_player.get_animation_list().size())
+			print("   Animaciones: %s" % str(final_anim_player.get_animation_list()))
 		
+		log_panel.add_log("🎬 Preview listo con %d animaciones" % final_anim_player.get_animation_list().size())
+
+func _add_animation_to_existing_model(combined_model: Node3D, new_anim_data: Dictionary) -> bool:
+	"""MEJORADA: Agregar una animación a un modelo combinado existente"""
+	print("➕ DEBUG: Intentando agregar animación...")
+	print("  Modelo: %s" % combined_model.name)
+	print("  Nueva animación: %s" % new_anim_data.get("name", "SIN_NOMBRE"))
+	
+	var existing_anim_player = combined_model.get_node_or_null("AnimationPlayer")
+	var new_anim_player = new_anim_data.get("animation_player", null)
+	
+	if not existing_anim_player:
+		print("❌ No se encontró AnimationPlayer existente")
+		return false
+	
+	if not new_anim_player:
+		print("❌ No se encontró AnimationPlayer en nueva animación")
+		return false
+	
+	print("  AnimationPlayer existente: %d animaciones" % existing_anim_player.get_animation_list().size())
+	print("  AnimationPlayer nuevo: %d animaciones" % new_anim_player.get_animation_list().size())
+	
+	# Debug de nombres antes de copiar
+	print("  Animaciones existentes: %s" % str(existing_anim_player.get_animation_list()))
+	print("  Animaciones nuevas: %s" % str(new_anim_player.get_animation_list()))
+	
+	# Copiar cada animación del nuevo AnimationPlayer al existente
+	var animations_added = 0
+	var anim_lib_source = new_anim_player.get_animation_library("")
+	var anim_lib_dest = existing_anim_player.get_animation_library("")
+	
+	if not anim_lib_source or not anim_lib_dest:
+		print("❌ No se pudieron obtener las librerías de animación")
+		return false
+	
+	for anim_name in new_anim_player.get_animation_list():
+		print("  🔍 Procesando animación: '%s'" % anim_name)
+		
+		if existing_anim_player.has_animation(anim_name):
+			print("    ⚠️ Ya existe, saltando: '%s'" % anim_name)
+			continue
+		
+		# Obtener la animación del player de origen
+		var animation = anim_lib_source.get_animation(anim_name)
+		
+		if animation:
+			# Crear una copia de la animación
+			var animation_copy = animation.duplicate()
+			
+			if animation_copy:
+				# Agregar la animación al player de destino
+				var add_result = anim_lib_dest.add_animation(anim_name, animation_copy)
+				
+				if add_result == OK:
+					print("    ✅ Animación copiada: %s (%.2fs)" % [anim_name, animation.length])
+					animations_added += 1
+				else:
+					print("    ❌ Error agregando animación al destino: %s" % anim_name)
+			else:
+				print("    ❌ Error duplicando animación: %s" % anim_name)
+		else:
+			print("    ❌ No se pudo obtener animación: %s" % anim_name)
+	
+	if animations_added > 0:
+		print("  🔧 Aplicando post-procesamiento a %d nuevas animaciones..." % animations_added)
+		
+		# Aplicar retargeting a las nuevas animaciones
+		var skeleton = combined_model.get_node_or_null("Skeleton3D_combined")
+		if skeleton:
+			# Cargar el script de retargeting
+			var retargeting_fix = preload("res://scripts/core/animation_retargeting_fix.gd")
+			
+			# Solo retargetear las animaciones nuevas
+			var success = retargeting_fix.fix_animation_retargeting(
+				existing_anim_player, 
+				new_anim_data.skeleton.name, 
+				skeleton.name
+			)
+			
+			if success:
+				print("    ✅ Retargeting aplicado a nuevas animaciones")
+			else:
+				print("    ⚠️ Warning: Retargeting falló, pero animaciones agregadas")
+		
+		# Configurar loops para las nuevas animaciones
+		var loop_manager = preload("res://scripts/core/animation_loop_manager.gd")
+		loop_manager.setup_infinite_loops(existing_anim_player)
+		
+		print("    🔄 Loops configurados para todas las animaciones")
+		print("  ✅ Total animaciones en modelo: %d" % existing_anim_player.get_animation_list().size())
+		return true
 	else:
-		log_panel.add_log("❌ Error al combinar modelo - revisa los logs de animation_manager")
-		print("❌ Error en combinación")
+		print("  ❌ No se agregaron animaciones nuevas")
+		return false
 
 # === FUNCIONES DE LIMPIEZA ===
 func _clear_loaded_data():

@@ -1,7 +1,7 @@
 # scripts/viewer/ui/model_preview_panel.gd
-# Panel que maneja la visualización de modelos usando nodos existentes
+# Panel CORREGIDO - ELIMINA duplicación del modelo para sincronizar AnimationPlayer
 # Input: Modelo 3D combinado con AnimationPlayer desde FBXLoader
-# Output: Preview visual delegando control a CameraController y ModelRotator
+# Output: Preview visual usando el MISMO modelo que AnimationControlsPanel
 
 extends VBoxContainer
 
@@ -142,27 +142,39 @@ func _connect_signals():
 # === GESTIÓN DEL MODELO ===
 
 func set_model(model: Node3D):
-	"""Configurar modelo para preview usando delegación a scripts especializados"""
+	"""CORREGIDO: Usar modelo original directamente - NO duplicar"""
 	print("🎬 PREVIEW_PANEL: Configurando modelo - %s" % (model.name if model else "NULL"))
 	
 	if not model_container or not camera_controller:
 		print("❌ ERROR: Componentes necesarios no disponibles")
 		return
 	
-	# Limpiar modelo anterior
-	_clear_current_model()
+	# Limpiar modelo anterior SOLO si es diferente
+	if current_model and current_model != model:
+		_clear_current_model()
 	
 	if not model:
 		status_label.text = "No hay modelo cargado"
 		return
 	
-	# Duplicar modelo para preview (evitar conflictos)
-	current_model = model.duplicate()
-	current_model.name = "Preview_" + model.name
-	model_container.add_child(current_model)
+	# CORRECCIÓN CRÍTICA: Usar modelo original directamente (NO duplicar)
+	current_model = model
 	
-	# Buscar AnimationPlayer en el modelo
+	# Verificar si el modelo ya está en el contenedor
+	if current_model.get_parent() != model_container:
+		model_container.add_child(current_model)
+		print("✅ Modelo agregado al contenedor preview")
+	else:
+		print("ℹ️ Modelo ya está en el contenedor preview")
+	
+	# Buscar AnimationPlayer en el modelo ORIGINAL
 	animation_player = _find_animation_player(current_model)
+	
+	if animation_player:
+		print("✅ AnimationPlayer encontrado: %s" % animation_player.name)
+		print("   Animaciones disponibles: %s" % str(animation_player.get_animation_list()))
+	else:
+		print("⚠️ No se encontró AnimationPlayer en el modelo")
 	
 	# Calcular bounds usando método corregido
 	var bounds = _calculate_model_bounds_corrected(current_model)
@@ -182,16 +194,21 @@ func set_model(model: Node3D):
 	# Emitir señal
 	emit_signal("model_displayed", current_model)
 	
-	print("✅ Modelo configurado mediante delegación")
+	print("✅ Modelo configurado - USANDO ORIGINAL (sincronizado con AnimationControls)")
 
 func _clear_current_model():
-	"""Limpiar modelo actual"""
+	"""Limpiar modelo actual - CORREGIDO para modelo original"""
+	print("🧹 Limpiando modelo actual...")
+	
 	if current_model:
 		if model_rotator and model_rotator.has_method("clear_model"):
 			model_rotator.clear_model()
 		
-		model_container.remove_child(current_model)
-		current_model.queue_free()
+		# CORRECCIÓN: Solo remover del contenedor, NO destruir (el modelo original se usa en otros lados)
+		if current_model.get_parent() == model_container:
+			model_container.remove_child(current_model)
+			print("✅ Modelo removido del contenedor (preservado para otros usos)")
+		
 		current_model = null
 		animation_player = null
 
@@ -285,7 +302,7 @@ func disable_preview_mode():
 var loop_manager = preload("res://scripts/core/animation_loop_manager.gd")
 
 func play_animation(animation_name: String):
-	"""Reproducir animación específica con loop infinito y cambio limpio"""
+	"""CORREGIDO: Reproducir animación usando el MISMO AnimationPlayer que AnimationControls"""
 	if not animation_player:
 		print("❌ No hay AnimationPlayer disponible")
 		return
@@ -294,7 +311,7 @@ func play_animation(animation_name: String):
 		print("❌ Animación no encontrada: %s" % animation_name)
 		return
 	
-	print("🎭 Cambiando a animación: %s" % animation_name)
+	print("🎭 PREVIEW: Cambiando a animación: %s" % animation_name)
 	status_label.text = "🔄 Cambiando animación..."
 	
 	# Usar el cambio limpio sincrónico
@@ -303,17 +320,17 @@ func play_animation(animation_name: String):
 	if success:
 		status_label.text = "🔄 Reproduciendo en loop: " + animation_name
 		emit_signal("animation_playing", animation_name)
-		print("✅ Animación iniciada en loop: %s" % animation_name)
+		print("✅ PREVIEW: Animación iniciada en loop: %s" % animation_name)
 	else:
 		status_label.text = "❌ Error al cambiar animación"
-		print("❌ Error al cambiar animación: %s" % animation_name)
+		print("❌ PREVIEW: Error al cambiar animación: %s" % animation_name)
 
 func stop_animation():
 	"""Detener animación actual completamente"""
 	if animation_player:
 		loop_manager.stop_animation_clean(animation_player)
 		status_label.text = "⏹️ Animación detenida"
-		print("⏹️ Animación detenida completamente")
+		print("⏹️ PREVIEW: Animación detenida completamente")
 
 func _start_default_animation():
 	"""Iniciar primera animación disponible con loop"""
@@ -321,12 +338,12 @@ func _start_default_animation():
 		return
 	
 	# Configurar todas las animaciones para loop infinito
-	loop_manager.setup_animation_player_with_loops(animation_player)
+	loop_manager.setup_infinite_loops(animation_player)
 	
 	var animations = animation_player.get_animation_list()
 	if animations.size() > 0:
 		var first_animation = animations[0]
-		print("🎭 Iniciando animación por defecto con loop: %s" % first_animation)
+		print("🎭 PREVIEW: Iniciando animación por defecto con loop: %s" % first_animation)
 		# Usar call_deferred para evitar conflictos de inicialización
 		call_deferred("_play_first_animation", first_animation)
 
@@ -419,7 +436,7 @@ func reset_camera_view():
 
 func debug_preview_state():
 	"""Imprimir estado completo para debugging"""
-	print("\n=== PREVIEW PANEL DEBUG (Delegación) ===")
+	print("\n=== PREVIEW PANEL DEBUG (CORREGIDO - Modelo Original) ===")
 	print("Model loaded: %s" % (current_model != null))
 	print("Animation player: %s" % (animation_player != null))
 	print("Preview active: %s" % preview_active)
@@ -429,6 +446,7 @@ func debug_preview_state():
 	if current_model:
 		print("Model name: %s" % current_model.name)
 		print("Model position: %s" % str(current_model.position))
+		print("Model is original: %s" % (not current_model.name.begins_with("Preview_")))
 	
 	if animation_player:
 		print("Available animations: %s" % str(animation_player.get_animation_list()))
@@ -442,4 +460,4 @@ func debug_preview_state():
 	if model_rotator and model_rotator.has_method("debug_rotation_state"):
 		model_rotator.debug_rotation_state()
 	
-	print("==========================================\n")
+	print("========================================================\n")
