@@ -1,7 +1,7 @@
 # scripts/viewer/ui/file_loader_panel.gd
-# Panel SIMPLIFICADO que funciona - Basado en la versión estable de GitHub
+# Panel ANTI-LOOPS que evita carga excesiva
 # Input: Interacciones del usuario con carga de archivos
-# Output: Señales con archivos seleccionados
+# Output: Señales controladas sin loops
 
 extends VBoxContainer
 
@@ -23,10 +23,25 @@ var available_units: Array = []
 var animation_checkboxes: Array = []
 var current_unit_data: Dictionary = {}
 
+# ✅ NUEVAS VARIABLES ANTI-LOOPS
+var is_loading_animations: bool = false
+var last_selected_animations: Array = []
+var debounce_timer: Timer
+
 func _ready():
+	_setup_debounce_timer()
 	_create_ui()
 	_scan_available_units()
-	print("📁 FileLoaderPanel SIMPLE inicializado")
+	print("📁 FileLoaderPanel ANTI-LOOPS inicializado")
+
+# ✅ NUEVA FUNCIÓN: Setup timer para debouncing
+func _setup_debounce_timer():
+	"""Configurar timer para evitar eventos múltiples"""
+	debounce_timer = Timer.new()
+	debounce_timer.wait_time = 0.5  # 500ms de debounce
+	debounce_timer.one_shot = true
+	debounce_timer.timeout.connect(_emit_animations_selected)
+	add_child(debounce_timer)
 
 func _create_ui():
 	# Título de sección
@@ -77,9 +92,9 @@ func _create_ui():
 	anim_label.text = "Animaciones:"
 	add_child(anim_label)
 	
-	# CORREGIDO: Agregar ScrollContainer para los checkboxes
+	# ScrollContainer para los checkboxes
 	var scroll_container = ScrollContainer.new()
-	scroll_container.custom_minimum_size = Vector2(0, 150)  # Altura fija con scroll
+	scroll_container.custom_minimum_size = Vector2(0, 150)
 	scroll_container.vertical_scroll_mode = ScrollContainer.SCROLL_MODE_AUTO
 	add_child(scroll_container)
 	
@@ -131,7 +146,7 @@ func _analyze_unit_folder(path: String) -> Dictionary:
 		"name": path.get_file(),
 		"path": path,
 		"base_files": [],
-		"animations": []  # Cambiar animation_files a animations para compatibilidad
+		"animations": []
 	}
 	
 	var dir = DirAccess.open(path)
@@ -224,20 +239,31 @@ func populate_unit_files(unit_data: Dictionary):
 	print("✅ Archivos poblados: %d base, %d animaciones" % [base_files.size(), animations.size()])
 
 func _populate_animations(animation_files: Array):
-	"""Crear checkboxes para animaciones"""
+	"""Crear checkboxes para animaciones SIN LOOPS"""
 	print("🎭 Creando checkboxes para %d animaciones" % animation_files.size())
+	
+	# ✅ PROTECCIÓN: Evitar populate durante carga
+	if is_loading_animations:
+		print("⚠️ Ya se están cargando animaciones, omitiendo populate")
+		return
 	
 	# Limpiar checkboxes anteriores
 	for checkbox in animation_checkboxes:
+		# ✅ CORREGIDO: Usar el nombre correcto de la función
+		if checkbox.toggled.is_connected(_on_animation_toggled_debounced):
+			checkbox.toggled.disconnect(_on_animation_toggled_debounced)
 		checkbox.queue_free()
 	animation_checkboxes.clear()
+	
+	# Limpiar estado anterior
+	last_selected_animations.clear()
 	
 	# Crear nuevos checkboxes
 	for anim_file in animation_files:
 		var checkbox = CheckBox.new()
 		checkbox.text = anim_file.get_basename()
 		checkbox.set_meta("filename", anim_file)
-		checkbox.toggled.connect(_on_animation_toggled)
+		checkbox.toggled.connect(_on_animation_toggled_debounced)  # ✅ USAR VERSIÓN DEBOUNCED
 		animations_container.add_child(checkbox)
 		animation_checkboxes.append(checkbox)
 		print("📋 Checkbox creado: %s" % anim_file)
@@ -255,11 +281,56 @@ func _on_base_fbx_selected(index: int):
 		print("📂 Archivo base seleccionado: %s" % selected_file)
 		emit_signal("file_selected", file_path)
 
-func _on_animation_toggled(pressed: bool):
-	"""Manejar toggle de checkbox de animación"""
+# ✅ NUEVA FUNCIÓN: Toggle con debouncing
+func _on_animation_toggled_debounced(pressed: bool):
+	"""Manejar toggle de checkbox CON DEBOUNCING para evitar loops"""
+	print("🎭 Toggle de animación (debounced): %s" % pressed)
+	
+	# ✅ PROTECCIÓN: Evitar múltiples cargas simultáneas
+	if is_loading_animations:
+		print("⚠️ Ya se están cargando animaciones, ignorando toggle")
+		return
+	
+	# Reiniciar timer de debounce
+	debounce_timer.stop()
+	debounce_timer.start()
+	
+	print("⏱️ Timer de debounce iniciado (%.1fs)" % debounce_timer.wait_time)
+
+func _emit_animations_selected():
+	"""Emitir señal de animaciones seleccionadas CON PROTECCIÓN"""
+	print("📡 Emitiendo animaciones seleccionadas después de debounce")
+	
 	var selected = get_selected_animations()
-	print("🎭 Animaciones seleccionadas: %s" % str(selected))
+	
+	# ✅ PROTECCIÓN: Solo emitir si realmente cambió la selección
+	if _arrays_equal(selected, last_selected_animations):
+		print("ℹ️ Selección no cambió, omitiendo emisión")
+		return
+	
+	print("🎭 Nueva selección de animaciones: %s" % str(selected))
+	last_selected_animations = selected.duplicate()
+	
+	# ✅ PROTECCIÓN: Marcar como cargando para evitar loops
+	is_loading_animations = true
+	
 	emit_signal("animations_selected", selected)
+	
+	# ✅ IMPORTANTE: Resetear flag después de un tiempo
+	await get_tree().create_timer(2.0).timeout
+	is_loading_animations = false
+	print("🔓 Flag de carga reseteado")
+
+func _arrays_equal(a: Array, b: Array) -> bool:
+	"""Comparar si dos arrays son iguales"""
+	if a.size() != b.size():
+		return false
+	
+	for i in range(a.size()):
+		if a[i] != b[i]:
+			return false
+	
+	return true
 
 func _on_load_file_pressed():
 	"""Carga manual de archivo"""
@@ -288,21 +359,52 @@ func get_current_unit_data() -> Dictionary:
 	"""Obtener datos de unidad actual"""
 	return current_unit_data
 
+# ✅ NUEVA FUNCIÓN: Habilitar selección de animaciones desde coordinator
+func enable_animation_selection():
+	"""Habilitar selección de animaciones (llamada desde coordinator)"""
+	print("✅ Habilitando selección de animaciones")
+	# No hace nada especial, solo confirma que está lista
+	pass
+
+# ✅ NUEVA FUNCIÓN: Resetear estado de carga
+func reset_loading_state():
+	"""Resetear estado de carga manualmente"""
+	print("🔄 Reseteando estado de carga manualmente")
+	is_loading_animations = false
+	last_selected_animations.clear()
+	if debounce_timer and debounce_timer.time_left > 0:
+		debounce_timer.stop()
+
 # === FUNCIONES DE DEBUG ===
 func debug_state():
-	"""Debug del estado actual"""
-	print("\n📁 === FILE LOADER DEBUG ===")
+	"""Debug del estado actual CON INFO DE PROTECCIÓN"""
+	print("\n📁 === FILE LOADER DEBUG ANTI-LOOPS ===")
 	print("Unidades escaneadas: %d" % available_units.size())
-	for i in range(available_units.size()):
-		var unit = available_units[i]
-		print("  [%d] %s -> %d base, %d anims" % [i, unit.name, unit.base_files.size(), unit.animations.size()])
-	
 	print("Unidad actual: %s" % current_unit_data.get("name", "Ninguna"))
-	if not current_unit_data.is_empty():
-		print("  Ruta: %s" % current_unit_data.get("path", ""))
-		print("  Base: %s" % str(current_unit_data.get("base_files", [])))
-		print("  Animaciones: %s" % str(current_unit_data.get("animations", [])))
-	
 	print("Checkboxes creados: %d" % animation_checkboxes.size())
 	print("Animaciones seleccionadas: %s" % str(get_selected_animations()))
-	print("===============================\n")
+	print("🔒 PROTECCIONES:")
+	print("  - Cargando animaciones: %s" % is_loading_animations)
+	print("  - Última selección: %s" % str(last_selected_animations))
+	print("  - Timer debounce activo: %s" % (debounce_timer.time_left > 0))
+	print("==========================================\n")
+
+func force_reset():
+	"""Función de emergencia para resetear todo"""
+	print("🚨 RESET DE EMERGENCIA del FileLoaderPanel")
+	
+	# Detener timer
+	if debounce_timer:
+		debounce_timer.stop()
+	
+	# Resetear flags
+	is_loading_animations = false
+	last_selected_animations.clear()
+	
+	# Limpiar checkboxes
+	for checkbox in animation_checkboxes:
+		if checkbox.toggled.is_connected(_on_animation_toggled_debounced):
+			checkbox.toggled.disconnect(_on_animation_toggled_debounced)
+		checkbox.button_pressed = false
+	
+	print("✅ Reset de emergencia completado")

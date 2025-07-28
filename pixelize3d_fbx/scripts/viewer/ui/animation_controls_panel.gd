@@ -37,13 +37,17 @@ var is_waiting_for_recombination: bool = false
 var recombination_timeout_timer: Timer
 var last_requested_animation: String = ""
 
-# Loop manager
-var loop_manager = preload("res://scripts/core/animation_loop_manager.gd")
+# ✅ CORRECCIÓN CRÍTICA: Crear instancia del loop manager
+var loop_manager: AnimationLoopManager
 
 func _ready():
+	# ✅ CORRECCIÓN: Crear instancia correcta del loop manager
+	loop_manager = AnimationLoopManager.new()
+	add_child(loop_manager)  # Agregar como hijo para que funcione correctamente
+	
 	_create_ui()
 	_setup_timeout_timer()
-	print("🎮 AnimationControlsPanel MEJORADO inicializado")
+	print("🎮 AnimationControlsPanel MEJORADO inicializado con loop_manager")
 
 # ✅ FUNCIÓN NUEVA: Configurar timer de timeout
 func _setup_timeout_timer():
@@ -132,7 +136,7 @@ func _create_ui():
 
 func populate_animations(model_with_player: Node3D):
 	"""Función principal para poblar animaciones con nombres descriptivos"""
-	print("🎭 POBLANDO ANIMACIONES MEJORADAS - Modelo: %s" % (model_with_player.name if model_with_player else "NULL"))
+	print("🎭 POBLANDO ANIMACIONES MEJORADAS - Modelo: %s" % (model_with_player.name if model_with_player else "null"))
 	
 	# Limpiar estado anterior
 	reset_controls()
@@ -159,7 +163,7 @@ func populate_animations(model_with_player: Node3D):
 	
 	print("📋 Animaciones encontradas: %s" % str(animation_list))
 	
-	# Configurar loops infinitos
+	# ✅ CORRECCIÓN: Usar método de instancia
 	loop_manager.setup_infinite_loops(current_animation_player)
 	print("🔄 Loops configurados en todas las animaciones")
 	
@@ -401,7 +405,7 @@ func _deselect_animation():
 	"""Des-seleccionar animación actual"""
 	print("🚫 DES-SELECCIONANDO ANIMACIÓN")
 	
-	# Detener animación actual
+	# ✅ CORRECCIÓN: Usar método de instancia
 	if current_animation_player:
 		loop_manager.stop_animation_clean(current_animation_player)
 	
@@ -543,7 +547,7 @@ func _on_stop_pressed():
 	if not current_animation_player or current_animation == "":
 		return
 	
-	# Detener usando loop_manager
+	# ✅ CORRECCIÓN: Usar método de instancia
 	loop_manager.stop_animation_clean(current_animation_player)
 	is_playing = false
 	
@@ -591,11 +595,11 @@ func _process(_delta):
 
 func _enable_controls():
 	"""Habilitar controles básicos cuando hay animaciones"""
-	var has_animations = available_animations.size() > 0
+	var animations_available = available_animations.size() > 0
 	
-	animations_option.disabled = not has_animations
-	prev_button.disabled = not has_animations
-	next_button.disabled = not has_animations
+	animations_option.disabled = not animations_available
+	prev_button.disabled = not animations_available
+	next_button.disabled = not animations_available
 
 func _enable_playback_controls():
 	"""Habilitar controles de reproducción cuando hay animación seleccionada"""
@@ -607,7 +611,7 @@ func reset_controls():
 	"""Reset completo del panel"""
 	print("🔄 Reseteando controles de animación")
 	
-	# Parar animación actual
+	# ✅ CORRECCIÓN: Usar método de instancia
 	if current_animation_player and is_playing:
 		loop_manager.stop_animation_clean(current_animation_player)
 	
@@ -650,8 +654,6 @@ func _find_animation_player(node: Node) -> AnimationPlayer:
 	
 	return null
 
-# === FUNCIONES PÚBLICAS ===
-
 # === FUNCIONES PÚBLICAS PARA COORDINATOR ===
 
 func on_model_recombined(new_model: Node3D, animation_name: String):
@@ -681,7 +683,7 @@ func on_model_recombined(new_model: Node3D, animation_name: String):
 		_reset_ui_on_error("Animación no encontrada: " + animation_name)
 		return
 	
-	# Configurar loops para el nuevo modelo
+	# ✅ CORRECCIÓN: Usar método de instancia
 	loop_manager.setup_infinite_loops(current_animation_player)
 	
 	# Iniciar la animación automáticamente
@@ -715,8 +717,6 @@ func _reset_ui_on_error(error_message: String = "Error"):
 	is_playing = false
 	
 	print("🔄 UI reseteada después de error")
-
-
 
 func has_animations() -> bool:
 	"""Verificar si hay animaciones disponibles"""
@@ -789,12 +789,20 @@ func debug_state():
 			print("  Metadatos encontrados para %d animaciones:" % metadata.size())
 			for anim_name in metadata.keys():
 				var anim_meta = metadata[anim_name]
-				print("    • %s: %s (%s)" % [anim_name, anim_meta.get("display_name", "Sin display"), anim_meta.get("filename", "Sin archivo")])
+				print("    • %s: %s (%s)" % [anim_name, 
+				anim_meta.get("display_name", "Sin display"), 
+				anim_meta.get("filename", "Sin archivo")])
 		else:
 			print("  ❌ No hay metadatos de animaciones en el modelo")
 		
 		if model.has_meta("base_metadata"):
 			var base_meta = model.get_meta("base_metadata")
-			print("  Base: %s (%s)" % [base_meta.get("display_name", "Sin nombre"), base_meta.get("filename", "Sin archivo")])
+			print("  Base: %s (%s)" % [
+			base_meta.get("display_name", "Sin nombre"), 
+			base_meta.get("filename", "Sin archivo")])
+	
+	# ✅ DEBUG DE LOOP MANAGER
+	if loop_manager:
+		loop_manager.debug_animation_state(current_animation_player)
 	
 	print("===============================================\n")

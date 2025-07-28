@@ -45,7 +45,7 @@ func combine_base_with_animation(base_data: Dictionary, animation_data: Dictiona
 	
 	# Crear un nuevo nodo raíz para el modelo combinado
 	var combined_root = Node3D.new()
-	combined_root.name = "Combined_" + animation_data.get("display_name", animation_data.name)
+	combined_root.name = animation_data.get("display_name", animation_data.name)
 	
 	# ✅ CRÍTICO: Almacenar metadatos en el modelo combinado
 	_store_metadata_in_combined_model(combined_root, base_data, animation_data)
