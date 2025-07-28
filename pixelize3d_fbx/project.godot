@@ -11,7 +11,7 @@ config_version=5
 [application]
 
 config/name="Pixelize3D_FBX"
-run/main_scene="uid://cixfyx1e3luas"
+run/main_scene="uid://cpfsrbac4ufiv"
 config/features=PackedStringArray("4.4")
 
 [autoload]

@@ -60,7 +60,8 @@ func _create_additional_lights():
 	fill_light.light_color = Color(0.9, 0.95, 1.0)  # Luz fría
 	fill_light.rotation_degrees = Vector3(-30, 135, 0)
 	fill_light.shadow_enabled = false
-	parent.add_child(fill_light)
+	parent.add_child.call_deferred(fill_light)
+	
 	
 	# Luz de borde (rim light)
 	rim_light = DirectionalLight3D.new()
@@ -69,7 +70,11 @@ func _create_additional_lights():
 	rim_light.light_color = Color(1.0, 1.0, 1.0)  # Luz neutra
 	rim_light.rotation_degrees = Vector3(45, 180, 0)
 	rim_light.shadow_enabled = false
-	parent.add_child(rim_light)
+	parent.add_child.call_deferred(rim_light)
+	
+	
+ 
+
 	
 	print("💡 Sistema de tres puntos creado")
 	is_setup = true

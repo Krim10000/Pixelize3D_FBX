@@ -1,6 +1,6 @@
 # scripts/core/animation_manager.gd
-# VERSIÓN CORREGIDA - Input: Modelo base con meshes y animación FBX sin meshes  
-# Output: Modelo combinado con meshes y animaciones FUNCIONANDO correctamente
+# VERSIÓN MEJORADA - Input: Modelo base con meshes y animación FBX sin meshes  
+# Output: Modelo combinado con meshes, animaciones Y METADATOS DE ARCHIVO preservados
 
 extends Node
 
@@ -9,9 +9,14 @@ signal combination_failed(error: String)
 
 var base_meshes_cache = []
 
+var LoopManagerClass = preload("res://scripts/core/animation_loop_manager.gd")
+var loop_manager = LoopManagerClass.new()
+
+# ✅ NUEVO: Cache para metadatos de animaciones
+var animations_metadata_cache = {}
+
 # Cargar el script de retargeting fix y loop manager
 var retargeting_fix = preload("res://scripts/core/animation_retargeting_fix.gd")
-var loop_manager = preload("res://scripts/core/animation_loop_manager.gd")
 
 func set_base_meshes(meshes: Array) -> void:
 	base_meshes_cache = meshes
@@ -19,14 +24,31 @@ func set_base_meshes(meshes: Array) -> void:
 	for mesh_data in meshes:
 		print("  Cache mesh: %s" % mesh_data.name)
 
+# ✅ NUEVA FUNCIÓN: Registrar metadatos de animación
+func register_animation_metadata(animation_name: String, metadata: Dictionary) -> void:
+	animations_metadata_cache[animation_name] = metadata
+	print("✅ Metadatos registrados para animación: %s" % animation_name)
+	print("  - Archivo: %s" % metadata.get("original_filename", "desconocido"))
+	print("  - Display: %s" % metadata.get("display_name", "desconocido"))
+
+# ✅ NUEVA FUNCIÓN: Registrar múltiples metadatos de animaciones
+func register_multiple_animations_metadata(animations_data: Dictionary) -> void:
+	for anim_name in animations_data.keys():
+		var anim_data = animations_data[anim_name]
+		if anim_data.has("file_metadata"):
+			register_animation_metadata(anim_name, anim_data.file_metadata)
+
 func combine_base_with_animation(base_data: Dictionary, animation_data: Dictionary) -> Node3D:
-	print("\n=== INICIANDO COMBINACIÓN CORREGIDA ===")
+	print("\n=== INICIANDO COMBINACIÓN CON METADATOS ===")
 	print("Base: %s (%d huesos)" % [base_data.skeleton.name, base_data.get("bone_count", 0)])
 	print("Anim: %s (%d huesos)" % [animation_data.skeleton.name, animation_data.get("bone_count", 0)])
 	
 	# Crear un nuevo nodo raíz para el modelo combinado
 	var combined_root = Node3D.new()
-	combined_root.name = "Combined_" + animation_data.name
+	combined_root.name = "Combined_" + animation_data.get("display_name", animation_data.name)
+	
+	# ✅ CRÍTICO: Almacenar metadatos en el modelo combinado
+	_store_metadata_in_combined_model(combined_root, base_data, animation_data)
 	
 	# Duplicar el skeleton del modelo base
 	var new_skeleton = _duplicate_skeleton(base_data.skeleton)
@@ -90,11 +112,130 @@ func combine_base_with_animation(base_data: Dictionary, animation_data: Dictiona
 		# Como el AnimationPlayer ya está en el modelo combinado, puede usar play directamente
 		new_anim_player.play(first_anim)
 	
-	print("✅ Combinación completada exitosamente")
+	print("✅ Combinación completada exitosamente con metadatos")
 	emit_signal("combination_complete", combined_root)
 	return combined_root
 
-# FUNCIÓN CORREGIDA: Nuevo sistema de retargeting
+# ✅ FUNCIÓN NUEVA: Almacenar metadatos en el modelo combinado
+func _store_metadata_in_combined_model(combined_root: Node3D, base_data: Dictionary, animation_data: Dictionary) -> void:
+	print("📝 ALMACENANDO METADATOS EN MODELO COMBINADO")
+	
+	# Metadatos del modelo base
+	var base_metadata = {
+		"filename": base_data.get("original_filename", "unknown_base"),
+		"display_name": base_data.get("display_name", "Base Model"),
+		"source_path": base_data.get("source_file_path", ""),
+		"type": "base"
+	}
+	combined_root.set_meta("base_metadata", base_metadata)
+	
+	# Metadatos de la animación principal (la que se usó para combinar)
+	var main_animation_metadata = {
+		"filename": animation_data.get("original_filename", "unknown_animation"),
+		"display_name": animation_data.get("display_name", animation_data.get("name", "Animation")),
+		"source_path": animation_data.get("source_file_path", ""),
+		"type": "animation",
+		"animation_name": animation_data.get("name", "")
+	}
+	combined_root.set_meta("main_animation_metadata", main_animation_metadata)
+	
+	# ✅ CRÍTICO: Metadatos de TODAS las animaciones disponibles
+	var all_animations_metadata = animations_metadata_cache.duplicate()
+	
+	# Agregar la animación actual si no está en cache
+	var current_anim_name = animation_data.get("name", "")
+	if current_anim_name != "" and not all_animations_metadata.has(current_anim_name):
+		all_animations_metadata[current_anim_name] = animation_data.get("file_metadata", {
+			"filename": animation_data.get("original_filename", "unknown"),
+			"display_name": animation_data.get("display_name", current_anim_name),
+			"source_path": animation_data.get("source_file_path", ""),
+			"basename": current_anim_name
+		})
+	
+	combined_root.set_meta("all_animations_metadata", all_animations_metadata)
+	
+	# Metadatos adicionales para debugging
+	combined_root.set_meta("creation_timestamp", Time.get_unix_time_from_system())
+	combined_root.set_meta("combination_info", {
+		"base_bones": base_data.get("bone_count", 0),
+		"animation_bones": animation_data.get("bone_count", 0),
+		"meshes_count": base_data.get("meshes", []).size(),
+		"animations_count": 1  # Será actualizado si se agregan más animaciones
+	})
+	
+	print("✅ Metadatos almacenados:")
+	print("  - Base: %s" % base_metadata.filename)
+	print("  - Animación principal: %s" % main_animation_metadata.filename)
+	print("  - Total animaciones en cache: %d" % all_animations_metadata.size())
+	for anim_name in all_animations_metadata.keys():
+		var anim_meta = all_animations_metadata[anim_name]
+		print("    • %s -> %s" % [anim_name, anim_meta.get("display_name", "Sin nombre")])
+
+# ✅ NUEVA FUNCIÓN: Combinar con múltiples animaciones
+func combine_base_with_multiple_animations(base_data: Dictionary, animations_data: Dictionary) -> Node3D:
+	"""Función mejorada para combinar base con múltiples animaciones preservando metadatos"""
+	print("\n=== COMBINACIÓN CON MÚLTIPLES ANIMACIONES ===")
+	print("Base: %s" % base_data.get("display_name", base_data.get("name", "Unknown")))
+	print("Animaciones a combinar: %d" % animations_data.size())
+	
+	# Registrar metadatos de todas las animaciones
+	register_multiple_animations_metadata(animations_data)
+	
+	# Usar la primera animación como base para la combinación
+	var first_anim_name = animations_data.keys()[0]
+	var first_anim_data = animations_data[first_anim_name]
+	
+	# Realizar combinación base
+	var combined_model = combine_base_with_animation(base_data, first_anim_data)
+	
+	if not combined_model:
+		return null
+	
+	# Agregar las demás animaciones al AnimationPlayer
+	var anim_player = combined_model.get_node_or_null("AnimationPlayer")
+	if anim_player:
+		var added_animations = 0
+		var anim_lib = anim_player.get_animation_library("")
+		
+		for anim_name in animations_data.keys():
+			if anim_name == first_anim_name:
+				continue  # Ya está incluida
+			
+			var anim_data = animations_data[anim_name]
+			if anim_data.has("animation_player") and anim_data.animation_player:
+				# Copiar animaciones adicionales
+				for extra_anim_name in anim_data.animation_player.get_animation_list():
+					var extra_animation = anim_data.animation_player.get_animation(extra_anim_name)
+					if extra_animation:
+						var new_anim = extra_animation.duplicate(true)
+						anim_lib.add_animation(anim_name, new_anim)  # Usar el nombre del archivo, no el nombre técnico
+						added_animations += 1
+						print("  ✅ Agregada animación: %s" % anim_name)
+		
+		print("✅ Total animaciones en modelo combinado: %d" % (anim_player.get_animation_list().size()))
+		
+		# Actualizar metadatos con información de animaciones múltiples
+		var combination_info = combined_model.get_meta("combination_info", {})
+		combination_info["animations_count"] = anim_player.get_animation_list().size()
+		combined_model.set_meta("combination_info", combination_info)
+	
+	return combined_model
+
+# ✅ NUEVA FUNCIÓN: Extraer metadatos de modelo combinado
+func extract_metadata_from_combined_model(combined_model: Node3D) -> Dictionary:
+	"""Extraer todos los metadatos almacenados en un modelo combinado"""
+	if not combined_model:
+		return {}
+	
+	return {
+		"base_metadata": combined_model.get_meta("base_metadata", {}),
+		"main_animation_metadata": combined_model.get_meta("main_animation_metadata", {}),
+		"all_animations_metadata": combined_model.get_meta("all_animations_metadata", {}),
+		"combination_info": combined_model.get_meta("combination_info", {}),
+		"creation_timestamp": combined_model.get_meta("creation_timestamp", 0)
+	}
+
+# FUNCIÓN EXISTENTE MEJORADA: Nuevo sistema de retargeting
 func _retarget_animations_fixed(anim_player: AnimationPlayer, old_skeleton: Skeleton3D, new_skeleton: Skeleton3D) -> bool:
 	print("🔧 INICIANDO RETARGETING CORREGIDO")
 	
@@ -308,10 +449,25 @@ func _extract_meshes_from_skeleton(skeleton: Skeleton3D) -> Array:
 	print("Total meshes extraídos: %d" % meshes.size())
 	return meshes
 
-# NUEVA FUNCIÓN: Debug del modelo combinado
-func debug_combined_model(combined_model: Node3D):
-	print("\n🔍 DEBUG MODELO COMBINADO")
+# NUEVA FUNCIÓN: Debug del modelo combinado CON METADATOS
+func debug_combined_model_with_metadata(combined_model: Node3D):
+	print("\n🔍 DEBUG MODELO COMBINADO CON METADATOS")
 	print("Nombre: %s" % combined_model.name)
+	
+	# Extraer y mostrar metadatos
+	var metadata = extract_metadata_from_combined_model(combined_model)
+	
+	print("📝 METADATOS ALMACENADOS:")
+	if metadata.has("base_metadata"):
+		var base_meta = metadata.base_metadata
+		print("  Base: %s (%s)" % [base_meta.get("display_name", "Sin nombre"), base_meta.get("filename", "Sin archivo")])
+	
+	if metadata.has("all_animations_metadata"):
+		var anims_meta = metadata.all_animations_metadata
+		print("  Animaciones disponibles: %d" % anims_meta.size())
+		for anim_name in anims_meta.keys():
+			var anim_meta = anims_meta[anim_name]
+			print("    • %s -> %s (%s)" % [anim_name, anim_meta.get("display_name", "Sin nombre"), anim_meta.get("filename", "Sin archivo")])
 	
 	# Buscar skeleton
 	var skeleton = combined_model.get_node_or_null("Skeleton3D_combined")
@@ -342,9 +498,9 @@ func debug_combined_model(combined_model: Node3D):
 	else:
 		print("❌ No se encontró AnimationPlayer")
 	
-	print("🔍 FIN DEBUG\n")
+	print("🔍 FIN DEBUG CON METADATOS\n")
 
-# FUNCIÓN EXISTENTE: Obtener información de animación (sin cambios)
+# FUNCIONES EXISTENTES SIN CAMBIOS (preparar modelo, etc.)
 func get_animation_info(anim_player: AnimationPlayer, anim_name: String) -> Dictionary:
 	if not anim_player or not anim_player.has_animation(anim_name):
 		return {}
@@ -359,7 +515,6 @@ func get_animation_info(anim_player: AnimationPlayer, anim_name: String) -> Dict
 		"loop": anim.loop_mode != Animation.LOOP_NONE
 	}
 
-# FUNCIÓN EXISTENTE: Preparar modelo para renderizado (sin cambios)
 func prepare_model_for_rendering(model: Node3D, frame: int, total_frames: int, animation_name: String) -> void:
 	var anim_player = model.get_node_or_null("AnimationPlayer")
 	if not anim_player:

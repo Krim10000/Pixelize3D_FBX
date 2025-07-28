@@ -1,131 +1,554 @@
-# scripts/core/animation_name_fix.gd
-# Corrección CRÍTICA para nombres de animaciones
-# Input: AnimationPlayer con animaciones mal nombradas
-# Output: AnimationPlayer con nombres correctos basados en archivos FBX
+# scripts/core/animation_manager.gd
+# VERSIÓN MEJORADA - Input: Modelo base con meshes y animación FBX sin meshes  
+# Output: Modelo combinado con meshes, animaciones Y METADATOS DE ARCHIVO preservados
 
 extends Node
 
-# Función para corregir nombres de animaciones en AnimationPlayer
-static func fix_animation_names(anim_player: AnimationPlayer, correct_name: String) -> bool:
-	"""Renombrar animación 'mixamo_com' al nombre correcto del archivo FBX"""
+signal combination_complete(combined_model: Node3D)
+signal combination_failed(error: String)
+
+var base_meshes_cache = []
+
+# ✅ NUEVO: Cache para metadatos de animaciones CON LIMPIEZA
+var animations_metadata_cache = {}
+var cache_max_size = 50  # Límite máximo de cache
+
+# Cargar el script de retargeting fix y loop manager
+var retargeting_fix = preload("res://scripts/core/animation_retargeting_fix.gd")
+var loop_manager = preload("res://scripts/core/animation_loop_manager.gd")
+
+func set_base_meshes(meshes: Array) -> void:
+	base_meshes_cache = meshes
+	print("Base meshes cache actualizado: %d meshes" % meshes.size())
+	for mesh_data in meshes:
+		print("  Cache mesh: %s" % mesh_data.name)
+
+# ✅ NUEVA FUNCIÓN: Registrar metadatos de animación CON LIMPIEZA DE CACHE
+func register_animation_metadata(animation_name: String, metadata: Dictionary) -> void:
+	# Limpiar cache si está muy lleno
+	_cleanup_cache_if_needed()
 	
-	if not anim_player:
-		print("❌ AnimationPlayer inválido")
+	animations_metadata_cache[animation_name] = metadata
+	print("✅ Metadatos registrados para animación: %s" % animation_name)
+	print("  - Archivo: %s" % metadata.get("original_filename", "desconocido"))
+	print("  - Display: %s" % metadata.get("display_name", "desconocido"))
+	print("  - Cache size: %d/%d" % [animations_metadata_cache.size(), cache_max_size])
+
+# ✅ FUNCIÓN NUEVA: Limpiar cache de metadatos
+func _cleanup_cache_if_needed():
+	"""Limpiar cache si excede el tamaño máximo"""
+	if animations_metadata_cache.size() >= cache_max_size:
+		print("🧹 Limpiando cache de metadatos (tamaño: %d)" % animations_metadata_cache.size())
+		
+		# Mantener solo la mitad más reciente (estrategia simple)
+		var keys = animations_metadata_cache.keys()
+		var keys_to_remove = keys.slice(0, keys.size() / 2)
+		
+		for key in keys_to_remove:
+			animations_metadata_cache.erase(key)
+		
+		print("✅ Cache limpiado, nuevo tamaño: %d" % animations_metadata_cache.size())
+
+# ✅ FUNCIÓN NUEVA: Limpiar todo el cache
+func clear_animations_metadata_cache():
+	"""Limpiar completamente el cache de metadatos"""
+	var old_size = animations_metadata_cache.size()
+	animations_metadata_cache.clear()
+	print("🧹 Cache de metadatos completamente limpiado (%d entradas removidas)" % old_size)
+
+# ✅ NUEVA FUNCIÓN: Registrar múltiples metadatos de animaciones
+func register_multiple_animations_metadata(animations_data: Dictionary) -> void:
+	for anim_name in animations_data.keys():
+		var anim_data = animations_data[anim_name]
+		if anim_data.has("file_metadata"):
+			register_animation_metadata(anim_name, anim_data.file_metadata)
+
+func combine_base_with_animation(base_data: Dictionary, animation_data: Dictionary) -> Node3D:
+	print("\n=== INICIANDO COMBINACIÓN CON METADATOS ===")
+	print("Base: %s (%d huesos)" % [base_data.skeleton.name, base_data.get("bone_count", 0)])
+	print("Anim: %s (%d huesos)" % [animation_data.skeleton.name, animation_data.get("bone_count", 0)])
+	
+	# Crear un nuevo nodo raíz para el modelo combinado
+	var combined_root = Node3D.new()
+	combined_root.name = "Combined_" + animation_data.get("display_name", animation_data.name)
+	
+	# ✅ CRÍTICO: Almacenar metadatos en el modelo combinado
+	_store_metadata_in_combined_model(combined_root, base_data, animation_data)
+	
+	# Duplicar el skeleton del modelo base
+	var new_skeleton = _duplicate_skeleton(base_data.skeleton)
+	if not new_skeleton:
+		print("❌ Error al duplicar skeleton")
+		emit_signal("combination_failed", "Error al duplicar skeleton")
+		combined_root.queue_free()
+		return null
+	
+	# IMPORTANTE: Dar nombre específico al nuevo skeleton para retargeting
+	new_skeleton.name = "Skeleton3D_combined"
+	combined_root.add_child(new_skeleton)
+	print("✅ Skeleton duplicado: %s con %d huesos" % [new_skeleton.name, new_skeleton.get_bone_count()])
+	
+	# Añadir los meshes del modelo base al nuevo skeleton
+	var meshes_to_use = base_meshes_cache if base_meshes_cache.size() > 0 else base_data.meshes
+	print("DEBUG: Usando %s mesh data (%d meshes)" % [
+		"cached mejorado" if meshes_to_use == base_meshes_cache else "original fbx_loader", 
+		meshes_to_use.size()
+	])
+	
+	_attach_meshes_to_skeleton(meshes_to_use, new_skeleton)
+	print("✅ Meshes anexados: %d" % meshes_to_use.size())
+	
+	# Copiar el AnimationPlayer de la animación
+	var new_anim_player = _setup_animation_player(animation_data.animation_player, animation_data.skeleton, new_skeleton)
+	if not new_anim_player:
+		print("❌ Error al configurar AnimationPlayer")
+		emit_signal("combination_failed", "Error al configurar AnimationPlayer")
+		combined_root.queue_free()
+		return null
+	
+	combined_root.add_child(new_anim_player)
+	print("✅ AnimationPlayer configurado: %d animaciones" % new_anim_player.get_animation_list().size())
+	
+	# CORRECCIÓN CRÍTICA: Usar el nuevo sistema de retargeting
+	var retargeting_success = _retarget_animations_fixed(new_anim_player, animation_data.skeleton, new_skeleton)
+	if not retargeting_success:
+		print("❌ Error crítico en retargeting de animaciones")
+		emit_signal("combination_failed", "Error en retargeting de animaciones")
+		combined_root.queue_free()
+		return null
+	
+	print("✅ Animaciones retargeteadas correctamente")
+	
+	# NUEVO: Configurar loops infinitos en todas las animaciones
+	loop_manager.setup_infinite_loops(new_anim_player)
+	print("🔄 Loops infinitos configurados")
+	
+	# Aplicar la pose inicial de la primera animación
+	if new_anim_player.get_animation_list().size() > 0:
+		var first_anim = new_anim_player.get_animation_list()[0]
+		print("✅ Aplicando pose inicial: %s" % first_anim)
+		
+		# Configurar loop y aplicar pose inicial de forma segura
+		var anim_lib = new_anim_player.get_animation_library("")
+		var animation = anim_lib.get_animation(first_anim)
+		if animation:
+			animation.loop_mode = Animation.LOOP_LINEAR
+		
+		# Como el AnimationPlayer ya está en el modelo combinado, puede usar play directamente
+		new_anim_player.play(first_anim)
+	
+	print("✅ Combinación completada exitosamente con metadatos")
+	emit_signal("combination_complete", combined_root)
+	return combined_root
+
+# ✅ FUNCIÓN NUEVA: Almacenar metadatos en el modelo combinado
+func _store_metadata_in_combined_model(combined_root: Node3D, base_data: Dictionary, animation_data: Dictionary) -> void:
+	print("📝 ALMACENANDO METADATOS EN MODELO COMBINADO")
+	
+	# Metadatos del modelo base
+	var base_metadata = {
+		"filename": base_data.get("original_filename", "unknown_base"),
+		"display_name": base_data.get("display_name", "Base Model"),
+		"source_path": base_data.get("source_file_path", ""),
+		"type": "base"
+	}
+	combined_root.set_meta("base_metadata", base_metadata)
+	
+	# Metadatos de la animación principal (la que se usó para combinar)
+	var main_animation_metadata = {
+		"filename": animation_data.get("original_filename", "unknown_animation"),
+		"display_name": animation_data.get("display_name", animation_data.get("name", "Animation")),
+		"source_path": animation_data.get("source_file_path", ""),
+		"type": "animation",
+		"animation_name": animation_data.get("name", "")
+	}
+	combined_root.set_meta("main_animation_metadata", main_animation_metadata)
+	
+	# ✅ CRÍTICO: Metadatos de TODAS las animaciones disponibles
+	var all_animations_metadata = animations_metadata_cache.duplicate()
+	
+	# Agregar la animación actual si no está en cache
+	var current_anim_name = animation_data.get("name", "")
+	if current_anim_name != "" and not all_animations_metadata.has(current_anim_name):
+		all_animations_metadata[current_anim_name] = animation_data.get("file_metadata", {
+			"filename": animation_data.get("original_filename", "unknown"),
+			"display_name": animation_data.get("display_name", current_anim_name),
+			"source_path": animation_data.get("source_file_path", ""),
+			"basename": current_anim_name
+		})
+	
+	combined_root.set_meta("all_animations_metadata", all_animations_metadata)
+	
+	# Metadatos adicionales para debugging
+	combined_root.set_meta("creation_timestamp", Time.get_unix_time_from_system())
+	combined_root.set_meta("combination_info", {
+		"base_bones": base_data.get("bone_count", 0),
+		"animation_bones": animation_data.get("bone_count", 0),
+		"meshes_count": base_data.get("meshes", []).size(),
+		"animations_count": 1  # Será actualizado si se agregan más animaciones
+	})
+	
+	print("✅ Metadatos almacenados:")
+	print("  - Base: %s" % base_metadata.filename)
+	print("  - Animación principal: %s" % main_animation_metadata.filename)
+	print("  - Total animaciones en cache: %d" % all_animations_metadata.size())
+	for anim_name in all_animations_metadata.keys():
+		var anim_meta = all_animations_metadata[anim_name]
+		print("    • %s -> %s" % [anim_name, anim_meta.get("display_name", "Sin nombre")])
+
+# ✅ NUEVA FUNCIÓN: Combinar con múltiples animaciones
+func combine_base_with_multiple_animations(base_data: Dictionary, animations_data: Dictionary) -> Node3D:
+	"""Función mejorada para combinar base con múltiples animaciones preservando metadatos"""
+	print("\n=== COMBINACIÓN CON MÚLTIPLES ANIMACIONES ===")
+	print("Base: %s" % base_data.get("display_name", base_data.get("name", "Unknown")))
+	print("Animaciones a combinar: %d" % animations_data.size())
+	
+	# Registrar metadatos de todas las animaciones
+	register_multiple_animations_metadata(animations_data)
+	
+	# Usar la primera animación como base para la combinación
+	var first_anim_name = animations_data.keys()[0]
+	var first_anim_data = animations_data[first_anim_name]
+	
+	# Realizar combinación base
+	var combined_model = combine_base_with_animation(base_data, first_anim_data)
+	
+	if not combined_model:
+		return null
+	
+	# Agregar las demás animaciones al AnimationPlayer
+	var anim_player = combined_model.get_node_or_null("AnimationPlayer")
+	if anim_player:
+		var added_animations = 0
+		var anim_lib = anim_player.get_animation_library("")
+		
+		for anim_name in animations_data.keys():
+			if anim_name == first_anim_name:
+				continue  # Ya está incluida
+			
+			var anim_data = animations_data[anim_name]
+			if anim_data.has("animation_player") and anim_data.animation_player:
+				# Copiar animaciones adicionales
+				for extra_anim_name in anim_data.animation_player.get_animation_list():
+					var extra_animation = anim_data.animation_player.get_animation(extra_anim_name)
+					if extra_animation:
+						var new_anim = extra_animation.duplicate(true)
+						anim_lib.add_animation(anim_name, new_anim)  # Usar el nombre del archivo, no el nombre técnico
+						added_animations += 1
+						print("  ✅ Agregada animación: %s" % anim_name)
+		
+		print("✅ Total animaciones en modelo combinado: %d" % (anim_player.get_animation_list().size()))
+		
+		# Actualizar metadatos con información de animaciones múltiples
+		var combination_info = combined_model.get_meta("combination_info", {})
+		combination_info["animations_count"] = anim_player.get_animation_list().size()
+		combined_model.set_meta("combination_info", combination_info)
+	
+	return combined_model
+
+# ✅ NUEVA FUNCIÓN: Extraer metadatos de modelo combinado
+func extract_metadata_from_combined_model(combined_model: Node3D) -> Dictionary:
+	"""Extraer todos los metadatos almacenados en un modelo combinado"""
+	if not combined_model:
+		return {}
+	
+	return {
+		"base_metadata": combined_model.get_meta("base_metadata", {}),
+		"main_animation_metadata": combined_model.get_meta("main_animation_metadata", {}),
+		"all_animations_metadata": combined_model.get_meta("all_animations_metadata", {}),
+		"combination_info": combined_model.get_meta("combination_info", {}),
+		"creation_timestamp": combined_model.get_meta("creation_timestamp", 0)
+	}
+
+# FUNCIÓN EXISTENTE MEJORADA: Nuevo sistema de retargeting
+func _retarget_animations_fixed(anim_player: AnimationPlayer, old_skeleton: Skeleton3D, new_skeleton: Skeleton3D) -> bool:
+	print("🔧 INICIANDO RETARGETING CORREGIDO")
+	
+	# Debug de rutas antes del retargeting
+	retargeting_fix.debug_animation_paths(anim_player)
+	
+	# Aplicar el fix de retargeting
+	var success = retargeting_fix.fix_animation_retargeting(
+		anim_player, 
+		old_skeleton.name, 
+		new_skeleton.name
+	)
+	
+	if not success:
+		print("❌ Falló el retargeting de animaciones")
 		return false
 	
-	var anim_library = anim_player.get_animation_library("")
-	if not anim_library:
-		print("❌ No se encontró library de animaciones")
-		return false
+	# Validar que las rutas sean correctas después del retargeting
+	var validation = retargeting_fix.validate_animation_paths(anim_player, new_skeleton)
 	
-	# Buscar animación con nombre genérico
-	var generic_names = ["mixamo_com", "default", "Animation"]
-	var found_generic = ""
+	print("📊 RESULTADO DE VALIDACIÓN:")
+	print("  Tracks válidos: %d" % validation.valid_tracks)
+	print("  Tracks inválidos: %d" % validation.invalid_tracks)
 	
-	for generic_name in generic_names:
-		if anim_library.has_animation(generic_name):
-			found_generic = generic_name
-			break
+	# Considerar exitoso si al menos 80% de los tracks son válidos
+	var total_tracks = validation.valid_tracks + validation.invalid_tracks
+	var success_rate = float(validation.valid_tracks) / float(total_tracks) if total_tracks > 0 else 0.0
 	
-	if found_generic == "":
-		print("⚠️ No se encontró animación genérica para renombrar")
-		return false
-	
-	# Verificar que el nombre correcto no exista ya
-	if anim_library.has_animation(correct_name):
-		print("⚠️ Animación '%s' ya existe, no se necesita renombrar" % correct_name)
+	if success_rate >= 0.8:
+		print("✅ Retargeting exitoso (%.1f%% tracks válidos)" % (success_rate * 100))
 		return true
-	
-	# Obtener la animación
-	var animation = anim_library.get_animation(found_generic)
-	if not animation:
-		print("❌ No se pudo obtener animación '%s'" % found_generic)
+	else:
+		print("❌ Retargeting falló (solo %.1f%% tracks válidos)" % (success_rate * 100))
 		return false
-	
-	# Crear copia con el nombre correcto
-	var animation_copy = animation.duplicate()
-	
-	# Agregar con el nombre correcto
-	anim_library.add_animation(correct_name, animation_copy)
-	
-	# Remover la animación con nombre genérico
-	anim_library.remove_animation(found_generic)
-	
-	print("✅ Animación renombrada: '%s' -> '%s'" % [found_generic, correct_name])
-	return true
 
-# Función para procesar modelo cargado y corregir nombres
-static func process_loaded_model(model_data: Dictionary) -> Dictionary:
-	"""Procesar modelo recién cargado para corregir nombres de animaciones"""
+# FUNCIÓN EXISTENTE MEJORADA: Duplicar skeleton con nombres consistentes
+func _duplicate_skeleton(original_skeleton: Skeleton3D) -> Skeleton3D:
+	print("--- DUPLICANDO SKELETON ---")
 	
-	if not model_data.has("animation_player") or not model_data.has("name"):
-		return model_data
+	if not original_skeleton:
+		print("❌ Skeleton original inválido")
+		return null
 	
-	var anim_player = model_data.animation_player
-	var correct_name = model_data.name
+	var new_skeleton = Skeleton3D.new()
 	
-	print("🔧 Procesando animaciones para: %s" % correct_name)
+	# Copiar cada hueso del skeleton original
+	for i in range(original_skeleton.get_bone_count()):
+		var bone_name = original_skeleton.get_bone_name(i)
+		var bone_parent = original_skeleton.get_bone_parent(i)
+		var bone_rest = original_skeleton.get_bone_rest(i)
+		var bone_pose = original_skeleton.get_bone_pose(i)
+		
+		# Agregar hueso al nuevo skeleton
+		new_skeleton.add_bone(bone_name)
+		new_skeleton.set_bone_parent(i, bone_parent)
+		new_skeleton.set_bone_rest(i, bone_rest)
+		new_skeleton.set_bone_pose_position(i, bone_pose.origin)
+		new_skeleton.set_bone_pose_rotation(i, bone_pose.basis.get_rotation_quaternion())
+		new_skeleton.set_bone_pose_scale(i, bone_pose.basis.get_scale())
+		
+		# Verificar huesos críticos para debug
+		if bone_name.contains("Hips") or bone_name.contains("Spine") or bone_name.contains("Head"):
+			print("  ✅ Hueso crítico preservado: %s" % bone_name)
+		
+		print("  Hueso copiado: %s (índice %d)" % [bone_name, i])
 	
-	# Corregir nombres de animaciones
-	var success = fix_animation_names(anim_player, correct_name)
-	
-	if success:
-		print("✅ Nombres corregidos para: %s" % correct_name)
-	
-	return model_data
+	print("Skeleton duplicado: %d huesos reales" % new_skeleton.get_bone_count())
+	return new_skeleton
 
-# Función para debug de animaciones
-static func debug_animation_names(anim_player: AnimationPlayer, context: String = ""):
-	"""Debug de nombres de animaciones"""
+# FUNCIÓN EXISTENTE: Setup de AnimationPlayer (sin cambios significativos)
+func _setup_animation_player(original_player: AnimationPlayer, _original_skeleton: Skeleton3D, _new_skeleton: Skeleton3D) -> AnimationPlayer:
+	print("--- CONFIGURANDO ANIMATION PLAYER ---")
+	if not original_player:
+		print("❌ No hay AnimationPlayer original")
+		return null
 	
+	var new_player = AnimationPlayer.new()
+	new_player.name = "AnimationPlayer"
+	
+	# Crear biblioteca de animaciones
+	var anim_library = AnimationLibrary.new()
+	new_player.add_animation_library("", anim_library)
+	
+	# Copiar todas las animaciones
+	for anim_name in original_player.get_animation_list():
+		var original_anim = original_player.get_animation(anim_name)
+		if original_anim:
+			var new_anim = original_anim.duplicate(true)
+			anim_library.add_animation(anim_name, new_anim)
+			print("  Animación copiada: %s (%.2fs)" % [anim_name, new_anim.length])
+	
+	# IMPORTANTE: Configurar root_node relativo al modelo combinado
+	new_player.root_node = NodePath("..")
+	
+	return new_player
+
+# FUNCIÓN EXISTENTE: Anexar meshes al skeleton (con mejoras menores)
+func _attach_meshes_to_skeleton(mesh_data_array: Array, skeleton: Skeleton3D) -> void:
+	print("--- ANEXANDO MESHES ---")
+	
+	for mesh_data in mesh_data_array:
+		var mesh_instance = MeshInstance3D.new()
+		mesh_instance.name = mesh_data.name
+		mesh_instance.mesh = mesh_data.mesh_resource
+		
+		# Aplicar materiales
+		for i in range(mesh_data.materials.size()):
+			if i < mesh_instance.mesh.get_surface_count():
+				var material = mesh_data.materials[i]
+				if material:
+					mesh_instance.set_surface_override_material(i, material)
+					print("    Material aplicado en superficie %d: %s" % [
+						i, 
+						material.resource_name if material.resource_name else "Material sin nombre"
+					])
+		
+		# Configurar skeleton path
+		mesh_instance.skeleton = NodePath("..")
+		
+		# MEJORA: Retargetear skin correctamente
+		if mesh_data.has("original_skin") and mesh_data.original_skin:
+			print("    DEBUG: Retargeteando skin...")
+			var new_skin = _retarget_skin_to_skeleton(mesh_data.original_skin, skeleton)
+			if new_skin:
+				mesh_instance.skin = new_skin
+				print("    ✅ Skin retargeteado exitosamente")
+			else:
+				print("    ❌ Falló retargeting de skin, usando original")
+				mesh_instance.skin = mesh_data.original_skin
+		else:
+			print("    ⚠️ No hay skin original para retargetear")
+		
+		# Agregar al skeleton
+		skeleton.add_child(mesh_instance)
+		
+		print("  Mesh anexado: %s" % mesh_instance.name)
+		print("    Mesh resource: %s" % (mesh_instance.mesh.get_class() if mesh_instance.mesh else "NULL"))
+		print("    Surfaces: %d" % (mesh_instance.mesh.get_surface_count() if mesh_instance.mesh else 0))
+		print("    Skeleton path: %s" % str(mesh_instance.skeleton))
+		print("    Skin asignado: %s" % (mesh_instance.skin != null))
+
+# FUNCIÓN EXISTENTE: Retargetear skin (sin cambios)
+func _retarget_skin_to_skeleton(original_skin: Skin, target_skeleton: Skeleton3D) -> Skin:
+	if not original_skin or not target_skeleton:
+		printerr("❌ Error: Parámetros inválidos para retargeting de skin")
+		return null
+	
+	print("      Skin original bind count: %d" % original_skin.get_bind_count())
+	print("      Target skeleton bone count: %d" % target_skeleton.get_bone_count())
+	
+	var new_skin = Skin.new()
+	var successful_binds = 0
+	
+	# Procesar cada bind del skin original
+	for i in range(original_skin.get_bind_count()):
+		var bind_name = original_skin.get_bind_name(i)
+		var bind_pose = original_skin.get_bind_pose(i)
+		
+		# Buscar el hueso correspondiente en el skeleton de destino
+		var bone_index = target_skeleton.find_bone(bind_name)
+		
+		if bone_index >= 0:
+			new_skin.add_bind(bone_index, bind_pose)
+			new_skin.set_bind_name(new_skin.get_bind_count() - 1, bind_name)
+			successful_binds += 1
+			print("        ✅ Bind mapeado: %s -> índice %d" % [bind_name, bone_index])
+		else:
+			print("        ❌ Hueso no encontrado: %s" % bind_name)
+	
+	print("      Resultado: %d/%d binds exitosos" % [successful_binds, original_skin.get_bind_count()])
+	
+	# Devolver skin solo si tenemos suficientes binds exitosos
+	if successful_binds > 0 and (float(successful_binds) / float(original_skin.get_bind_count())) > 0.5:
+		return new_skin
+	else:
+		print("      ❌ Muy pocos binds exitosos para un skin funcional")
+		return null
+
+# FUNCIÓN EXISTENTE: Extraer meshes del skeleton (sin cambios significativos)
+func _extract_meshes_from_skeleton(skeleton: Skeleton3D) -> Array:
+	var meshes = []
+	
+	print("--- EXTRAYENDO MESHES CON SKIN AUTO-GENERATION ---")
+	
+	for child in skeleton.get_children():
+		if child is MeshInstance3D:
+			var mesh_data = {
+				"node": child,
+				"mesh_resource": child.mesh,
+				"name": child.name,
+				"materials": [],
+				"skeleton_path": child.get_path_to(skeleton),
+				"original_skin": child.skin
+			}
+			
+			# Extraer materiales
+			if child.mesh and child.mesh.get_surface_count() > 0:
+				for i in range(child.mesh.get_surface_count()):
+					var material = null
+					
+					if child.get_surface_override_material(i):
+						material = child.get_surface_override_material(i)
+					elif child.mesh.surface_get_material(i):
+						material = child.mesh.surface_get_material(i)
+					
+					mesh_data.materials.append(material)
+			
+			print("  Mesh: %s - Skin existente detectado" % child.name if child.skin else "  Mesh: %s - Sin skin" % child.name)
+			meshes.append(mesh_data)
+	
+	print("Total meshes extraídos: %d" % meshes.size())
+	return meshes
+
+# NUEVA FUNCIÓN: Debug del modelo combinado CON METADATOS
+func debug_combined_model_with_metadata(combined_model: Node3D):
+	print("\n🔍 DEBUG MODELO COMBINADO CON METADATOS")
+	print("Nombre: %s" % combined_model.name)
+	
+	# Extraer y mostrar metadatos
+	var metadata = extract_metadata_from_combined_model(combined_model)
+	
+	print("📝 METADATOS ALMACENADOS:")
+	if metadata.has("base_metadata"):
+		var base_meta = metadata.base_metadata
+		print("  Base: %s (%s)" % [base_meta.get("display_name", "Sin nombre"), base_meta.get("filename", "Sin archivo")])
+	
+	if metadata.has("all_animations_metadata"):
+		var anims_meta = metadata.all_animations_metadata
+		print("  Animaciones disponibles: %d" % anims_meta.size())
+		for anim_name in anims_meta.keys():
+			var anim_meta = anims_meta[anim_name]
+			print("    • %s -> %s (%s)" % [anim_name, anim_meta.get("display_name", "Sin nombre"), anim_meta.get("filename", "Sin archivo")])
+	
+	# Buscar skeleton
+	var skeleton = combined_model.get_node_or_null("Skeleton3D_combined")
+	if skeleton:
+		print("✅ Skeleton encontrado: %d huesos" % skeleton.get_bone_count())
+		
+		# Contar meshes
+		var mesh_count = 0
+		for child in skeleton.get_children():
+			if child is MeshInstance3D:
+				mesh_count += 1
+		
+		print("✅ Meshes: %d" % mesh_count)
+	else:
+		print("❌ No se encontró skeleton")
+	
+	# Buscar AnimationPlayer
+	var anim_player = combined_model.get_node_or_null("AnimationPlayer")
+	if anim_player:
+		print("✅ AnimationPlayer: %d animaciones" % anim_player.get_animation_list().size())
+		
+		# Validar rutas de animación
+		if skeleton:
+			var validation = retargeting_fix.validate_animation_paths(anim_player, skeleton)
+			print("📊 Validación de animaciones:")
+			print("  Tracks válidos: %d" % validation.valid_tracks)
+			print("  Tracks inválidos: %d" % validation.invalid_tracks)
+	else:
+		print("❌ No se encontró AnimationPlayer")
+	
+	print("🔍 FIN DEBUG CON METADATOS\n")
+
+# FUNCIONES EXISTENTES SIN CAMBIOS (preparar modelo, etc.)
+func get_animation_info(anim_player: AnimationPlayer, anim_name: String) -> Dictionary:
+	if not anim_player or not anim_player.has_animation(anim_name):
+		return {}
+	
+	var anim = anim_player.get_animation(anim_name)
+	
+	return {
+		"name": anim_name,
+		"length": anim.length,
+		"fps": 1.0 / anim.step if anim.step > 0 else 30.0,
+		"frame_count": int(anim.length / anim.step) if anim.step > 0 else int(anim.length * 30.0),
+		"loop": anim.loop_mode != Animation.LOOP_NONE
+	}
+
+func prepare_model_for_rendering(model: Node3D, frame: int, total_frames: int, animation_name: String) -> void:
+	var anim_player = model.get_node_or_null("AnimationPlayer")
 	if not anim_player:
-		print("❌ AnimationPlayer nulo para debug")
 		return
 	
-	var prefix = "🔍 DEBUG ANIMS"
-	if context != "":
-		prefix += " (%s)" % context
-	
-	print("%s:" % prefix)
-	print("  AnimationPlayer: %s" % anim_player.name)
-	
-	var animation_list = anim_player.get_animation_list()
-	print("  Total animaciones: %d" % animation_list.size())
-	
-	for i in range(animation_list.size()):
-		var anim_name = animation_list[i]
-		var anim = anim_player.get_animation(anim_name)
-		print("  [%d] '%s' - %.2fs" % [i, anim_name, anim.length if anim else 0.0])
-
-# Función para validar que las animaciones tengan nombres únicos
-static func validate_unique_names(anim_player: AnimationPlayer) -> Dictionary:
-	"""Validar que todas las animaciones tengan nombres únicos y descriptivos"""
-	
-	var result = {
-		"valid": true,
-		"problems": [],
-		"suggestions": []
-	}
-	
-	if not anim_player:
-		result.valid = false
-		result.problems.append("AnimationPlayer nulo")
-		return result
-	
-	var animation_list = anim_player.get_animation_list()
-	var generic_names = ["mixamo_com", "default", "Animation", "Take 001"]
-	
-	for anim_name in animation_list:
-		# Verificar nombres genéricos
-		if anim_name in generic_names:
-			result.valid = false
-			result.problems.append("Nombre genérico encontrado: '%s'" % anim_name)
-			result.suggestions.append("Renombrar '%s' a un nombre descriptivo" % anim_name)
+	if anim_player.has_animation(animation_name):
+		var anim = anim_player.get_animation(animation_name)
+		var time_position = (float(frame) / float(total_frames)) * anim.length
 		
-		# Verificar nombres vacíos o muy cortos
-		if anim_name.length() < 3:
-			result.valid = false
-			result.problems.append("Nombre muy corto: '%s'" % anim_name)
-			result.suggestions.append("Usar nombre más descriptivo que '%s'" % anim_name)
-	
-	return result
+		anim_player.play(animation_name)
+		anim_player.seek(time_position, true)
+		anim_player.advance(0.0)  # Forzar actualización
