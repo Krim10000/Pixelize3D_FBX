@@ -326,3 +326,37 @@ func debug_loaded_data():
 		var data = loaded_models_cache[key]
 		print("  %s: %s (%s)" % [key, data.get("name", "Unknown"), data.get("type", "Unknown")])
 	print("=============================\n")
+
+
+func load_animation_resource(fbx_path: String) -> Animation:
+	"""Carga una animación FBX y devuelve el recurso Animation directamente (sin reemplazar modelo)"""
+	var scene_resource = _try_direct_load(fbx_path)
+	if not scene_resource:
+		var import_path = await _handle_external_fbx(fbx_path)
+		if import_path == "":
+			return null
+		scene_resource = _try_direct_load(import_path)
+		if not scene_resource:
+			printerr("❌ No se pudo cargar el FBX de animación: %s" % fbx_path)
+			return null
+
+	var instance = scene_resource.instantiate()
+	if not instance:
+		printerr("❌ No se pudo instanciar la escena")
+		return null
+
+	var anim_player = _find_animation_player(instance)
+	if not anim_player:
+		printerr("❌ No se encontró AnimationPlayer en %s" % fbx_path)
+		instance.queue_free()
+		return null
+
+	var animation_names = anim_player.get_animation_list()
+	if animation_names.is_empty():
+		printerr("❌ No se encontraron animaciones en %s" % fbx_path)
+		instance.queue_free()
+		return null
+
+	var animation = anim_player.get_animation(animation_names[0])
+	instance.queue_free()
+	return animation

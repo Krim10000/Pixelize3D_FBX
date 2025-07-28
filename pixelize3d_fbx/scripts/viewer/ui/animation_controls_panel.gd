@@ -806,3 +806,45 @@ func debug_state():
 		loop_manager.debug_animation_state(current_animation_player)
 	
 	print("===============================================\n")
+
+
+
+func update_animations_list(new_animations: Array) -> void:
+	animations_option.clear()
+	available_animations = new_animations
+	animation_display_names.clear()
+
+	if new_animations.size() == 0:
+		animations_option.add_item("-- No hay animaciones --")
+		animations_option.disabled = true
+		emit_signal("animation_deselected")
+		return
+
+	for i in range(new_animations.size()):
+		var anim_path = new_animations[i]
+		var anim_name = anim_path.get_file().get_basename()
+		animation_display_names.append(anim_name)
+		animations_option.add_item(anim_name)
+
+	animations_option.disabled = false
+	_play_animation_by_index(new_animations.size() - 1)  # última animación
+	
+
+func _play_animation_by_index(index: int) -> void:
+	if index < 0 or index >= available_animations.size():
+		return
+	current_animation_index = index
+	current_animation = available_animations[index]
+	emit_signal("play_requested", current_animation)
+	animations_option.select(index)
+
+func select_animation_by_name(animation_name: String) -> void:
+	for i in range(available_animations.size()):
+		var anim_path = available_animations[i]
+		var anim_name = anim_path.get_file().get_basename()
+		if anim_name == animation_name:
+			current_animation_index = i
+			current_animation = anim_path
+			animations_option.select(i)
+			emit_signal("play_requested", current_animation)
+			return

@@ -18,6 +18,8 @@ extends Control
 @onready var animation_manager = get_node("AnimationManager")
 @onready var sprite_renderer = get_node("SpriteRenderer")
 
+
+
 # Datos del sistema
 var loaded_base_data: Dictionary = {}
 var loaded_animations: Dictionary = {}
@@ -32,6 +34,9 @@ func _ready():
 	print("🎮 ViewerCoordinator LOOP BREAKER iniciado")
 	await get_tree().process_frame
 	_validate_and_connect()
+	file_loader_panel.connect("animations_selected", Callable(self, "_on_animations_selected"))
+
+
 
 func _validate_and_connect():
 	"""Validar y conectar de forma segura"""
@@ -109,69 +114,141 @@ func _on_unit_selected(unit_data: Dictionary):
 	if file_loader_panel and file_loader_panel.has_method("populate_unit_files"):
 		file_loader_panel.populate_unit_files(unit_data)
 
+#func _on_animations_selected_protected(animation_files: Array):
+	#"""Manejar selección de animaciones CON MÁXIMA PROTECCIÓN"""
+	#print("\n🛑 === ANIMATIONS SELECTED PROTECTED ===")
+	#print("Archivos recibidos: %s" % str(animation_files))
+	#
+	## 🛑 PROTECCIÓN 1: Evitar procesamiento simultáneo
+	#if is_processing_animations:
+		#var elapsed = Time.get_time_dict_from_system().second - processing_start_time
+		#print("🛑 YA PROCESANDO ANIMACIONES (%.1fs transcurrido)" % elapsed)
+		#if elapsed < 10:  # Si han pasado menos de 10 segundos, ignorar
+			#print("🛑 IGNORANDO - muy pronto")
+			#return
+		#else:
+			#print("⚠️ Timeout alcanzado, continuando...")
+	#
+	## 🛑 PROTECCIÓN 2: Evitar duplicados
+	#if _arrays_equal(animation_files, last_animations_processed):
+		#print("🛑 ANIMACIONES IDÉNTICAS - ignorando")
+		#return
+	#
+	## 🛑 PROTECCIÓN 3: Validar datos básicos
+	#if animation_files.is_empty():
+		#print("🛑 ARRAY VACÍO - ignorando")
+		#return
+	#
+	## 🛑 PROTECCIÓN 4: Verificar unit data
+	#if not file_loader_panel or not file_loader_panel.has_method("get_current_unit_data"):
+		#print("🛑 NO HAY UNIT DATA - ignorando")
+		#return
+	#
+	#var unit_data = file_loader_panel.get_current_unit_data()
+	#if unit_data.is_empty() or not unit_data.has("path"):
+		#print("🛑 UNIT DATA INVÁLIDO - ignorando") 
+		#return
+	#
+	## 🛑 MARCAR COMO PROCESANDO
+	#is_processing_animations = true
+	#processing_start_time = Time.get_time_dict_from_system().second
+	#last_animations_processed = animation_files.duplicate()
+	#
+	#print("🔒 PROCESANDO ANIMACIONES - BLOQUEADO por 10 segundos")
+	#log_panel.add_log("🎬 Cargando %d animaciones..." % animation_files.size())
+	#
+	## Cargar cada animación de forma secuencial CON DELAYS
+	#for i in range(animation_files.size()):
+		#var anim_file = animation_files[i]
+		#var full_path = unit_data.path + "/" + anim_file
+		#
+		#print("📥 [%d/%d] Cargando: %s" % [i+1, animation_files.size(), anim_file])
+		#log_panel.add_log("📥 [%d/%d] %s" % [i+1, animation_files.size(), anim_file])
+		#
+		#fbx_loader.load_animation_fbx(full_path)
+		#
+		## 🛑 DELAY entre cargas para evitar overflow
+		#if i < animation_files.size() - 1:  # No delay después de la última
+			#await get_tree().create_timer(1.0).timeout
+	#
+	## 🛑 DESBLOQUEAR después de un tiempo
+	#await get_tree().create_timer(3.0).timeout
+	#is_processing_animations = false
+	#print("🔓 PROCESAMIENTO DE ANIMACIONES DESBLOQUEADO")
+	#
+	#print("=== FIN ANIMATIONS SELECTED ===\n")
+
+
 func _on_animations_selected_protected(animation_files: Array):
-	"""Manejar selección de animaciones CON MÁXIMA PROTECCIÓN"""
 	print("\n🛑 === ANIMATIONS SELECTED PROTECTED ===")
 	print("Archivos recibidos: %s" % str(animation_files))
-	
-	# 🛑 PROTECCIÓN 1: Evitar procesamiento simultáneo
+
+	# Protección 1: evitar carga múltiple
 	if is_processing_animations:
 		var elapsed = Time.get_time_dict_from_system().second - processing_start_time
 		print("🛑 YA PROCESANDO ANIMACIONES (%.1fs transcurrido)" % elapsed)
-		if elapsed < 10:  # Si han pasado menos de 10 segundos, ignorar
+		if elapsed < 10:
 			print("🛑 IGNORANDO - muy pronto")
 			return
 		else:
 			print("⚠️ Timeout alcanzado, continuando...")
-	
-	# 🛑 PROTECCIÓN 2: Evitar duplicados
+
+	# Protección 2: evitar duplicados
 	if _arrays_equal(animation_files, last_animations_processed):
 		print("🛑 ANIMACIONES IDÉNTICAS - ignorando")
 		return
-	
-	# 🛑 PROTECCIÓN 3: Validar datos básicos
+
 	if animation_files.is_empty():
 		print("🛑 ARRAY VACÍO - ignorando")
 		return
-	
-	# 🛑 PROTECCIÓN 4: Verificar unit data
+
 	if not file_loader_panel or not file_loader_panel.has_method("get_current_unit_data"):
 		print("🛑 NO HAY UNIT DATA - ignorando")
 		return
-	
+
 	var unit_data = file_loader_panel.get_current_unit_data()
 	if unit_data.is_empty() or not unit_data.has("path"):
-		print("🛑 UNIT DATA INVÁLIDO - ignorando") 
+		print("🛑 UNIT DATA INVÁLIDO - ignorando")
 		return
-	
-	# 🛑 MARCAR COMO PROCESANDO
+
+	# Marcar como procesando
 	is_processing_animations = true
 	processing_start_time = Time.get_time_dict_from_system().second
 	last_animations_processed = animation_files.duplicate()
-	
+
 	print("🔒 PROCESANDO ANIMACIONES - BLOQUEADO por 10 segundos")
 	log_panel.add_log("🎬 Cargando %d animaciones..." % animation_files.size())
-	
-	# Cargar cada animación de forma secuencial CON DELAYS
+
+	# Cargar una por una
 	for i in range(animation_files.size()):
 		var anim_file = animation_files[i]
 		var full_path = unit_data.path + "/" + anim_file
-		
+
 		print("📥 [%d/%d] Cargando: %s" % [i+1, animation_files.size(), anim_file])
 		log_panel.add_log("📥 [%d/%d] %s" % [i+1, animation_files.size(), anim_file])
-		
+
 		fbx_loader.load_animation_fbx(full_path)
-		
-		# 🛑 DELAY entre cargas para evitar overflow
-		if i < animation_files.size() - 1:  # No delay después de la última
-			await get_tree().create_timer(1.0).timeout
-	
-	# 🛑 DESBLOQUEAR después de un tiempo
-	await get_tree().create_timer(3.0).timeout
+
+		if i < animation_files.size() - 1:
+			await get_tree().create_timer(1.0).timeout  # Delay entre animaciones
+
+	# Fin de carga
+	await get_tree().create_timer(2.0).timeout
 	is_processing_animations = false
 	print("🔓 PROCESAMIENTO DE ANIMACIONES DESBLOQUEADO")
-	
+
+	# 🧠 AGREGADO: reproducir la última y actualizar paneles
+	animation_controls_panel.update_animations_list(animation_files)
+
+	var last_animation_path = animation_files[-1]
+	var last_animation_name = last_animation_path.get_file().get_basename()
+
+	animation_controls_panel.select_animation_by_name(last_animation_name)
+	model_preview_panel.play_animation(last_animation_name)
+
+	print("✅ Animación aplicada: " + last_animation_name)
 	print("=== FIN ANIMATIONS SELECTED ===\n")
+
 
 func _arrays_equal(a: Array, b: Array) -> bool:
 	"""Comparar arrays"""
@@ -460,3 +537,18 @@ func debug_state():
 	print("  - get_node('ViewerModular').get_combination_status()")
 	
 	print("=========================================\n")
+
+
+func _on_animations_selected(animations: Array) -> void:
+	if animations.is_empty():
+		animation_controls_panel.update_animations_list([])
+		model_preview_panel.stop_animation()
+		return
+
+	animation_controls_panel.update_animations_list(animations)
+
+	var last_animation_path = animations[-1]
+	var last_animation_name = last_animation_path.get_file().get_basename()
+
+	animation_controls_panel.select_animation_by_name(last_animation_name)
+	model_preview_panel.play_animation(last_animation_name)

@@ -527,3 +527,16 @@ func prepare_model_for_rendering(model: Node3D, frame: int, total_frames: int, a
 		anim_player.play(animation_name)
 		anim_player.seek(time_position, true)
 		anim_player.advance(0.0)  # Forzar actualización
+
+
+func add_animation_to_base_model(animation_player: AnimationPlayer, animation: Animation, anim_id: String) -> void:
+	"""Agrega una animación al AnimationPlayer especificado"""
+	if not animation_player:
+		printerr("⚠️ No hay AnimationPlayer válido (nulo)")
+		return
+
+	if animation_player.has_animation(anim_id):
+		print("ℹ️ Animación '%s' ya existe, sobrescribiendo..." % anim_id)
+
+	animation_player.add_animation(anim_id, animation)
+	print("✅ Animación '%s' agregada al modelo base" % anim_id)
