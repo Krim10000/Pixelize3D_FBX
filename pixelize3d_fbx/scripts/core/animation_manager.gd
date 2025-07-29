@@ -98,19 +98,30 @@ func combine_base_with_animation(base_data: Dictionary, animation_data: Dictiona
 	loop_manager.setup_infinite_loops(new_anim_player)
 	print("🔄 Loops infinitos configurados")
 	
-	# Aplicar la pose inicial de la primera animación
-	if new_anim_player.get_animation_list().size() > 0:
-		var first_anim = new_anim_player.get_animation_list()[0]
-		print("✅ Aplicando pose inicial: %s" % first_anim)
-		
+	##########################################################
+	##########################################################
+	##########################################################
+	
+	
+# Aplicar la pose inicial de la NUEVA animación
+	# Aplicar la pose inicial de la ÚLTIMA animación disponible
+	var animation_list = new_anim_player.get_animation_list()
+	if animation_list.size() > 0:
+		var last_index = animation_list.size() - 1
+		var target_anim_name = animation_list[last_index]
+
+		print("✅ Aplicando pose inicial (última animación): %s" % target_anim_name)
+
 		# Configurar loop y aplicar pose inicial de forma segura
 		var anim_lib = new_anim_player.get_animation_library("")
-		var animation = anim_lib.get_animation(first_anim)
+		var animation = anim_lib.get_animation(target_anim_name)
 		if animation:
 			animation.loop_mode = Animation.LOOP_LINEAR
-		
+
 		# Como el AnimationPlayer ya está en el modelo combinado, puede usar play directamente
-		new_anim_player.play(first_anim)
+		new_anim_player.play(target_anim_name)
+
+
 	
 	print("✅ Combinación completada exitosamente con metadatos")
 	emit_signal("combination_complete", combined_root)
@@ -172,35 +183,90 @@ func _store_metadata_in_combined_model(combined_root: Node3D, base_data: Diction
 		print("    • %s -> %s" % [anim_name, anim_meta.get("display_name", "Sin nombre")])
 
 # ✅ NUEVA FUNCIÓN: Combinar con múltiples animaciones
+#func combine_base_with_multiple_animations(base_data: Dictionary, animations_data: Dictionary) -> Node3D:
+	#"""Función mejorada para combinar base con múltiples animaciones preservando metadatos"""
+	#print("\n=== COMBINACIÓN CON MÚLTIPLES ANIMACIONES ===")
+	#print("Base: %s" % base_data.get("display_name", base_data.get("name", "Unknown")))
+	#print("Animaciones a combinar: %d" % animations_data.size())
+	#
+	## Registrar metadatos de todas las animaciones
+	#register_multiple_animations_metadata(animations_data)
+	#
+	## Usar la primera animación como base para la combinación
+	#var first_anim_name = animations_data.keys()[0]
+	#var first_anim_data = animations_data[first_anim_name]
+	#
+	## Realizar combinación base
+	#var combined_model = combine_base_with_animation(base_data, first_anim_data)
+	#
+	#if not combined_model:
+		#return null
+	#
+	## Agregar las demás animaciones al AnimationPlayer
+	#var anim_player = combined_model.get_node_or_null("AnimationPlayer")
+	#if anim_player:
+		#var added_animations = 0
+		#var anim_lib = anim_player.get_animation_library("")
+		#
+		#for anim_name in animations_data.keys():
+			#if anim_name == first_anim_name:
+				#continue  # Ya está incluida
+			#
+			#var anim_data = animations_data[anim_name]
+			#if anim_data.has("animation_player") and anim_data.animation_player:
+				## Copiar animaciones adicionales
+				#for extra_anim_name in anim_data.animation_player.get_animation_list():
+					#var extra_animation = anim_data.animation_player.get_animation(extra_anim_name)
+					#if extra_animation:
+						#var new_anim = extra_animation.duplicate(true)
+						#anim_lib.add_animation(anim_name, new_anim)  # Usar el nombre del archivo, no el nombre técnico
+						#added_animations += 1
+						#print("  ✅ Agregada animación: %s" % anim_name)
+		#
+		#print("✅ Total animaciones en modelo combinado: %d" % (anim_player.get_animation_list().size()))
+		#
+		## Actualizar metadatos con información de animaciones múltiples
+		#var combination_info = combined_model.get_meta("combination_info", {})
+		#combination_info["animations_count"] = anim_player.get_animation_list().size()
+		#combined_model.set_meta("combination_info", combination_info)
+	#
+	#return combined_model
+	## ✅ FORZAR POSE INICIAL DE LA ÚLTIMA ANIMACIÓN
+	#if anim_player and anim_player.get_animation_list().size() > 0:
+		#var anims = anim_player.get_animation_list()
+		#var last_anim = anims[anims.size() - 1]
+		#print("✅ Reproduciendo animación final agregada: %s" % last_anim)
+		#anim_player.play(last_anim)
+
+
 func combine_base_with_multiple_animations(base_data: Dictionary, animations_data: Dictionary) -> Node3D:
 	"""Función mejorada para combinar base con múltiples animaciones preservando metadatos"""
 	print("\n=== COMBINACIÓN CON MÚLTIPLES ANIMACIONES ===")
 	print("Base: %s" % base_data.get("display_name", base_data.get("name", "Unknown")))
 	print("Animaciones a combinar: %d" % animations_data.size())
-	
+
 	# Registrar metadatos de todas las animaciones
 	register_multiple_animations_metadata(animations_data)
-	
+
 	# Usar la primera animación como base para la combinación
-	var first_anim_name = animations_data.keys()[0]
+	var first_anim_name = animations_data.keys()[-1]
 	var first_anim_data = animations_data[first_anim_name]
-	
+
 	# Realizar combinación base
 	var combined_model = combine_base_with_animation(base_data, first_anim_data)
-	
 	if not combined_model:
 		return null
-	
+
 	# Agregar las demás animaciones al AnimationPlayer
 	var anim_player = combined_model.get_node_or_null("AnimationPlayer")
 	if anim_player:
 		var added_animations = 0
 		var anim_lib = anim_player.get_animation_library("")
-		
+
 		for anim_name in animations_data.keys():
 			if anim_name == first_anim_name:
 				continue  # Ya está incluida
-			
+
 			var anim_data = animations_data[anim_name]
 			if anim_data.has("animation_player") and anim_data.animation_player:
 				# Copiar animaciones adicionales
@@ -211,15 +277,37 @@ func combine_base_with_multiple_animations(base_data: Dictionary, animations_dat
 						anim_lib.add_animation(anim_name, new_anim)  # Usar el nombre del archivo, no el nombre técnico
 						added_animations += 1
 						print("  ✅ Agregada animación: %s" % anim_name)
-		
+
 		print("✅ Total animaciones en modelo combinado: %d" % (anim_player.get_animation_list().size()))
-		
+
+		# ✅ FORZAR POSE INICIAL DE LA ÚLTIMA ANIMACIÓN
+		var anims = anim_player.get_animation_list()
+		if anims.size() > 0:
+			var last_anim = anims[anims.size() - 1]
+			print("✅ Reproduciendo animación final agregada: %s" % last_anim)
+			anim_player.play(last_anim)
+
 		# Actualizar metadatos con información de animaciones múltiples
 		var combination_info = combined_model.get_meta("combination_info", {})
 		combination_info["animations_count"] = anim_player.get_animation_list().size()
 		combined_model.set_meta("combination_info", combination_info)
-	
+
+	# ✅ Forzar la reproducción de la última animación agregada
+	if anim_player:
+		var anim_list = anim_player.get_animation_list()
+		if anim_list.size() > 0:
+			var last_anim = anim_list[anim_list.size() - 1]
+			if anim_player.has_animation(last_anim):
+				print("🎯 Reproduciendo directamente última animación agregada: %s" % last_anim)
+				anim_player.play(last_anim)
+			else:
+				print("❌ La animación '%s' no está disponible para reproducción" % last_anim)
+
+
+
+
 	return combined_model
+
 
 # ✅ NUEVA FUNCIÓN: Extraer metadatos de modelo combinado
 func extract_metadata_from_combined_model(combined_model: Node3D) -> Dictionary:

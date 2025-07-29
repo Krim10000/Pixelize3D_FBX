@@ -38,7 +38,7 @@ func _ready():
 func _setup_debounce_timer():
 	"""Configurar timer para evitar eventos múltiples"""
 	debounce_timer = Timer.new()
-	debounce_timer.wait_time = 0.5  # 500ms de debounce
+	debounce_timer.wait_time = 0.2  # 500ms de debounce
 	debounce_timer.one_shot = true
 	debounce_timer.timeout.connect(_emit_animations_selected)
 	add_child(debounce_timer)
@@ -317,7 +317,7 @@ func _emit_animations_selected():
 	emit_signal("animations_selected", selected)
 	
 	# ✅ IMPORTANTE: Resetear flag después de un tiempo
-	await get_tree().create_timer(2.0).timeout
+	#await get_tree().create_timer(2.0).timeout
 	is_loading_animations = false
 	print("🔓 Flag de carga reseteado")
 

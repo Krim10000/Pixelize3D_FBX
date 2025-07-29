@@ -64,14 +64,44 @@ func _validate_and_connect():
 func _connect_essential_signals():
 	"""Conectar solo señales esenciales"""
 	print("🔗 Conectando señales esenciales...")
+	#
+	## FileLoaderPanel
+	#if file_loader_panel:
+		#file_loader_panel.file_selected.connect(_on_file_selected)
+		#file_loader_panel.unit_selected.connect(_on_unit_selected)
+		#file_loader_panel.animations_selected.connect(_on_animations_selected_protected)
+		## ✅ REMOVIDO: combine_and_view_requested (no existe en archivo original)
+		#print("✅ FileLoaderPanel conectado")
+	#
+	## FBX Loader
+	#if fbx_loader:
+		#fbx_loader.model_loaded.connect(_on_model_loaded)
+		#fbx_loader.load_failed.connect(_on_load_failed)
+		#print("✅ FBXLoader conectado")
+	
+	## Animation Manager
+	#if animation_manager:
+		#animation_manager.combination_complete.connect(_on_combination_complete_safe)
+		#animation_manager.combination_failed.connect(_on_combination_failed)
+		#print("✅ AnimationManager conectado")
+	#
+	#print("🔗 Conexiones esenciales completadas")
+
+
+	print("🔗 Conectando señales esenciales...")
 	
 	# FileLoaderPanel
 	if file_loader_panel:
 		file_loader_panel.file_selected.connect(_on_file_selected)
 		file_loader_panel.unit_selected.connect(_on_unit_selected)
 		file_loader_panel.animations_selected.connect(_on_animations_selected_protected)
-		# ✅ REMOVIDO: combine_and_view_requested (no existe en archivo original)
 		print("✅ FileLoaderPanel conectado")
+	
+	# ✅ NUEVA CONEXIÓN CRÍTICA
+	# AnimationControlsPanel QUIZAS 
+	#if animation_controls_panel:
+		#animation_controls_panel.animation_change_requested.connect(_on_animation_change_requested)
+		#print("✅ AnimationControlsPanel conectado")
 	
 	# FBX Loader
 	if fbx_loader:
@@ -86,7 +116,6 @@ func _connect_essential_signals():
 		print("✅ AnimationManager conectado")
 	
 	print("🔗 Conexiones esenciales completadas")
-
 # === MANEJADORES PROTEGIDOS ===
 
 func _on_file_selected(file_path: String):
@@ -552,3 +581,83 @@ func _on_animations_selected(animations: Array) -> void:
 
 	animation_controls_panel.select_animation_by_name(last_animation_name)
 	model_preview_panel.play_animation(last_animation_name)
+
+
+
+	# ✅ NUEVA CONEXIÓN CRÍTICA
+	## AnimationControlsPanel
+	#if animation_controls_panel:
+		#animation_controls_panel.animation_change_requested.connect(_on_animation_change_requested)
+		#print("✅ AnimationControlsPanel conectado")
+	
+	# FBX Loader
+	#if fbx_loader:
+		#fbx_loader.model_loaded.connect(_on_model_loaded)
+		#fbx_loader.load_failed.connect(_on_load_failed)
+		#print("✅ FBXLoader conectado")
+	
+	# Animation Manager
+	#if animation_manager:
+		#animation_manager.combination_complete.connect(_on_combination_complete_safe)
+		#animation_manager.combination_failed.connect(_on_combination_failed)
+		#print("✅ AnimationManager conectado")
+	#
+	print("🔗 Conexiones esenciales completadas")
+
+## ✅ NUEVA FUNCIÓN: Manejar cambio de animación
+#func _on_animation_change_requested(animation_name: String):
+	#"""Manejar solicitud de cambio de animación desde los controles"""
+	#print("\n🎭 === CAMBIO DE ANIMACIÓN SOLICITADO ===")
+	#print("Animación solicitada: %s" % animation_name)
+	#
+	## Verificar que tenemos lo necesario
+	#if loaded_base_data.is_empty():
+		#print("❌ No hay modelo base para recombinar")
+		#log_panel.add_log("❌ Error: No hay modelo base")
+		#return
+	#
+	#if not loaded_animations.has(animation_name):
+		#print("❌ Animación '%s' no está cargada" % animation_name)
+		#log_panel.add_log("❌ Error: Animación no encontrada")
+		#return
+	#
+	## Obtener datos de la animación
+	#var anim_data = loaded_animations[animation_name]
+	#
+	#print("🔄 Re-combinando modelo con animación: %s" % animation_name)
+	#log_panel.add_log("🔄 Cambiando a: " + animation_name)
+	#
+	## Combinar base con la nueva animación
+	#var combined = animation_manager.combine_base_with_animation(loaded_base_data, anim_data)
+	#
+	#if combined:
+		## Liberar modelo anterior si existe
+		#if current_combined_model and is_instance_valid(current_combined_model):
+			#current_combined_model.queue_free()
+		#
+		## Actualizar referencia
+		#current_combined_model = combined
+		#
+		#print("✅ Re-combinación exitosa")
+		#log_panel.add_log("✅ Animación cambiada")
+		#
+		## Actualizar preview con el nuevo modelo
+		#if model_preview_panel and model_preview_panel.has_method("set_model"):
+			#model_preview_panel.set_model(current_combined_model)
+		#
+		## ✅ CRÍTICO: Notificar al panel de controles que la re-combinación está lista
+		#if animation_controls_panel and animation_controls_panel.has_method("on_model_recombined"):
+			#animation_controls_panel.on_model_recombined(current_combined_model, animation_name)
+		#
+		## Actualizar otros paneles si es necesario
+		#if actions_panel and actions_panel.has_method("enable_preview_button"):
+			#actions_panel.enable_preview_button()
+	#else:
+		#print("❌ Falló la re-combinación")
+		#log_panel.add_log("❌ Error al cambiar animación")
+		#
+		## Notificar error al panel de controles
+		#if animation_controls_panel and animation_controls_panel.has_method("_reset_ui_on_error"):
+			#animation_controls_panel._reset_ui_on_error("Falló la re-combinación")
+	#
+	#print("=== FIN CAMBIO DE ANIMACIÓN ===\n")

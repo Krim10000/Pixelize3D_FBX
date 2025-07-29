@@ -136,7 +136,7 @@ func _create_ui():
 
 func populate_animations(model_with_player: Node3D):
 	"""Función principal para poblar animaciones con nombres descriptivos"""
-	print("🎭 POBLANDO ANIMACIONES MEJORADAS - Modelo: %s" % (model_with_player.name if model_with_player else "null"))
+#	print("🎭 POBLANDO ANIMACIONES MEJORADAS - Modelo: %s" % (model_with_player.name if model_with_player else "null"))
 	
 	# Limpiar estado anterior
 	reset_controls()
@@ -439,18 +439,18 @@ func _prepare_ui_for_animation_change(animation_name: String):
 	# Mostrar estado de "cargando"
 	play_button.text = "⏳"
 	play_button.tooltip_text = "Cargando animación..."
-	play_button.disabled = true
-	stop_button.disabled = true
-	timeline_slider.editable = false
+	play_button.disabled = false
+	stop_button.disabled = false
+	timeline_slider.editable = true
 	
 	# Timeline temporal
-	timeline_slider.value = 0.0
-	time_label.text = "Cargando..."
+	#timeline_slider.value = 0.0
+	#time_label.text = "Cargando..."
 	
 	# ✅ NUEVO: Iniciar timer de timeout
-	recombination_timeout_timer.start()
+	#recombination_timeout_timer.start()
 	
-	print("⏳ UI preparada para cambio a: %s (timeout: %.1fs)" % [animation_name, recombination_timeout_timer.wait_time])
+	#print("⏳ UI preparada para cambio a: %s (timeout: %.1fs)" % [animation_name, recombination_timeout_timer.wait_time])
 
 # ✅ FUNCIÓN NUEVA: Timeout de re-combinación
 func _on_recombination_timeout():
@@ -769,7 +769,7 @@ func _input(event):
 func debug_state():
 	"""Debug del estado actual CON METADATOS"""
 	print("\n🎮 === ANIMATION CONTROLS DEBUG MEJORADO ===")
-	print("AnimationPlayer: %s" % (current_animation_player.name if current_animation_player else "null"))
+#	print("AnimationPlayer: %s" % (current_animation_player.name if current_animation_player else "null"))
 	print("Animaciones disponibles: %d" % available_animations.size())
 	for i in range(available_animations.size()):
 		var marker = " ◀️" if i == current_animation_index else ""

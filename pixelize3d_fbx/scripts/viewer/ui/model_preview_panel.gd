@@ -105,7 +105,7 @@ func _stop_animation_clean(anim_player: AnimationPlayer) -> void:
 	# Resetear a pose de reposo si existe
 	var animations = anim_player.get_animation_list()
 	if animations.size() > 0:
-		var first_anim = animations[0]
+		var first_anim = animations[-1]
 		anim_player.play(first_anim)
 		anim_player.seek(0.0, true)
 		anim_player.pause()
@@ -167,7 +167,8 @@ func _connect_signals():
 
 func set_model(model: Node3D):
 	"""✅ FUNCIÓN CORREGIDA: Configurar modelo para preview"""
-	print("🎬 PREVIEW_PANEL: Configurando modelo - " + str(model.name if model != null else "NULL"))	
+
+#	print("🎬 PREVIEW_PANEL: Configurando modelo - " + str(model.name if model != null else "NULL"))	
 	if not model_container:
 		print("❌ ERROR: model_container no disponible")
 		return
@@ -188,6 +189,8 @@ func set_model(model: Node3D):
 	animation_player = _find_animation_player(current_model)
 	
 	if animation_player:
+		print("🧪 Animaciones en modelo duplicado: ", animation_player.get_animation_list())
+
 		print("✅ AnimationPlayer encontrado: " + str(animation_player.get_animation_list().size()) + " animaciones")
 		# ✅ CORRECCIÓN: Usar función privada directamente
 		_setup_infinite_loops(animation_player)
@@ -287,31 +290,90 @@ func _find_all_mesh_instances(node: Node) -> Array:
 	return mesh_instances
 
 # ✅ FUNCIÓN CORREGIDA: Iniciar animación por defecto de forma segura
+#func _start_default_animation_safe():
+	#"""Iniciar primera animación disponible de forma segura"""
+	#if not animation_player or not is_instance_valid(animation_player):
+		#print("⚠️ No hay AnimationPlayer válido para iniciar animación")
+		#return
+	#
+	#var animations = animation_player.get_animation_list()
+	#if animations.size() == 0:
+		#print("⚠️ No hay animaciones disponibles")
+		#status_label.text += " (Sin animaciones)"
+		#return
+	#
+	#var first_animation = animations[-1]
+	#print("🎭 Iniciando animación por defecto: " + first_animation)
+	#
+	## ✅ CORRECCIÓN: Usar método privado directamente
+	#var success = _change_animation_clean(animation_player, first_animation)
+	#
+	#if success:
+		#status_label.text += " - Animando: " + first_animation
+		#emit_signal("animation_playing", first_animation)
+		#print("✅ Animación iniciada: " + first_animation)
+	#else:
+		#print("❌ Error al iniciar animación: " + first_animation)
+		#status_label.text += " (Error en animación)"
+
+#func _start_default_animation_safe():
+	#"""Iniciar última animación disponible de forma segura"""
+	#if not animation_player or not is_instance_valid(animation_player):
+		#print("⚠️ No hay AnimationPlayer válido para iniciar animación")
+		#return
+#
+	#var animations = animation_player.get_animation_list()
+	#if animations.size() == 0:
+		#print("⚠️ No hay animaciones disponibles")
+		#status_label.text += " (Sin animaciones)"
+		#return
+#
+	#var default_animation = animations[animations.size() - 1]
+	#print("🎭 Iniciando animación por defecto: " + default_animation)
+#
+	#var success = _change_animation_clean(animation_player, default_animation)
+#
+	#if success:
+		#status_label.text += " - Animando: " + default_animation
+		#emit_signal("animation_playing", default_animation)
+		#print("✅ Animación iniciada: " + default_animation)
+	#else:
+		#print("❌ Error al iniciar animación: " + default_animation)
+		#status_label.text += " (Error en animación)"
+
 func _start_default_animation_safe():
-	"""Iniciar primera animación disponible de forma segura"""
+	"""Iniciar animación válida (última en la lista) de forma segura"""
 	if not animation_player or not is_instance_valid(animation_player):
 		print("⚠️ No hay AnimationPlayer válido para iniciar animación")
 		return
-	
+
 	var animations = animation_player.get_animation_list()
 	if animations.size() == 0:
 		print("⚠️ No hay animaciones disponibles")
 		status_label.text += " (Sin animaciones)"
 		return
-	
-	var first_animation = animations[0]
-	print("🎭 Iniciando animación por defecto: " + first_animation)
-	
-	# ✅ CORRECCIÓN: Usar método privado directamente
-	var success = _change_animation_clean(animation_player, first_animation)
-	
-	if success:
-		status_label.text += " - Animando: " + first_animation
-		emit_signal("animation_playing", first_animation)
-		print("✅ Animación iniciada: " + first_animation)
-	else:
-		print("❌ Error al iniciar animación: " + first_animation)
-		status_label.text += " (Error en animación)"
+
+	print("🔎 Animaciones detectadas:")
+	for anim in animations:
+		print("  - '%s'" % anim)
+
+	# Buscar desde la última animación hacia atrás una válida
+	for i in range(animations.size() - 1, -1, -1):
+		var candidate = animations[i]
+		if animation_player.has_animation(candidate):
+			print("🎯 Reproduciendo animación válida: %s" % candidate)
+			var success = _change_animation_clean(animation_player, candidate)
+			if success:
+				status_label.text += " - Animando: " + candidate
+				emit_signal("animation_playing", candidate)
+				print("✅ Animación iniciada: " + candidate)
+			else:
+				print("❌ Falló la reproducción de: " + candidate)
+			return
+
+	# Si ninguna fue válida
+	print("❌ No se encontró ninguna animación reproducible")
+	status_label.text += " (Sin animación válida)"
 
 # === CONTROL DE ANIMACIONES MEJORADO ===
 
@@ -447,8 +509,8 @@ func debug_preview_state():
 	"""Debug del estado del preview"""
 	print("\n🎬 === DEBUG PREVIEW PANEL ===")
 	print("Preview activo: " + str(preview_active))
-	print("Modelo actual: " + str(current_model.name if current_model != null else "null"))
-	print("AnimationPlayer: " + str(animation_player.name if animation_player != null else "null"))
+#	print("Modelo actual: " + str(current_model.name if current_model != null else "null"))
+#	print("AnimationPlayer: " + str(animation_player.name if animation_player != null else "null"))
 	
 	if animation_player:
 		print("Animaciones disponibles: " + str(animation_player.get_animation_list()))
