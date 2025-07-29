@@ -343,3 +343,9 @@ func debug_camera_state():
 	for key in info:
 		print("  %s: %s" % [key, str(info[key])])
 	print("================================\n")
+
+
+#
+#func focus_on_bounds(bounds: AABB):
+	#"""Alias para mantener compatibilidad con código antiguo"""
+	#setup_for_model(bounds)

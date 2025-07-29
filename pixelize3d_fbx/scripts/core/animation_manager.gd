@@ -35,8 +35,10 @@ func register_animation_metadata(animation_name: String, metadata: Dictionary) -
 func register_multiple_animations_metadata(animations_data: Dictionary) -> void:
 	for anim_name in animations_data.keys():
 		var anim_data = animations_data[anim_name]
-		if anim_data.has("file_metadata"):
-			register_animation_metadata(anim_name, anim_data.file_metadata)
+		pass
+#metadata = animations_metadata_cache[anim_data]
+		##if anim_data.has("file_metadata"):
+		#register_animation_metadata(anim_name, metadata)
 
 func combine_base_with_animation(base_data: Dictionary, animation_data: Dictionary) -> Node3D:
 	print("\n=== INICIANDO COMBINACIÓN CON METADATOS ===")

@@ -1,136 +1,48 @@
 # scripts/viewer/ui/model_preview_panel.gd
-# Panel de preview CORREGIDO para compatibilidad total con el sistema
-# Input: Modelo combinado desde viewer_coordinator
-# Output: Vista previa funcional con controles de animación
+# Panel MEJORADO con métodos completos para control de animaciones
+# Input: Modelo 3D con AnimationPlayer
+# Output: Vista previa interactiva con control total
 
 extends VBoxContainer
 
 # Señales
-signal model_displayed(model: Node3D)
 signal bounds_calculated(bounds: AABB)
-signal preview_enabled()
-signal animation_playing(animation_name: String)
+signal animation_started(animation_name: String)
+signal animation_stopped()
+signal preview_ready()
 
-# Referencias UI
-@onready var viewport_container: SubViewportContainer = find_child("ViewportContainer")
-@onready var viewport: SubViewport = find_child("SubViewport")
-@onready var model_container: Node3D = find_child("ModelContainer")
-@onready var camera_controller: Node = find_child("CameraController")
-@onready var model_rotator: Node = find_child("ModelRotator")
+# Referencias a componentes
+@onready var viewport_container = $ViewportContainer
+@onready var viewport = $ViewportContainer/SubViewport
+@onready var camera = $ViewportContainer/SubViewport/Camera3D
+@onready var camera_controller = $ViewportContainer/SubViewport/CameraController
+@onready var model_container = $ViewportContainer/SubViewport/ModelContainer
+@onready var directional_light = $ViewportContainer/SubViewport/DirectionalLight3D
+@onready var model_rotator = find_child("ModelRotator")
 
-# Labels informativos
-@onready var status_label: Label = find_child("StatusLabel")
-@onready var controls_help_label: Label = find_child("ControlsHelpLabel")
+# UI elements
+var status_label: Label
+var controls_help_label: Label
 
-# Estado interno - Sin dependencias externas
+# Estado interno
 var current_model: Node3D = null
 var animation_player: AnimationPlayer = null
+var current_bounds: AABB = AABB()
 var preview_active: bool = false
 
-# === FUNCIONES PRIVADAS DE MANEJO DE ANIMACIONES ===
-
-func _setup_infinite_loops(anim_player: AnimationPlayer) -> void:
-	"""Configurar todas las animaciones para loop infinito"""
-	if not anim_player:
-		print("❌ AnimationPlayer inválido para configurar loops")
-		return
-	
-	print("🔄 CONFIGURANDO LOOPS INFINITOS")
-	
-	var animations_configured = 0
-	
-	# Configurar cada animación para loop
-	for anim_name in anim_player.get_animation_list():
-		var anim_lib = anim_player.get_animation_library("")
-		var animation = anim_lib.get_animation(anim_name)
-		
-		if animation:
-			# Configurar loop mode
-			animation.loop_mode = Animation.LOOP_LINEAR
-			animations_configured += 1
-			print("✅ Loop configurado: " + anim_name)
-	
-	print("🔄 Loops configurados: " + str(animations_configured) + " animaciones")
-
-func _change_animation_clean(anim_player: AnimationPlayer, new_animation: String) -> bool:
-	"""Cambiar animación de forma limpia y sincrónica"""
-	if not anim_player:
-		print("❌ AnimationPlayer inválido")
-		return false
-	
-	if not anim_player.has_animation(new_animation):
-		print("❌ Animación no encontrada: " + new_animation)
-		return false
-	
-	print("🎭 CAMBIANDO ANIMACIÓN A: " + new_animation)
-	
-	# PASO 1: Detener animación actual
-	if anim_player.is_playing():
-		var current_anim = anim_player.current_animation
-		print("  🛑 Deteniendo animación actual: %s" % current_anim)
-		anim_player.stop()
-	
-	# PASO 2: Configurar loop en la nueva animación
-	var anim_lib = anim_player.get_animation_library("")
-	var animation = anim_lib.get_animation(new_animation)
-	if animation:
-		animation.loop_mode = Animation.LOOP_LINEAR
-		print("  🔄 Loop configurado para: %s" % new_animation)
-	
-	# PASO 3: Iniciar nueva animación directamente
-	print("  ▶️ Iniciando nueva animación: %s" % new_animation)
-	anim_player.play(new_animation)
-	
-	# PASO 4: Verificar éxito
-	if anim_player.is_playing() and anim_player.current_animation == new_animation:
-		print("  ✅ Cambio de animación exitoso")
-		return true
-	else:
-		print("  ❌ Falló el cambio de animación")
-		return false
-
-func _stop_animation_clean(anim_player: AnimationPlayer) -> void:
-	"""Detener completamente y resetear"""
-	if not anim_player:
-		return
-	
-	print("⏹️ DETENIENDO ANIMACIÓN COMPLETAMENTE")
-	
-	# Detener reproducción
-	anim_player.stop()
-	
-	# Limpiar estado
-	anim_player.current_animation = ""
-	
-	# Resetear a pose de reposo si existe
-	var animations = anim_player.get_animation_list()
-	if animations.size() > 0:
-		var first_anim = animations[-1]
-		anim_player.play(first_anim)
-		anim_player.seek(0.0, true)
-		anim_player.pause()
-		print("  🎭 Reseteado a pose inicial de: " + first_anim)
-
-func _toggle_pause_with_loop(anim_player: AnimationPlayer) -> bool:
-	"""Pausar/reanudar manteniendo el loop"""
-	if not anim_player:
-		return false
-	
-	if anim_player.is_playing():
-		print("⏸️ Pausando animación")
-		anim_player.pause()
-		return false  # Ahora está pausado
-	else:
-		print("▶️ Reanudando animación")
-		anim_player.play()
-		return true   # Ahora está reproduciendo
-
-# === INICIALIZACIÓN ===
+# ✅ NUEVO: Estado de animación
+var is_animation_playing: bool = false
+var current_animation_name: String = ""
 
 func _ready():
-	print("🎬 ModelPreviewPanel inicializado (CORREGIDO)")
+	print("🎬 ModelPreviewPanel MEJORADO inicializado")
 	_setup_ui()
 	_connect_signals()
+	
+	# Configurar viewport
+	if viewport:
+		viewport.transparent_bg = true
+		viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 
 func _setup_ui():
 	"""Configurar elementos de UI básicos"""
@@ -142,13 +54,12 @@ func _setup_ui():
 		controls_help_label = Label.new()
 		add_child(controls_help_label)
 	
-	# Configurar estilos
 	status_label.text = "Esperando modelo..."
 	status_label.add_theme_font_size_override("font_size", 10)
 	status_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 	status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	
-	controls_help_label.text = "CONTROLES: Click+Arrastrar=Rotar Camara | Rueda=Zoom | Ctrl+Click=Rotar Modelo"
+	controls_help_label.text = "CONTROLES: Click+Arrastrar=Rotar | Rueda=Zoom | Shift+Click=Panear"
 	controls_help_label.add_theme_font_size_override("font_size", 9)
 	controls_help_label.add_theme_color_override("font_color", Color(0.6, 0.8, 0.6))
 	controls_help_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
@@ -161,304 +72,168 @@ func _connect_signals():
 	
 	if model_rotator and model_rotator.has_signal("north_changed"):
 		model_rotator.connect("north_changed", _on_north_changed)
-		model_rotator.connect("model_rotated", _on_model_rotated)
 
 # === GESTIÓN DEL MODELO ===
 
 func set_model(model: Node3D):
-	"""✅ FUNCIÓN CORREGIDA: Configurar modelo para preview"""
-
-#	print("🎬 PREVIEW_PANEL: Configurando modelo - " + str(model.name if model != null else "NULL"))	
+	"""✅ MEJORADO: Configurar modelo para preview"""
+	print("🎬 Configurando modelo para preview: %s" % model.name)
+	
 	if not model_container:
-		print("❌ ERROR: model_container no disponible")
+		print("❌ model_container no disponible")
 		return
 	
-	# Limpiar modelo anterior de forma segura
+	# Limpiar modelo anterior
 	_clear_current_model_safe()
 	
 	if not model:
 		status_label.text = "No hay modelo cargado"
+		controls_help_label.visible = false
 		return
 	
-	# ✅ CORRECCIÓN: Duplicar modelo para preview (evitar conflictos)
+	# Duplicar modelo para preview
 	current_model = model.duplicate()
 	current_model.name = "Preview_" + model.name
 	model_container.add_child(current_model)
 	
-	# Buscar AnimationPlayer en el modelo
+	# Buscar AnimationPlayer
 	animation_player = _find_animation_player(current_model)
 	
 	if animation_player:
-		print("🧪 Animaciones en modelo duplicado: ", animation_player.get_animation_list())
-
-		print("✅ AnimationPlayer encontrado: " + str(animation_player.get_animation_list().size()) + " animaciones")
-		# ✅ CORRECCIÓN: Usar función privada directamente
-		_setup_infinite_loops(animation_player)
+		print("✅ AnimationPlayer encontrado con %d animaciones" % animation_player.get_animation_list().size())
+		_setup_animation_loops()
+		
+		# Conectar señales del AnimationPlayer
+		if not animation_player.animation_finished.is_connected(_on_animation_finished):
+			animation_player.animation_finished.connect(_on_animation_finished)
 	else:
-		print("⚠️ No se encontró AnimationPlayer en el modelo")
+		print("⚠️ No se encontró AnimationPlayer")
 	
-	# Calcular bounds usando método mejorado
-	var bounds = _calculate_model_bounds_safe(current_model)
-	emit_signal("bounds_calculated", bounds)
+	# Calcular bounds
+	current_bounds = _calculate_model_bounds_safe(current_model)
+	emit_signal("bounds_calculated", current_bounds)
 	
-	# Configurar cámara si está disponible
+	# Configurar cámara
 	if camera_controller and camera_controller.has_method("setup_for_model"):
-		camera_controller.setup_for_model(bounds)
-	elif camera_controller and camera_controller.has_method("focus_on_bounds"):
-		camera_controller.focus_on_bounds(bounds)
+		camera_controller.setup_for_model(current_bounds)
 	
-	# Configurar rotador si está disponible
-	if model_rotator and model_rotator.has_method("set_model"):
-		model_rotator.set_model(current_model)
+	# Actualizar UI
+	status_label.text = "Modelo: " + model.name
+	controls_help_label.visible = true
+	preview_active = true
 	
-	# Actualizar status
-	status_label.text = "✅ Modelo cargado: " + current_model.name
-	
-	# Iniciar animación por defecto de forma segura
-	call_deferred("_start_default_animation_safe")
-	
-	# Emitir señal
-	emit_signal("model_displayed", current_model)
-	
-	print("✅ Modelo configurado en preview: " + current_model.name)
+	emit_signal("preview_ready")
 
-# ✅ FUNCIÓN NUEVA: Limpiar modelo anterior de forma segura
-func _clear_current_model_safe():
-	"""Limpiar modelo anterior de forma segura y síncrona"""
-	if current_model and is_instance_valid(current_model):
-		print("🧹 Limpiando modelo anterior: " + current_model.name)
-		
-		# Detener animaciones antes de liberar
-		if animation_player and is_instance_valid(animation_player):
-			animation_player.stop()
-		
-		# Remover del contenedor antes de liberar
-		if current_model.get_parent():
-			current_model.get_parent().remove_child(current_model)
-		
-		# Liberar inmediatamente
-		current_model.queue_free()
-		current_model = null
-		animation_player = null
-		
-		print("✅ Modelo anterior limpiado")
-
-# ✅ FUNCIÓN CORREGIDA: Calcular bounds de forma segura
-func _calculate_model_bounds_safe(model: Node3D) -> AABB:
-	"""Calcular bounds del modelo de forma segura"""
-	var bounds = AABB()
-	var found_bounds = false
-	
-	if not model:
-		return AABB(Vector3.ZERO, Vector3(2, 2, 2))  # Bounds por defecto
-	
-	# Buscar meshes en el modelo
-	var mesh_instances = _find_all_mesh_instances(model)
-	
-	for mesh_instance in mesh_instances:
-		if mesh_instance.mesh:
-			var mesh_bounds = mesh_instance.mesh.get_aabb()
-			# Aplicar transform del mesh instance
-			mesh_bounds = mesh_instance.transform * mesh_bounds
-			
-			if not found_bounds:
-				bounds = mesh_bounds
-				found_bounds = true
-			else:
-				bounds = bounds.merge(mesh_bounds)
-	
-	# Si no se encontraron bounds, usar bounds por defecto
-	if not found_bounds:
-		bounds = AABB(Vector3(-1, 0, -1), Vector3(2, 2, 2))
-		print("⚠️ No se encontraron bounds, usando por defecto")
-	else:
-		print("✅ Bounds calculados: " + str(bounds))
-	
-	return bounds
-
-# ✅ FUNCIÓN NUEVA: Encontrar todas las instancias de mesh
-func _find_all_mesh_instances(node: Node) -> Array:
-	"""Encontrar recursivamente todas las instancias de mesh"""
-	var mesh_instances = []
-	
-	if node is MeshInstance3D:
-		mesh_instances.append(node)
-	
-	for child in node.get_children():
-		mesh_instances.append_array(_find_all_mesh_instances(child))
-	
-	return mesh_instances
-
-# ✅ FUNCIÓN CORREGIDA: Iniciar animación por defecto de forma segura
-#func _start_default_animation_safe():
-	#"""Iniciar primera animación disponible de forma segura"""
-	#if not animation_player or not is_instance_valid(animation_player):
-		#print("⚠️ No hay AnimationPlayer válido para iniciar animación")
-		#return
-	#
-	#var animations = animation_player.get_animation_list()
-	#if animations.size() == 0:
-		#print("⚠️ No hay animaciones disponibles")
-		#status_label.text += " (Sin animaciones)"
-		#return
-	#
-	#var first_animation = animations[-1]
-	#print("🎭 Iniciando animación por defecto: " + first_animation)
-	#
-	## ✅ CORRECCIÓN: Usar método privado directamente
-	#var success = _change_animation_clean(animation_player, first_animation)
-	#
-	#if success:
-		#status_label.text += " - Animando: " + first_animation
-		#emit_signal("animation_playing", first_animation)
-		#print("✅ Animación iniciada: " + first_animation)
-	#else:
-		#print("❌ Error al iniciar animación: " + first_animation)
-		#status_label.text += " (Error en animación)"
-
-#func _start_default_animation_safe():
-	#"""Iniciar última animación disponible de forma segura"""
-	#if not animation_player or not is_instance_valid(animation_player):
-		#print("⚠️ No hay AnimationPlayer válido para iniciar animación")
-		#return
-#
-	#var animations = animation_player.get_animation_list()
-	#if animations.size() == 0:
-		#print("⚠️ No hay animaciones disponibles")
-		#status_label.text += " (Sin animaciones)"
-		#return
-#
-	#var default_animation = animations[animations.size() - 1]
-	#print("🎭 Iniciando animación por defecto: " + default_animation)
-#
-	#var success = _change_animation_clean(animation_player, default_animation)
-#
-	#if success:
-		#status_label.text += " - Animando: " + default_animation
-		#emit_signal("animation_playing", default_animation)
-		#print("✅ Animación iniciada: " + default_animation)
-	#else:
-		#print("❌ Error al iniciar animación: " + default_animation)
-		#status_label.text += " (Error en animación)"
-
-func _start_default_animation_safe():
-	"""Iniciar animación válida (última en la lista) de forma segura"""
-	if not animation_player or not is_instance_valid(animation_player):
-		print("⚠️ No hay AnimationPlayer válido para iniciar animación")
-		return
-
-	var animations = animation_player.get_animation_list()
-	if animations.size() == 0:
-		print("⚠️ No hay animaciones disponibles")
-		status_label.text += " (Sin animaciones)"
-		return
-
-	print("🔎 Animaciones detectadas:")
-	for anim in animations:
-		print("  - '%s'" % anim)
-
-	# Buscar desde la última animación hacia atrás una válida
-	for i in range(animations.size() - 1, -1, -1):
-		var candidate = animations[i]
-		if animation_player.has_animation(candidate):
-			print("🎯 Reproduciendo animación válida: %s" % candidate)
-			var success = _change_animation_clean(animation_player, candidate)
-			if success:
-				status_label.text += " - Animando: " + candidate
-				emit_signal("animation_playing", candidate)
-				print("✅ Animación iniciada: " + candidate)
-			else:
-				print("❌ Falló la reproducción de: " + candidate)
-			return
-
-	# Si ninguna fue válida
-	print("❌ No se encontró ninguna animación reproducible")
-	status_label.text += " (Sin animación válida)"
-
-# === CONTROL DE ANIMACIONES MEJORADO ===
+# === CONTROL DE ANIMACIONES ===
 
 func play_animation(animation_name: String):
-	"""✅ FUNCIÓN CORREGIDA: Reproducir animación específica"""
-	if not animation_player or not is_instance_valid(animation_player):
-		print("❌ No hay AnimationPlayer disponible")
+	"""✅ NUEVO: Reproducir animación específica"""
+	print("▶️ Reproduciendo animación: %s" % animation_name)
+	
+	if not animation_player:
+		print("❌ No hay AnimationPlayer")
 		return
 	
-	if not animation_player.has_animation(animation_name):
-		print("❌ Animación no encontrada: " + animation_name)
+	# Limpiar nombre si viene con extensión
+	var clean_name = animation_name.get_basename()
+	
+	# Buscar la animación con diferentes variantes
+	var found_animation = ""
+	for anim in animation_player.get_animation_list():
+		if anim == animation_name or anim == clean_name or clean_name in anim:
+			found_animation = anim
+			break
+	
+	if found_animation == "":
+		print("❌ Animación no encontrada: %s" % animation_name)
+		status_label.text = "Error: Animación no encontrada"
 		return
 	
-	print("🎭 Cambiando a animación: " + animation_name)
-	status_label.text = "🔄 Cambiando animación..."
+	# Reproducir
+	animation_player.play(found_animation)
+	is_animation_playing = true
+	current_animation_name = found_animation
 	
-	# ✅ CORRECCIÓN: Usar método privado directamente
-	var success = _change_animation_clean(animation_player, animation_name)
+	status_label.text = "▶️ " + _get_display_name(found_animation)
+	emit_signal("animation_started", found_animation)
+
+func pause_animation():
+	"""✅ NUEVO: Pausar animación actual"""
+	print("⏸️ Pausando animación")
 	
-	if success:
-		status_label.text = "🔄 Reproduciendo en loop: " + animation_name
-		emit_signal("animation_playing", animation_name)
-		print("✅ Animación iniciada en loop: " + animation_name)
-	else:
-		status_label.text = "❌ Error al cambiar animación"
-		print("❌ Error al cambiar animación: " + animation_name)
+	if not animation_player or not is_animation_playing:
+		return
+	
+	animation_player.pause()
+	is_animation_playing = false
+	status_label.text = "⏸️ " + _get_display_name(current_animation_name)
+
+func resume_animation():
+	"""✅ NUEVO: Reanudar animación pausada"""
+	print("▶️ Reanudando animación")
+	
+	if not animation_player or is_animation_playing:
+		return
+	
+	animation_player.play()
+	is_animation_playing = true
+	status_label.text = "▶️ " + _get_display_name(current_animation_name)
 
 func stop_animation():
-	"""Detener animación actual completamente"""
-	if animation_player and is_instance_valid(animation_player):
-		_stop_animation_clean(animation_player)
-		status_label.text = "⏹️ Animación detenida"
-		print("⏹️ Animación detenida completamente")
-
-func toggle_pause_animation():
-	"""Pausar/reanudar animación manteniendo el loop"""
-	if not animation_player or not is_instance_valid(animation_player):
+	"""✅ NUEVO: Detener animación completamente"""
+	print("⏹️ Deteniendo animación")
+	
+	if not animation_player:
 		return
 	
-	var is_playing = _toggle_pause_with_loop(animation_player)
+	animation_player.stop()
+	is_animation_playing = false
+	current_animation_name = ""
 	
-	if is_playing:
-		status_label.text = "▶️ Reproduciendo en loop: " + animation_player.current_animation
+	if current_model:
+		status_label.text = "Modelo: " + current_model.name
 	else:
-		status_label.text = "⏸️ Pausado: " + animation_player.current_animation
+		status_label.text = "Listo"
+	
+	emit_signal("animation_stopped")
 
-# === CONTROL DE PREVIEW MODE ===
+func change_animation_speed(speed: float):
+	"""✅ NUEVO: Cambiar velocidad de reproducción"""
+	if animation_player:
+		animation_player.speed_scale = speed
+		print("🎬 Velocidad de animación: %.1fx" % speed)
 
-func enable_preview_mode():
-	"""Habilitar modo preview completo"""
-	preview_active = true
-	controls_help_label.visible = true
-	
-	# Habilitar CameraController
-	if camera_controller and camera_controller.has_method("enable_preview_mode"):
-		camera_controller.enable_preview_mode()
-		print("✅ CameraController habilitado")
-	
-	# Habilitar ModelRotator  
-	if model_rotator and model_rotator.has_method("enable_rotation_control"):
-		model_rotator.enable_rotation_control()
-		print("✅ ModelRotator habilitado")
-	
-	# Configurar viewport para input
-	if viewport_container:
-		viewport_container.mouse_filter = Control.MOUSE_FILTER_PASS
-	
-	emit_signal("preview_enabled")
-	print("🎬 Preview mode activado")
+# === MANEJO DE EVENTOS ===
 
-func disable_preview_mode():
-	"""Deshabilitar modo preview"""
-	preview_active = false
-	controls_help_label.visible = false
+func _on_animation_finished(anim_name: String):
+	"""Callback cuando termina una animación"""
+	print("🏁 Animación terminada: %s" % anim_name)
 	
-	# Deshabilitar controles
-	if camera_controller and camera_controller.has_method("disable_preview_mode"):
-		camera_controller.disable_preview_mode()
-	
-	if model_rotator and model_rotator.has_method("disable_rotation_control"):
-		model_rotator.disable_rotation_control()
-	
-	print("🛑 Preview mode deshabilitado")
+	# Con loops infinitos, esto raramente se llamará
+	# pero es útil para animaciones sin loop
+	if is_animation_playing and animation_player:
+		# Reiniciar si está en modo loop
+		animation_player.play(anim_name)
 
-# === FUNCIONES DE UTILIDAD ===
+func _on_camera_ready():
+	"""Callback cuando la cámara está lista - CORREGIDO"""
+	print("📷 Cámara lista")
+	# NO llamar a ninguna función de configuración de cámara aquí
+	# Eso causaría recursión infinita
+	
+	# La cámara ya fue configurada cuando se emitió esta señal
+	# Solo hacer tareas que no involucren reconfigurar la cámara:
+	
+	# Actualizar UI
+	if preview_active:
+		controls_help_label.visible = true
+		status_label.text = "Vista previa activa"
+		
+func _on_north_changed(new_north: float):
+	"""Callback cuando cambia la orientación norte"""
+	print("🧭 Norte actualizado: %.1f°" % new_north)
+
+# === UTILIDADES ===
 
 func _find_animation_player(node: Node) -> AnimationPlayer:
 	"""Buscar AnimationPlayer recursivamente"""
@@ -472,79 +247,127 @@ func _find_animation_player(node: Node) -> AnimationPlayer:
 	
 	return null
 
-# === CONTROL DE ORIENTACIÓN ===
-
-func set_north_angle(angle: float):
-	"""Configurar ángulo de Norte relativo"""
-	if model_rotator and model_rotator.has_method("set_north_angle"):
-		model_rotator.set_north_angle(angle)
-		print("🧭 Norte relativo configurado: " + str(angle) + "°")
-
-func reset_model_orientation():
-	"""Resetear orientación del modelo"""
-	if model_rotator and model_rotator.has_method("reset_north"):
-		model_rotator.reset_north()
-	if model_rotator and model_rotator.has_method("reset_user_rotation"):
-		model_rotator.reset_user_rotation()
-	print("🔄 Orientación del modelo reseteada")
-
-# === CALLBACKS DE SEÑALES ===
-
-func _on_camera_ready():
-	"""Callback cuando la cámara está lista"""
-	print("📹 Cámara lista en preview")
-
-func _on_north_changed(angle: float):
-	"""Callback cuando cambia el norte"""
-	print("🧭 Norte cambiado: " + str(angle) + "°")
-
-func _on_model_rotated(_model_rotation: Vector3):
-	"""Callback cuando se rota el modelo"""
-			# Debug opcional: print("🔄 Modelo rotado: " + str(_model_rotation))
-	pass
-
-# === FUNCIONES DE DEBUG ===
-
-func debug_preview_state():
-	"""Debug del estado del preview"""
-	print("\n🎬 === DEBUG PREVIEW PANEL ===")
-	print("Preview activo: " + str(preview_active))
-#	print("Modelo actual: " + str(current_model.name if current_model != null else "null"))
-#	print("AnimationPlayer: " + str(animation_player.name if animation_player != null else "null"))
+func _setup_animation_loops():
+	"""Configurar loops infinitos para todas las animaciones"""
+	if not animation_player:
+		return
 	
-	if animation_player:
-		print("Animaciones disponibles: " + str(animation_player.get_animation_list()))
-		print("Animación actual: " + str(animation_player.current_animation))
-		print("Reproduciendo: " + str(animation_player.is_playing()))
+	var anim_list = animation_player.get_animation_list()
+	for anim_name in anim_list:
+		if animation_player.has_animation(anim_name):
+			var anim_lib = animation_player.get_animation_library("")
+			if anim_lib and anim_lib.has_animation(anim_name):
+				var animation = anim_lib.get_animation(anim_name)
+				animation.loop_mode = Animation.LOOP_LINEAR
 	
-	print("Componentes:")
-	print("  CameraController: %s" % ("✅" if camera_controller else "❌"))
-	print("  ModelRotator: %s" % ("✅" if model_rotator else "❌"))
-	print("  ViewportContainer: %s" % ("✅" if viewport_container else "❌"))
-	print("================================\n")
+	print("🔄 Loops configurados para %d animaciones" % anim_list.size())
 
-# === FUNCIONES PÚBLICAS ADICIONALES ===
+func _clear_current_model_safe():
+	"""Limpiar modelo actual de forma segura"""
+	if current_model:
+		if animation_player:
+			animation_player.stop()
+			if animation_player.animation_finished.is_connected(_on_animation_finished):
+				animation_player.animation_finished.disconnect(_on_animation_finished)
+		
+		current_model.queue_free()
+		current_model = null
+		animation_player = null
+		is_animation_playing = false
+		current_animation_name = ""
+
+func _calculate_model_bounds_safe(model: Node3D) -> AABB:
+	"""Calcular bounds del modelo de forma segura"""
+	var bounds = AABB()
+	var found_mesh = false
+	
+	for node in model.get_children():
+		if node is MeshInstance3D:
+			if not found_mesh:
+				bounds = node.get_aabb()
+				found_mesh = true
+			else:
+				bounds = bounds.merge(node.get_aabb())
+	
+	if not found_mesh:
+		bounds = AABB(Vector3(-1, -1, -1), Vector3(2, 2, 2))
+	
+	return bounds
+
+func _get_display_name(animation_name: String) -> String:
+	"""Obtener nombre limpio para mostrar"""
+	var clean_name = animation_name
+	
+	# Limpiar patrones comunes
+	clean_name = clean_name.replace("mixamo.com", "")
+	clean_name = clean_name.replace("Armature|", "")
+	clean_name = clean_name.replace("_", " ")
+	clean_name = clean_name.replace("-", " ")
+	
+	return clean_name.strip_edges().capitalize()
+
+# === FUNCIONES PÚBLICAS DE ESTADO ===
+
+func is_preview_active() -> bool:
+	"""Verificar si el preview está activo"""
+	return preview_active and current_model != null
 
 func get_current_model() -> Node3D:
 	"""Obtener modelo actual"""
 	return current_model
 
 func get_animation_player() -> AnimationPlayer:
-	"""Obtener animation player actual"""
+	"""Obtener AnimationPlayer actual"""
 	return animation_player
 
-func has_model() -> bool:
-	"""Verificar si hay modelo cargado"""
-	return current_model != null and is_instance_valid(current_model)
+func get_current_animation() -> String:
+	"""Obtener animación actual"""
+	return current_animation_name
 
-func get_model_bounds() -> AABB:
-	"""Obtener bounds del modelo actual"""
-	if current_model:
-		return _calculate_model_bounds_safe(current_model)
-	return AABB()
+func is_playing() -> bool:
+	"""Verificar si hay animación reproduciéndose"""
+	return is_animation_playing
 
-# === LIMPIEZA ===
+func get_viewport_texture() -> ViewportTexture:
+	"""Obtener textura del viewport para otros usos"""
+	if viewport:
+		return viewport.get_texture()
+	return null
 
-func _exit_tree():
-	"""Limpiar al salir"""
-	_clear_current_model_safe()
+# === CONFIGURACIÓN DE CÁMARA ===
+
+func set_camera_position(position: Vector3):
+	"""Configurar posición de cámara"""
+	if camera:
+		camera.position = position
+
+func set_camera_rotation(rotation: Vector3):
+	"""Configurar rotación de cámara"""
+	if camera:
+		camera.rotation = rotation
+
+func reset_camera():
+	"""Resetear cámara a posición por defecto"""
+	if camera_controller and camera_controller.has_method("reset_to_default"):
+		camera_controller.reset_to_default()
+	elif current_bounds != AABB():
+		# Posición por defecto manual
+		var center = current_bounds.get_center()
+		var size = current_bounds.get_longest_axis_size()
+		camera.position = center + Vector3(size, size, size)
+		camera.look_at(center, Vector3.UP)
+
+# === DEBUG ===
+
+func debug_state():
+	"""Debug del estado actual"""
+	print("\n🎬 === MODEL PREVIEW DEBUG ===")
+	print("Preview activo: %s" % preview_active)
+	print("Modelo: %s" % (current_model.name if current_model else "NULL"))
+	print("AnimationPlayer: %s" % (animation_player.name if animation_player else "NULL"))
+	if animation_player:
+		print("  Animaciones: %s" % str(animation_player.get_animation_list()))
+		print("  Reproduciendo: %s" % is_animation_playing)
+		print("  Actual: %s" % current_animation_name)
+	print("Bounds: %s" % str(current_bounds))
+	print("============================\n")
