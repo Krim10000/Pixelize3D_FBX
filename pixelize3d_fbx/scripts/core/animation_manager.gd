@@ -8,7 +8,7 @@ signal combination_complete(combined_model: Node3D)
 signal combination_failed(error: String)
 
 var base_meshes_cache = []
-
+var current_building_animation_player: AnimationPlayer = null
 var LoopManagerClass = preload("res://scripts/core/animation_loop_manager.gd")
 var loop_manager = LoopManagerClass.new()
 
@@ -396,31 +396,35 @@ func _duplicate_skeleton(original_skeleton: Skeleton3D) -> Skeleton3D:
 	return new_skeleton
 
 # FUNCIÓN EXISTENTE: Setup de AnimationPlayer (sin cambios significativos)
-func _setup_animation_player(original_player: AnimationPlayer, _original_skeleton: Skeleton3D, _new_skeleton: Skeleton3D) -> AnimationPlayer:
-	print("--- CONFIGURANDO ANIMATION PLAYER ---")
-	if not original_player:
-		print("❌ No hay AnimationPlayer original")
-		return null
-	
-	var new_player = AnimationPlayer.new()
-	new_player.name = "AnimationPlayer"
-	
-	# Crear biblioteca de animaciones
-	var anim_library = AnimationLibrary.new()
-	new_player.add_animation_library("", anim_library)
-	
-	# Copiar todas las animaciones
-	for anim_name in original_player.get_animation_list():
-		var original_anim = original_player.get_animation(anim_name)
-		if original_anim:
-			var new_anim = original_anim.duplicate(true)
-			anim_library.add_animation(anim_name, new_anim)
-			print("  Animación copiada: %s (%.2fs)" % [anim_name, new_anim.length])
-	
-	# IMPORTANTE: Configurar root_node relativo al modelo combinado
-	new_player.root_node = NodePath("..")
-	
-	return new_player
+#func _setup_animation_player(original_player: AnimationPlayer, _original_skeleton: Skeleton3D, _new_skeleton: Skeleton3D) -> AnimationPlayer:
+	#print("--- CONFIGURANDO ANIMATION PLAYER ---")
+	#if not original_player:
+		#print("❌ No hay AnimationPlayer original")
+		#return null
+	#
+	#var new_player = AnimationPlayer.new()
+	#new_player.name = "AnimationPlayer"
+	#
+	## Crear biblioteca de animaciones
+	#var anim_library = AnimationLibrary.new()
+	#new_player.add_animation_library("", anim_library)
+	#
+	## Copiar todas las animaciones
+	#for anim_name in original_player.get_animation_list():
+		#var original_anim = original_player.get_animation(anim_name)
+		#if original_anim:
+			#var new_anim = original_anim.duplicate(true)
+			#anim_library.add_animation(anim_name, new_anim)
+			#print("  Animación copiada: %s (%.2fs)" % [anim_name, new_anim.length])
+	#
+	## IMPORTANTE: Configurar root_node relativo al modelo combinado
+	#new_player.root_node = NodePath("..")
+	#
+	#return new_player
+
+
+
+
 
 # FUNCIÓN EXISTENTE: Anexar meshes al skeleton (con mejoras menores)
 func _attach_meshes_to_skeleton(mesh_data_array: Array, skeleton: Skeleton3D) -> void:
@@ -630,3 +634,89 @@ func add_animation_to_base_model(animation_player: AnimationPlayer, animation: A
 
 	animation_player.add_animation(anim_id, animation)
 	print("✅ Animación '%s' agregada al modelo base" % anim_id)
+
+
+
+# scripts/core/animation_manager.gd
+# REEMPLAZO DE _setup_animation_player
+# Input: original_player (AnimationPlayer de la nueva animación), _original_skeleton, _new_skeleton
+# Output: AnimationPlayer único con todas las animaciones agregadas
+
+# Variable de instancia para rastrear el AnimationPlayer en construcción
+
+# FUNCIÓN REEMPLAZADA: Setup de AnimationPlayer (LÓGICA COMPATIBLE SIN MODIFICAR combine_base_with_animation)
+func _setup_animation_player(original_player: AnimationPlayer, _original_skeleton: Skeleton3D, _new_skeleton: Skeleton3D) -> AnimationPlayer:
+	print("--- CONFIGURANDO ANIMATION PLAYER (NUEVO) ---")
+	if not original_player:
+		print("❌ No hay AnimationPlayer original")
+		return null
+	
+	var target_player: AnimationPlayer
+	var anim_library: AnimationLibrary
+	
+	# PASO 1: Determinar si usar AnimationPlayer existente o crear nuevo
+	if current_building_animation_player == null:
+		print("🆕 Primera animación - creando AnimationPlayer nuevo")
+		target_player = AnimationPlayer.new()
+		target_player.name = "AnimationPlayer"
+		
+		# Crear biblioteca de animaciones vacía
+		anim_library = AnimationLibrary.new()
+		target_player.add_animation_library("", anim_library)
+		
+		# Configurar root_node relativo al modelo combinado
+		target_player.root_node = NodePath("..")
+		
+		# Almacenar referencia para futuras llamadas
+		current_building_animation_player = target_player
+		print("✅ AnimationPlayer creado y almacenado")
+	else:
+		print("♻️  Reutilizando AnimationPlayer existente")
+		target_player = current_building_animation_player
+		anim_library = target_player.get_animation_library("")
+		
+		# COMPATIBILIDAD: Si el AnimationPlayer ya tiene padre, removerlo para poder agregarlo al nuevo modelo
+		if target_player.get_parent():
+			print("🔄 Removiendo AnimationPlayer del padre anterior para reutilizar")
+			target_player.get_parent().remove_child(target_player)
+	
+	# PASO 2: Agregar todas las animaciones del original_player al target_player
+	var added_count = 0
+	for anim_name in original_player.get_animation_list():
+		var original_anim = original_player.get_animation(anim_name)
+		if original_anim:
+			# Verificar si la animación ya existe
+			if anim_library.has_animation(anim_name):
+				print("  ⚠️  Animación '%s' ya existe, sobrescribiendo..." % anim_name)
+			
+			# Duplicar y agregar la animación
+			var new_anim = original_anim.duplicate(true)
+			anim_library.add_animation(anim_name, new_anim)
+			added_count += 1
+			print("  ✅ Animación agregada: %s (%.2fs)" % [anim_name, new_anim.length])
+	
+	print("📊 Resumen: %d animaciones agregadas, total actual: %d" % [added_count, target_player.get_animation_list().size()])
+	print("📤 Retornando AnimationPlayer (padre removido si era necesario)")
+	
+	return target_player
+
+# FUNCIÓN NUEVA: Limpiar el AnimationPlayer en construcción (LLAMAR CUANDO USUARIO REINICIE)
+func _reset_building_animation_player() -> void:
+	"""Limpiar la referencia al AnimationPlayer en construcción"""
+	print("🧹 Limpiando referencia de AnimationPlayer en construcción")
+	current_building_animation_player = null
+
+# FUNCIÓN PÚBLICA: Reset manual del sistema de animaciones (para uso desde coordinator)
+func reset_animation_system() -> void:
+	"""Reset completo del sistema cuando el usuario decide reiniciar"""
+	print("🔄 RESET MANUAL DEL SISTEMA DE ANIMACIONES")
+	_reset_building_animation_player()
+	# Limpiar también otros cachés si es necesario
+	base_meshes_cache.clear()
+	animations_metadata_cache.clear()
+	print("✅ Sistema de animaciones reseteado completamente")
+
+# FUNCIÓN NUEVA: Obtener el AnimationPlayer en construcción (para debugging)
+func get_current_building_animation_player() -> AnimationPlayer:
+	"""Obtener el AnimationPlayer que se está construyendo actualmente"""
+	return current_building_animation_player
