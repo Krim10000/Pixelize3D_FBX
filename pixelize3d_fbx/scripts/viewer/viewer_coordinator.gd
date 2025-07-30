@@ -35,7 +35,8 @@ func _ready():
 	print("🎮 ViewerCoordinator CORREGIDO iniciado")
 	await get_tree().process_frame
 	_validate_and_connect()
-
+	
+	
 func _validate_and_connect():
 	"""Validar y conectar de forma segura"""
 	print("🔍 Validando componentes...")
@@ -404,7 +405,7 @@ func _on_model_loaded(model_data: Dictionary):
 		
 		if actions_panel:
 			actions_panel.set_status("Base cargada - selecciona animaciones")
-		
+			
 		_try_auto_combine()
 	else:
 		var anim_name = model_data.get("name", "Unknown")
@@ -528,9 +529,9 @@ func combine_and_view():
 		
 		_safe_populate_animation_controls()
 		
-		if actions_panel:
-			actions_panel.enable_preview_button()
-			actions_panel.enable_render_button()
+		#if actions_panel:
+			#actions_panel.enable_preview_button()
+			#actions_panel.enable_render_button()
 		
 		log_panel.add_log("🎮 ¡Listo! Usa los controles")
 		return true
@@ -869,3 +870,72 @@ func _on_animation_change_requested(animation_name: String):
 		return
 	
 	print("✅ Animación encontrada: '%s'" % found_animation)
+
+
+# scripts/viewer/viewer_coordinator.gd
+# INTEGRACIÓN: Agregar esta llamada en la función force_reset() existente
+
+func force_reset():
+	"""Reset completo del coordinator"""
+	print("🚨 FORCE RESET COORDINATOR")
+	
+	# Reset flags
+	is_processing_animations = false
+	last_animations_processed.clear()
+	processing_start_time = 0.0
+	
+	# Clear data
+	loaded_base_data.clear()
+	loaded_animations.clear()
+	
+	if current_combined_model:
+		current_combined_model.queue_free()
+		current_combined_model = null
+	
+	# ✅ NUEVO: Reset del sistema de animaciones del AnimationManager
+	if animation_manager and animation_manager.has_method("reset_animation_system"):
+		animation_manager.reset_animation_system()
+		print("🔄 Sistema de animaciones reseteado")
+	
+	# Reset panels
+	if file_loader_panel and file_loader_panel.has_method("_emergency_reset"):
+		file_loader_panel._emergency_reset()
+	
+	if animation_controls_panel and animation_controls_panel.has_method("reset_controls"):
+		animation_controls_panel.reset_controls()
+	
+	print("✅ COORDINATOR RESET COMPLETO")
+
+# ✅ FUNCIÓN NUEVA: Reset público fácil de usar desde consola
+func full_system_reset():
+	"""Reset completo del sistema - función pública para usar desde consola"""
+	print("🔥 === FULL SYSTEM RESET SOLICITADO ===")
+	force_reset()
+	print("✅ Full system reset completado")
+	print("💡 Ahora puedes cargar nuevas animaciones desde cero")
+
+# ✅ FUNCIÓN NUEVA: Debug del estado del AnimationManager
+func debug_animation_manager():
+	"""Debug específico del AnimationManager"""
+	print("\n🎭 === ANIMATION MANAGER DEBUG ===")
+	if not animation_manager:
+		print("❌ AnimationManager no encontrado")
+		return
+	
+	# Verificar si tiene el AnimationPlayer en construcción
+	if animation_manager.has_method("get_current_building_animation_player"):
+		var building_player = animation_manager.get_current_building_animation_player()
+		if building_player:
+			print("🔧 AnimationPlayer en construcción: %s" % building_player.name)
+			print("   Animaciones: %d" % building_player.get_animation_list().size())
+			for anim_name in building_player.get_animation_list():
+				print("     - %s" % anim_name)
+		else:
+			print("✅ No hay AnimationPlayer en construcción")
+	
+	# Verificar cachés
+	print("📦 Estado de cachés:")
+	print("   Base meshes cache: %d items" % (animation_manager.base_meshes_cache.size() if animation_manager.has_method("get") else 0))
+	print("   Animations metadata cache: %d items" % (animation_manager.animations_metadata_cache.size() if animation_manager.has_method("get") else 0))
+	
+	print("=========================================\n")

@@ -41,7 +41,6 @@ void fragment() {
 }
 
 // Versión alternativa para post-procesamiento
-shader_type canvas_item;
 
 uniform float pixel_scale : hint_range(1.0, 16.0, 1.0) = 4.0;
 uniform bool enable_dithering = false;

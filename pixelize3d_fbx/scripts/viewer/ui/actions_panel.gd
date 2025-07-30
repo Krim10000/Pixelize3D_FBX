@@ -148,7 +148,7 @@ func start_processing(process_name: String):
 	progress_bar.visible = true
 	progress_bar.value = 0
 	
-	set_status("⏳ " + process_name + "...")
+	set_status( process_name + "...")
 
 func update_progress(value: float, message: String = ""):
 	progress_bar.value = value * 100
@@ -189,7 +189,7 @@ func show_error(error_message: String):
 	error_dialog.visibility_changed.connect(error_dialog.queue_free)
 
 func show_info(info_message: String):
-	set_status("ℹ️ " + info_message)
+	set_status( info_message)
 
 # Funciones públicas de estado
 func is_preview_enabled() -> bool:

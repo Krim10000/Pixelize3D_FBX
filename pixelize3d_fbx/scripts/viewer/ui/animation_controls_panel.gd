@@ -432,28 +432,28 @@ func _select_animation_by_index(index: int):
 		_on_animation_selected(index + 1)
 
 # === TIMELINE ===
-
-func _on_timeline_changed(value: float):
-	"""Manejar cambio en timeline"""
-	if current_animation_player and current_animation != "" and not is_waiting_for_recombination:
-		current_animation_player.seek(value, true)
-		
-		var animation = current_animation_player.get_animation(current_animation)
-		time_label.text = "%.1fs / %.1fs" % [value, animation.length]
-		
-		emit_signal("timeline_changed", value)
-
-#func _process(_delta):
-	#"""Actualizar timeline durante reproducción"""
-	#if is_playing and current_animation_player and current_animation != "" and not is_waiting_for_recombination:
-		#if current_animation_player.is_playing():
-			#var current_time = current_animation_player.current_animation_position
-			#
-			#if not timeline_slider.has_focus():
-				#timeline_slider.value = current_time
-			#
-			#var animation = current_animation_player.get_animation(current_animation)
-##			time_label.text = "%.1fs / %.1fs" % [current_time, animation.length]
+#
+#func _on_timeline_changed(value: float):
+	#"""Manejar cambio en timeline"""
+	#if current_animation_player and current_animation != "" and not is_waiting_for_recombination:
+		#current_animation_player.seek(value, true)
+		#
+		#var animation = current_animation_player.get_animation(current_animation)
+		#time_label.text = "%.1fs / %.1fs" % [value, animation.length]
+		#
+		#emit_signal("timeline_changed", value)
+#
+##func _process(_delta):
+	##"""Actualizar timeline durante reproducción"""
+	##if is_playing and current_animation_player and current_animation != "" and not is_waiting_for_recombination:
+		##if current_animation_player.is_playing():
+			##var current_time = current_animation_player.current_animation_position
+			##
+			##if not timeline_slider.has_focus():
+				##timeline_slider.value = current_time
+			##
+			##var animation = current_animation_player.get_animation(current_animation)
+###			time_label.text = "%.1fs / %.1fs" % [current_time, animation.length]
 
 # === UTILIDADES ===
 
@@ -629,23 +629,27 @@ func _on_animation_change_completed(animation_name: String):
 	
 	_update_counter_display()
 
-func _process(_delta):
-	"""Actualizar timeline durante reproducción - MEJORADO"""
-	if is_playing and current_animation_player and current_animation != "" and not is_waiting_for_recombination:
-		if current_animation_player.is_playing():
-			var current_time = current_animation_player.current_animation_position
-			
-			if not timeline_slider.has_focus():
-				timeline_slider.value = current_time
-			
-			# Obtener la animación actual del player (más confiable)
-			var playing_anim = current_animation_player.current_animation
-			if playing_anim != "" and current_animation_player.has_animation(playing_anim):
-				var anim_lib = current_animation_player.get_animation_library("")
-				if anim_lib and anim_lib.has_animation(playing_anim):
-					var animation = anim_lib.get_animation(playing_anim)
-					if animation:
-						time_label.text = "%.1fs / %.1fs" % [current_time, animation.length]
+#func _process(_delta):
+	#"""Actualizar timeline durante reproducción - MEJORADO"""
+	#if is_playing and current_animation_player and current_animation != "" and not is_waiting_for_recombination:
+		#if current_animation_player.is_playing():
+			#var current_time = current_animation_player.current_animation_position
+			#
+			#if not timeline_slider.has_focus():
+				#timeline_slider.value = current_time
+			#
+			## Obtener la animación actual del player (más confiable)
+			#var playing_anim = current_animation_player.current_animation
+			#if playing_anim != "" and current_animation_player.has_animation(playing_anim):
+				#var anim_lib = current_animation_player.get_animation_library("")
+				#if anim_lib and anim_lib.has_animation(playing_anim):
+					#var animation = anim_lib.get_animation(playing_anim)
+					#if animation:
+						#time_label.text = "%.1fs / %.1fs" % [current_time, animation.length]
+
+
+
+
 
 func _clean_animation_name_fallback(animation_name: String) -> String:
 	"""✅ MEJORADO: Limpiar nombres con caracteres especiales"""
@@ -706,3 +710,162 @@ func debug_state():
 		print("    - Timeout en: %.1fs" % recombination_timeout_timer.time_left)
 	
 	print("================================\n")
+
+
+
+# scripts/viewer/ui/animation_controls_panel.gd
+# CORRECCIÓN: Función _process mejorada para la barra de tiempo
+
+# === ACTUALIZACIÓN AUTOMÁTICA CORREGIDA ===
+
+func _process(_delta):
+	"""Actualizar timeline automáticamente durante reproducción - VERSIÓN CORREGIDA"""
+	# ✅ CORRECCIÓN: Verificaciones más robustas
+	if not _is_timeline_update_valid():
+		return
+	
+	# Obtener tiempo actual del AnimationPlayer
+	var current_time = current_animation_player.current_animation_position
+	var animation = current_animation_player.get_animation(current_animation)
+	
+	if not animation:
+		return
+	
+	# ✅ CORRECCIÓN: Solo actualizar si el slider no está siendo arrastrado por el usuario
+	if not timeline_slider.has_focus():
+		# Actualizar posición del slider de forma suave
+		timeline_slider.value = current_time
+	
+	# ✅ CORRECCIÓN: Siempre actualizar el label de tiempo (incluso si el slider tiene focus)
+	time_label.text = "%.1fs / %.1fs" % [current_time, animation.length]
+
+func _is_timeline_update_valid() -> bool:
+	"""Verificar si es válido actualizar el timeline"""
+	# Verificar estado de reproducción
+	if not is_playing:
+		return false
+	
+	# Verificar AnimationPlayer
+	if not current_animation_player:
+		print("⚠️ Timeline: No hay current_animation_player")
+		return false
+	
+	if not is_instance_valid(current_animation_player):
+		print("⚠️ Timeline: current_animation_player no es válido")
+		return false
+	
+	# Verificar animación actual
+	if current_animation == "":
+		return false
+	
+	if not current_animation_player.has_animation(current_animation):
+		print("⚠️ Timeline: Animación '%s' no existe en player" % current_animation)
+		return false
+	
+	# Verificar que realmente esté reproduciéndose
+	if not current_animation_player.is_playing():
+		print("⚠️ Timeline: AnimationPlayer no está reproduciendo (desincronizado)")
+		# ✅ CORRECCIÓN: Auto-reparar desincronización
+		_fix_playback_desync()
+		return false
+	
+	return true
+
+func _fix_playback_desync():
+	"""Corregir desincronización entre UI y AnimationPlayer"""
+	print("🔧 Corrigiendo desincronización de reproducción")
+	
+	if current_animation_player and current_animation != "":
+		if current_animation_player.has_animation(current_animation):
+			# Verificar si debería estar reproduciéndose según la UI
+			if is_playing:
+				print("  ➤ Reiniciando reproducción en AnimationPlayer")
+				current_animation_player.play(current_animation)
+			else:
+				print("  ➤ UI indica pausa, actualizando estado")
+				# La UI ya refleja el estado correcto
+
+# === FUNCIONES DE TIMELINE MEJORADAS ===
+
+func _on_timeline_changed(value: float):
+	"""Manejar cambio manual en timeline - VERSIÓN MEJORADA"""
+	if not current_animation_player or current_animation == "":
+		return
+	
+	if not current_animation_player.has_animation(current_animation):
+		print("❌ Timeline: Animación no encontrada al cambiar posición")
+		return
+	
+	# ✅ CORRECCIÓN: Seek mejorado con manejo de estados
+	var was_playing = current_animation_player.is_playing()
+	
+	# Hacer seek
+	current_animation_player.seek(value, true)
+	
+	# ✅ CORRECCIÓN: Preservar estado de reproducción después del seek
+	if was_playing and not current_animation_player.is_playing():
+		current_animation_player.play(current_animation)
+	
+	# Actualizar label inmediatamente
+	var animation = current_animation_player.get_animation(current_animation)
+	time_label.text = "%.1fs / %.1fs" % [value, animation.length]
+	
+	emit_signal("timeline_changed", value)
+
+func _update_timeline_for_animation(animation_name: String):
+	"""Actualizar timeline para la animación seleccionada - VERSIÓN MEJORADA"""
+	print("🎬 Actualizando timeline para: %s" % animation_name)
+	
+	if not current_animation_player or not current_animation_player.has_animation(animation_name):
+		print("❌ No se puede actualizar timeline: animación no encontrada")
+		_reset_timeline_to_default()
+		return
+	
+	var animation = current_animation_player.get_animation(animation_name)
+	
+	# Configurar rango del slider
+	timeline_slider.min_value = 0.0
+	timeline_slider.max_value = animation.length
+	timeline_slider.step = 0.01  # 10ms de precisión
+	timeline_slider.value = 0.0
+	
+	# Actualizar label
+	time_label.text = "0.0s / %.1fs" % animation.length
+	
+	# Habilitar edición
+	timeline_slider.editable = true
+	
+	print("✅ Timeline configurado: 0.0s - %.1fs" % animation.length)
+
+func _reset_timeline_to_default():
+	"""Resetear timeline a valores por defecto"""
+	timeline_slider.min_value = 0.0
+	timeline_slider.max_value = 1.0
+	timeline_slider.value = 0.0
+	timeline_slider.editable = false
+	time_label.text = "0.0s"
+
+# === FUNCIÓN DE DEBUG PARA TIMELINE ===
+
+func debug_timeline_state():
+	"""Debug específico del timeline - función para usar desde consola"""
+	print("\n🎬 === TIMELINE DEBUG ===")
+	print("is_playing: %s" % is_playing)
+	print("current_animation: '%s'" % current_animation)
+	print("current_animation_player: %s" % ("VÁLIDO" if current_animation_player else "NULL"))
+	
+	if current_animation_player:
+		print("  Player válido: %s" % is_instance_valid(current_animation_player))
+		print("  Player reproduciendo: %s" % current_animation_player.is_playing())
+		print("  Animación actual del player: '%s'" % current_animation_player.current_animation)
+		print("  Posición actual: %.2fs" % current_animation_player.current_animation_position)
+		print("  Animaciones disponibles: %s" % str(current_animation_player.get_animation_list()))
+	
+	print("Timeline slider:")
+	print("  Valor: %.2f" % timeline_slider.value)
+	print("  Rango: %.2f - %.2f" % [timeline_slider.min_value, timeline_slider.max_value])
+	print("  Editable: %s" % timeline_slider.editable)
+	print("  Tiene focus: %s" % timeline_slider.has_focus())
+	
+	print("Time label: '%s'" % time_label.text)
+	print("========================\n")

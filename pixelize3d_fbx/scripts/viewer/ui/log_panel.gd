@@ -1,4 +1,4 @@
-# scripts/viewer/ui/log_panel.gd
+# pixelize3d_fbx/scripts/viewer/ui/log_panel.gd
 # Panel especializado SOLO para logging y mensajes
 # Input: Mensajes de log desde otros componentes
 # Output: Visualización de log con controles
@@ -8,6 +8,15 @@ extends VBoxContainer
 # Señales específicas de este panel
 signal log_cleared()
 signal log_exported(file_path: String)
+
+# ===== CONFIGURACIÓN DE TAMAÑO - MODIFICAR AQUÍ PARA AJUSTAR =====
+# Altura fija del área de log en píxeles (ajustable según necesidades)
+const LOG_AREA_HEIGHT: int = 200  # Cambia este valor para ajustar la altura del log
+const LOG_AREA_MIN_HEIGHT: int = 100  # Altura mínima permitida
+const LOG_AREA_MAX_HEIGHT: int = 400  # Altura máxima permitida
+
+# Límite de entradas - aumentado para mejor rendimiento
+var max_entries: int = 2000  # Aumentado desde 500
 
 # UI propia de este panel
 var section_label: Label
@@ -20,7 +29,6 @@ var filter_option: OptionButton
 
 # Estado interno
 var log_entries: Array = []
-var max_entries: int = 500
 var auto_scroll: bool = true
 var current_filter: String = "all"
 
@@ -85,15 +93,38 @@ func _create_ui():
 	export_button.pressed.connect(_on_export_pressed)
 	controls_container.add_child(export_button)
 	
-	# Área de texto del log
+	# ===== ÁREA DE TEXTO DEL LOG - SOLUCIÓN DEL PROBLEMA =====
 	log_text = RichTextLabel.new()
-	log_text.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	
+	# CONFIGURACIÓN CRÍTICA - Establecer tamaño fijo para evitar crecimiento infinito
+	log_text.custom_minimum_size = Vector2(0, LOG_AREA_HEIGHT)  # Altura fija
+	log_text.size_flags_vertical = Control.SIZE_SHRINK_CENTER   # NO expandir (era SIZE_EXPAND_FILL)
+	log_text.size_flags_horizontal = Control.SIZE_EXPAND_FILL   # Expandir horizontalmente
+	
+	# Funcionalidad del log (mantener igual que antes)
 	log_text.bbcode_enabled = true
 	log_text.scroll_following = true
 	log_text.selection_enabled = true
-	log_text.fit_content = true
+	log_text.fit_content = false  # CRÍTICO: Cambiar a false para evitar crecimiento (era true)
+	
+	# Configuración adicional para mejor experiencia
+	log_text.context_menu_enabled = true  # Permitir copiar texto
+	log_text.threaded = true  # Mejor rendimiento con muchas líneas
+	
 	add_child(log_text)
 
+# ===== FUNCIONES DE CONFIGURACIÓN DINÂMICA =====
+func set_log_height(new_height: int):
+	"""Cambiar altura del área de log dinámicamente"""
+	var clamped_height = clamp(new_height, LOG_AREA_MIN_HEIGHT, LOG_AREA_MAX_HEIGHT)
+	log_text.custom_minimum_size.y = clamped_height
+	add_info("Altura del log cambiada a: %d píxeles" % clamped_height)
+
+func get_log_height() -> int:
+	"""Obtener altura actual del área de log"""
+	return int(log_text.custom_minimum_size.y)
+
+# ===== FUNCIONES ORIGINALES - SIN CAMBIOS =====
 func add_log(message: String, type: LogType = LogType.INFO):
 	var timestamp = Time.get_time_string_from_system()
 	
@@ -106,11 +137,27 @@ func add_log(message: String, type: LogType = LogType.INFO):
 	
 	log_entries.append(log_entry)
 	
-	# Mantener límite de entradas
-	while log_entries.size() > max_entries:
-		log_entries.pop_front()
+	# Mantener límite de entradas (con limpieza inteligente)
+	_manage_entries_limit()
 	
 	_refresh_display()
+
+func _manage_entries_limit():
+	"""Gestión inteligente del límite de entradas"""
+	# Limpieza gradual para mejor rendimiento
+	if log_entries.size() > max_entries * 1.2:  # 20% más antes de limpiar
+		# Remover las más antiguas hasta llegar al límite
+		while log_entries.size() > max_entries:
+			log_entries.pop_front()
+		
+		# Notificar limpieza automática
+		var cleanup_entry = {
+			"timestamp": Time.get_time_string_from_system(),
+			"message": "Limpieza automática - entradas antiguas removidas",
+			"type": LogType.INFO,
+			"formatted": _format_log_entry(Time.get_time_string_from_system(), "Limpieza automática - entradas antiguas removidas", LogType.INFO)
+		}
+		log_entries.append(cleanup_entry)
 
 func add_info(message: String):
 	add_log(message, LogType.INFO)
@@ -220,20 +267,31 @@ func _export_to_file(file_path: String):
 	file.store_line("=== Pixelize3D FBX Viewer - Log Export ===")
 	file.store_line("Exportado: %s" % Time.get_datetime_string_from_system())
 	file.store_line("Total entradas: %d" % log_entries.size())
+	file.store_line("Límite máximo: %d entradas" % max_entries)
+	file.store_line("Altura del panel: %d píxeles" % get_log_height())
 	file.store_line("=".repeat(50))
 	file.store_line("")
 	
-	# Escribir entradas
+	# Escribir entradas con tipo de log
 	for entry in log_entries:
 		var clean_message = entry.message.strip_edges()
-		file.store_line("[%s] %s" % [entry.timestamp, clean_message])
+		var type_str = ""
+		
+		match entry.type:
+			LogType.INFO: type_str = "INFO"
+			LogType.WARNING: type_str = "WARN"
+			LogType.ERROR: type_str = "ERROR"
+			LogType.SUCCESS: type_str = "SUCCESS"
+			LogType.DEBUG: type_str = "DEBUG"
+		
+		file.store_line("[%s] [%s] %s" % [entry.timestamp, type_str, clean_message])
 	
 	file.close()
 	
 	add_success("Log exportado a: " + file_path)
 	emit_signal("log_exported", file_path)
 
-# Funciones públicas
+# ===== FUNCIONES PÚBLICAS - MANTENIDAS + NUEVAS =====
 func get_log_entries() -> Array:
 	return log_entries.duplicate()
 
@@ -244,17 +302,21 @@ func clear_log():
 	_on_clear_pressed()
 
 func set_max_entries(max_count: int):
-	max_entries = max_count
+	max_entries = max(100, max_count)  # Mínimo 100 entradas
 	
 	# Ajustar entradas actuales si es necesario
 	while log_entries.size() > max_entries:
 		log_entries.pop_front()
 	
 	_refresh_display()
+	add_info("Límite de entradas cambiado a: %d" % max_entries)
+
+func get_max_entries() -> int:
+	return max_entries
 
 func set_filter(filter_name: String):
 	var filters = ["all", "info", "warning", "error", "success", "debug"]
-	var index = filters.find(filter_name)
+	var index = filters.find(filter_name.to_lower())
 	
 	if index >= 0:
 		filter_option.selected = index
@@ -263,6 +325,8 @@ func set_filter(filter_name: String):
 func get_log_summary() -> Dictionary:
 	var summary = {
 		"total": log_entries.size(),
+		"max_entries": max_entries,
+		"panel_height": get_log_height(),
 		"info": 0,
 		"warning": 0,
 		"error": 0,
@@ -297,3 +361,13 @@ func get_recent_errors() -> Array:
 		if entry.type == LogType.ERROR:
 			errors.append(entry.message)
 	return errors
+
+# ===== FUNCIONES DE DEBUG Y UTILIDAD =====
+func debug_panel_info():
+	"""Mostrar información del panel en el log"""
+	var info = get_log_summary()
+	add_debug("=== LOG PANEL INFO ===")
+	add_debug("Altura: %d px | Entradas: %d/%d" % [info.panel_height, info.total, info.max_entries])
+	add_debug("Errores: %d | Warnings: %d | Info: %d" % [info.error, info.warning, info.info])
+	add_debug("Filtro actual: %s | Auto-scroll: %s" % [current_filter, str(auto_scroll)])
+	add_debug("======================")
