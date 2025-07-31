@@ -34,7 +34,7 @@ func register_animation_metadata(animation_name: String, metadata: Dictionary) -
 # ✅ NUEVA FUNCIÓN: Registrar múltiples metadatos de animaciones
 func register_multiple_animations_metadata(animations_data: Dictionary) -> void:
 	for anim_name in animations_data.keys():
-		var anim_data = animations_data[anim_name]
+		var _anim_data = animations_data[anim_name]
 		pass
 #metadata = animations_metadata_cache[anim_data]
 		##if anim_data.has("file_metadata"):
@@ -279,6 +279,7 @@ func combine_base_with_multiple_animations(base_data: Dictionary, animations_dat
 						anim_lib.add_animation(anim_name, new_anim)  # Usar el nombre del archivo, no el nombre técnico
 						added_animations += 1
 						print("  ✅ Agregada animación: %s" % anim_name)
+						print("added_animations: "+ added_animations)
 
 		print("✅ Total animaciones en modelo combinado: %d" % (anim_player.get_animation_list().size()))
 

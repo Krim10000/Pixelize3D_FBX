@@ -1,8 +1,8 @@
 # scripts/core/batch_processor.gd
-extends Node
-
 # Input: Lista de unidades para procesar
 # Output: Múltiples spritesheets generados en lote
+
+extends Node
 
 signal batch_started(total_units: int)
 signal unit_started(unit_name: String, index: int)
@@ -179,6 +179,11 @@ func _render_animation(base_data: Dictionary, anim_data: Dictionary, unit: Dicti
 	if not combined_model:
 		return false
 	
+	# ✅ CRÍTICO: Verificar que el modelo es válido antes de usarlo
+	if not is_instance_valid(combined_model):
+		print("❌ Modelo combinado no es válido")
+		return false
+	
 	# Configurar renderizado
 	sprite_renderer.initialize(current_batch_config.render)
 	
@@ -188,6 +193,11 @@ func _render_animation(base_data: Dictionary, anim_data: Dictionary, unit: Dicti
 	# Renderizar cada dirección
 	for direction in range(current_batch_config.render.directions):
 		if should_cancel:
+			break
+		
+		# ✅ CRÍTICO: Verificar modelo antes de cada dirección
+		if not is_instance_valid(combined_model):
+			print("❌ Modelo se invalidó durante el renderizado")
 			break
 		
 		var angle = (360.0 / current_batch_config.render.directions) * direction
@@ -206,14 +216,19 @@ func _render_animation(base_data: Dictionary, anim_data: Dictionary, unit: Dicti
 		emit_signal("batch_progress", current_unit_index, processing_queue.size(),
 			"Renderizando %s: %s (%d/%d)" % [unit.name, anim_file, frames_rendered, total_frames])
 	
-	# Exportar spritesheet
+	# Exportar spritesheet - CORREGIDO
 	var output_path = _get_output_path(unit, anim_file)
-	export_manager.export_spritesheet(anim_file.get_basename(), output_path)
-	
+	var export_config = {
+		"output_folder": output_path,
+		"animation_mode": "current",
+		"current_animation": anim_file.get_basename()
+	}
+	export_manager.export_sprite_sheets(export_config)
 	await export_manager.export_complete
 	
-	# Limpiar modelo combinado
-	combined_model.queue_free()
+	# ✅ CRÍTICO: Limpiar modelo combinado SEGURO
+	if is_instance_valid(combined_model):
+		combined_model.queue_free()
 	
 	return frames_rendered == total_frames
 

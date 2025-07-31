@@ -17,7 +17,8 @@ signal preview_ready()
 @onready var camera = $ViewportContainer/SubViewport/Camera3D
 @onready var camera_controller = $ViewportContainer/SubViewport/CameraController
 @onready var model_container = $ViewportContainer/SubViewport/ModelContainer
-@onready var directional_light = $ViewportContainer/SubViewport/DirectionalLight3D
+#@onready var directional_light = $ViewportContainer/SubViewport/DirectionalLight3D
+@onready var directional_light = find_child("DirectionalLight3D", true, false)
 @onready var model_rotator = find_child("ModelRotator")
 
 # UI elements
@@ -353,8 +354,8 @@ func reset_camera():
 	elif current_bounds != AABB():
 		# Posición por defecto manual
 		var center = current_bounds.get_center()
-		var size = current_bounds.get_longest_axis_size()
-		camera.position = center + Vector3(size, size, size)
+		var camera_size = current_bounds.get_longest_axis_size()
+		camera.position = center + Vector3(camera_size, camera_size, camera_size)
 		camera.look_at(center, Vector3.UP)
 
 # === DEBUG ===
@@ -363,8 +364,11 @@ func debug_state():
 	"""Debug del estado actual"""
 	print("\n🎬 === MODEL PREVIEW DEBUG ===")
 	print("Preview activo: %s" % preview_active)
-	print("Modelo: %s" % (current_model.name if current_model else "NULL"))
-	print("AnimationPlayer: %s" % (animation_player.name if animation_player else "NULL"))
+#	print("Modelo: %s" % (current_model.name if current_model else "NULL"))
+# Error original
+	print("Modelo: %s" % (str(current_model.name) if current_model else "NULL"))
+	#print("AnimationPlayer: %s" % (animation_player.name if animation_player else "NULL"))
+	print("AnimationPlayer: %s" % (str(animation_player.name) if animation_player else "NULL"))
 	if animation_player:
 		print("  Animaciones: %s" % str(animation_player.get_animation_list()))
 		print("  Reproduciendo: %s" % is_animation_playing)

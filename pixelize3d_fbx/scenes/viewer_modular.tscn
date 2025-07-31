@@ -91,12 +91,11 @@ layout_mode = 2
 [node name="ViewportContainer" type="SubViewportContainer" parent="HSplitContainer/RightPanel/ModelPreviewPanel"]
 custom_minimum_size = Vector2(256, 256)
 layout_mode = 2
-stretch = true
 mouse_target = true
 
 [node name="SubViewport" type="SubViewport" parent="HSplitContainer/RightPanel/ModelPreviewPanel/ViewportContainer"]
 handle_input_locally = false
-size = Vector2i(868, 256)
+size = Vector2i(256, 256)
 render_target_update_mode = 4
 
 [node name="Camera3D" type="Camera3D" parent="HSplitContainer/RightPanel/ModelPreviewPanel/ViewportContainer/SubViewport"]

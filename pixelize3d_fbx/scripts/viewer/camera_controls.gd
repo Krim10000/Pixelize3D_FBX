@@ -1,5 +1,5 @@
 # pixelize3d_fbx/scripts/viewer/camera_controls.gd
-# Controles de cámara - VERSIÓN CORREGIDA SIN ERRORES
+# Controles de cámara - VERSIÓN CORREGIDA SIN ERRORES DE OPERADOR TERNARIO
 # Input: Eventos de teclado y mouse del usuario
 # Output: Movimiento de cámara y rotación del modelo
 
@@ -151,7 +151,11 @@ func reset_model():
 func set_model(model: Node3D):
 	current_model = model
 	reset_model()
-	print("🎭 Modelo cambiado: %s" % (model.name if model else "NULL"))
+	# ✅ CORREGIDO: Evitar operador ternario problemático
+	var model_name = "NULL"
+	if model:
+		model_name = model.name
+	print("🎭 Modelo cambiado: %s" % model_name)
 
 func enable_controls():
 	controls_enabled = true

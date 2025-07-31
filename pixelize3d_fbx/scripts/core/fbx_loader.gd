@@ -158,7 +158,8 @@ func _analyze_fbx_simple(root: Node3D, type: String, anim_name: String, original
 	
 	var data = {
 		"type": type,
-		"name": final_name if final_name != "" else root.name,
+	   #"name": final_name if final_name != "" else root.name,
+		"name": StringName(final_name) if final_name != "" else root.name,
 		"skeleton": null,
 		"meshes": [],
 		"animations": [],
@@ -232,9 +233,9 @@ func _rename_first_animation_only(anim_player: AnimationPlayer, target_name: Str
 	else:
 		print("❌ No se pudo renombrar: animación=%s, nombre_válido=%s" % [animation != null, _is_valid_name(target_name)])
 
-func _is_valid_name(name: String) -> bool:
+func _is_valid_name(name_file: String) -> bool:
 	"""Validación simple de nombre"""
-	return name.strip_edges() != "" and not name.contains(":") and not name.contains("/")
+	return name_file.strip_edges() != "" and not name_file.contains(":") and not name_file.contains("/")
 
 func _generate_display_name(basename: String) -> String:
 	"""Generar nombre de display simple"""
