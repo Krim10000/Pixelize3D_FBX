@@ -1,5 +1,5 @@
 # scripts/viewer/viewer_coordinator.gd
-# VERSIÓN CORREGIDA - Conecta todas las señales huérfanas
+# VERSIÓN CORREGIDA - Sin funciones duplicadas
 # Input: Señales de UI
 # Output: Coordinación completa sin señales perdidas
 
@@ -28,14 +28,24 @@ var is_processing_animations: bool = false
 var last_animations_processed: Array = []
 var processing_start_time: float = 0.0
 
-# ✅ NUEVA: Variable para rastrear cambios de animación
+# Variables para rastrear cambios de animación
 var is_changing_animation: bool = false
+
+# Variables para extensiones de renderizado y exportación
+var export_manager: Node
+var export_dialog: Control
+var camera_controls: Node
+var rendering_in_progress: bool = false
+var current_render_settings: Dictionary = {}
+
+# Variable para rastrear animaciones pendientes de combinación
+var pending_animations_for_combination: Array = []
 
 func _ready():
 	print("🎮 ViewerCoordinator CORREGIDO iniciado")
 	await get_tree().process_frame
 	_validate_and_connect()
-	
+	_initialize_extensions()
 	
 func _validate_and_connect():
 	"""Validar y conectar de forma segura"""
@@ -56,12 +66,10 @@ func _validate_and_connect():
 		return
 	
 	print("✅ Componentes validados")
-	
-	# Conectar TODAS las señales
 	_connect_all_signals()
 
 func _connect_all_signals():
-	"""✅ CORREGIDO: Conectar TODAS las señales incluyendo las huérfanas"""
+	"""Conectar TODAS las señales incluyendo las huérfanas"""
 	print("🔗 Conectando TODAS las señales...")
 	
 	# FileLoaderPanel
@@ -71,7 +79,7 @@ func _connect_all_signals():
 		file_loader_panel.animations_selected.connect(_on_animations_selected_protected)
 		print("✅ FileLoaderPanel conectado")
 	
-	# ✅ NUEVO: AnimationControlsPanel - CONECTAR SEÑAL HUÉRFANA
+	# AnimationControlsPanel - CONECTAR SEÑAL HUÉRFANA
 	if animation_controls_panel:
 		animation_controls_panel.animation_selected.connect(_on_animation_selected_ui)
 		animation_controls_panel.animation_change_requested.connect(_on_animation_change_requested)
@@ -80,7 +88,7 @@ func _connect_all_signals():
 		animation_controls_panel.stop_requested.connect(_on_stop_requested)
 		print("✅ AnimationControlsPanel COMPLETAMENTE conectado")
 	
-	# ✅ NUEVO: ActionsPanel - CONECTAR SEÑALES HUÉRFANAS
+	# ActionsPanel - CONECTAR SEÑALES HUÉRFANAS
 	if actions_panel:
 		actions_panel.preview_requested.connect(_on_preview_requested)
 		actions_panel.render_requested.connect(_on_render_requested)
@@ -102,104 +110,10 @@ func _connect_all_signals():
 	
 	print("🔗 TODAS las conexiones completadas")
 
-# === MANEJADORES DE ANIMACIONES CORREGIDOS ===
-
-#func _on_animation_change_requested(animation_name: String):
-	#"""✅ NUEVO: Manejar cambio de animación solicitado desde UI"""
-	#print("\n🔄 === CAMBIO DE ANIMACIÓN SOLICITADO ===")
-	#print("Animación solicitada: %s" % animation_name)
-	#
-	## Prevenir cambios simultáneos
-	#if is_changing_animation:
-		#print("⚠️ Ya hay un cambio en progreso")
-		#return
-	#
-	#is_changing_animation = true
-	#log_panel.add_log("🔄 Cambiando a: " + animation_name)
-	#
-	## Verificar si tenemos el modelo combinado
-	#if not current_combined_model:
-		#print("❌ No hay modelo combinado")
-		#_finish_animation_change(false, animation_name)
-		#return
-	#
-	## Buscar el AnimationPlayer en el modelo actual
-	#var anim_player = _find_animation_player(current_combined_model)
-	#if not anim_player:
-		#print("❌ No se encontró AnimationPlayer")
-		#_finish_animation_change(false, animation_name)
-		#return
-	#
-	## Verificar que la animación existe
-	#if not anim_player.has_animation(animation_name):
-		#print("❌ La animación '%s' no existe" % animation_name)
-		#
-		## Intentar con el nombre limpio (sin extensión)
-		#var clean_name = animation_name.get_basename()
-		#if anim_player.has_animation(clean_name):
-			#animation_name = clean_name
-			#print("✅ Usando nombre limpio: %s" % clean_name)
-		#else:
-			## Buscar en la lista de animaciones
-			#var found = false
-			#for anim in anim_player.get_animation_list():
-				#if animation_name in anim or anim in animation_name:
-					#animation_name = anim
-					#found = true
-					#print("✅ Animación encontrada como: %s" % anim)
-					#break
-			#
-			#if not found:
-				#print("❌ No se pudo encontrar la animación")
-				#_finish_animation_change(false, animation_name)
-				#return
-	#
-	## Cambiar la animación directamente
-	#print("▶️ Cambiando animación a: %s" % animation_name)
-	#
-	## Detener animación actual si está reproduciendo
-	#if anim_player.is_playing():
-		#anim_player.stop()
-	#
-	## Configurar loop para la nueva animación
-	#var anim_lib = anim_player.get_animation_library("")
-	#if anim_lib and anim_lib.has_animation(animation_name):
-		#var animation = anim_lib.get_animation(animation_name)
-		#animation.loop_mode = Animation.LOOP_LINEAR
-		#print("🔄 Loop configurado para: %s" % animation_name)
-	#
-	## Reproducir nueva animación
-	#anim_player.play(animation_name)
-	#
-	## Notificar al panel de controles que el cambio se completó
-	#if animation_controls_panel and animation_controls_panel.has_method("on_model_recombined"):
-		## Simular que se recombinó el modelo (aunque solo cambiamos la animación)
-		#animation_controls_panel.on_model_recombined(current_combined_model, animation_name)
-	#
-	## Actualizar preview si está activo
-	#if model_preview_panel and model_preview_panel.has_method("play_animation"):
-		#model_preview_panel.play_animation(animation_name)
-	#
-	#log_panel.add_log("✅ Animación cambiada: " + animation_name)
-	#_finish_animation_change(true, animation_name)
-	#
-	#print("=== FIN CAMBIO DE ANIMACIÓN ===\n")
-
-func _finish_animation_change(success: bool, animation_name: String):
-	"""Finalizar proceso de cambio de animación"""
-	is_changing_animation = false
-	
-	if not success:
-		log_panel.add_log("❌ Error al cambiar animación: " + animation_name)
-		
-		# Notificar error al panel
-		if animation_controls_panel and animation_controls_panel.has_method("_reset_ui_on_error"):
-			animation_controls_panel._reset_ui_on_error("No se pudo cambiar la animación")
-
-# === MANEJADORES DE ACCIONES ===
+# === MANEJADORES DE ACCIONES (VERSIONES ÚNICAS) ===
 
 func _on_preview_requested():
-	"""✅ NUEVO: Manejar solicitud de preview"""
+	"""Manejar solicitud de preview"""
 	print("🎬 Preview solicitado")
 	log_panel.add_log("🎬 Activando preview...")
 	
@@ -214,41 +128,68 @@ func _on_preview_requested():
 		log_panel.add_log("✅ Preview activo")
 
 func _on_render_requested():
-	"""✅ NUEVO: Manejar solicitud de renderizado"""
-	print("🎨 Renderizado solicitado")
-	log_panel.add_log("🎨 Iniciando renderizado...")
+	"""Manejar solicitud de renderizado - VERSIÓN MEJORADA"""
+	print("🎨 Renderizado solicitado - VERSIÓN MEJORADA")
+	log_panel.add_log("🎨 Iniciando renderizado completo...")
 	
 	if not current_combined_model:
 		log_panel.add_log("❌ No hay modelo para renderizar")
-		actions_panel.show_error("No hay modelo cargado")
+		if actions_panel:
+			actions_panel.show_error("No hay modelo cargado")
 		return
 	
-	# Delegar al sprite_renderer
-	if sprite_renderer and sprite_renderer.has_method("render_current_animation"):
+	if rendering_in_progress:
+		log_panel.add_log("⚠️ Ya hay un renderizado en progreso")
+		return
+	
+	# Obtener configuración actual
+	current_render_settings = _get_current_render_settings()
+	
+	# Preparar para renderizado
+	rendering_in_progress = true
+	if actions_panel:
 		actions_panel.start_processing("Renderizando sprites...")
+	
+	# Limpiar frames anteriores
+	if export_manager:
+		export_manager.clear_frames()
+	
+	# Configurar sprite renderer
+	if sprite_renderer:
+		if sprite_renderer.has_method("setup_model"):
+			sprite_renderer.setup_model(current_combined_model)
 		
-		# Obtener configuración de settings_panel si existe
-		var settings = {}
-		if settings_panel and settings_panel.has_method("get_current_settings"):
-			settings = settings_panel.get_current_settings()
-		
-		sprite_renderer.setup_model(current_combined_model)
-		sprite_renderer.render_current_animation(settings)
+		# Iniciar renderizado de la animación actual
+		var current_anim = _get_current_animation_name()
+		if current_anim:
+			_start_animation_rendering(current_anim)
+		else:
+			log_panel.add_log("❌ No hay animación seleccionada")
+			rendering_in_progress = false
 	else:
 		log_panel.add_log("❌ SpriteRenderer no disponible")
+		rendering_in_progress = false
 
 func _on_export_requested():
-	"""✅ NUEVO: Manejar solicitud de exportación"""
-	print("💾 Exportación solicitada")
-	log_panel.add_log("💾 Preparando exportación...")
+	"""Manejar solicitud de exportación - VERSIÓN MEJORADA"""
+	print("💾 Exportación solicitada - VERSIÓN MEJORADA")
+	log_panel.add_log("💾 Abriendo diálogo de exportación...")
 	
-	# Aquí iría la lógica de exportación
-	# Por ahora solo mostramos mensaje
-	actions_panel.show_info("Función de exportación en desarrollo")
-	log_panel.add_log("ℹ️ Exportación no implementada aún")
+	if not current_combined_model:
+		if actions_panel:
+			actions_panel.show_error("No hay modelo cargado")
+		return
+	
+	# Configurar diálogo con datos actuales
+	if export_dialog:
+		var available_animations = _get_available_animation_names()
+		export_dialog.setup_dialog(sprite_renderer, export_manager, available_animations)
+		export_dialog.popup_centered()
+	else:
+		log_panel.add_log("❌ Diálogo de exportación no disponible")
 
 func _on_settings_requested():
-	"""✅ NUEVO: Manejar solicitud de configuración"""
+	"""Manejar solicitud de configuración"""
 	print("⚙️ Configuración solicitada")
 	
 	# Mostrar/ocultar panel de configuración
@@ -261,7 +202,6 @@ func _on_settings_requested():
 func _on_animation_selected_ui(animation_name: String):
 	"""Manejar selección de animación desde UI (información)"""
 	print("📍 Animación seleccionada en UI: %s" % animation_name)
-	# Esta señal es solo informativa, el cambio real viene con animation_change_requested
 
 func _on_play_requested(animation_name: String):
 	"""Manejar solicitud de reproducción"""
@@ -284,19 +224,115 @@ func _on_stop_requested():
 	if model_preview_panel and model_preview_panel.has_method("stop_animation"):
 		model_preview_panel.stop_animation()
 
-# === FUNCIONES AUXILIARES ===
+# === MANEJADORES DE ANIMACIONES ===
 
-func _find_animation_player(node: Node) -> AnimationPlayer:
-	"""Buscar AnimationPlayer recursivamente"""
-	if node is AnimationPlayer:
-		return node
+func _on_animation_change_requested(animation_name: String):
+	"""Manejar cambio con búsqueda más inteligente"""
+	print("\n🔄 === CAMBIO DE ANIMACIÓN SOLICITADO ===")
+	print("Animación solicitada: %s" % animation_name)
 	
-	for child in node.get_children():
-		var result = _find_animation_player(child)
-		if result:
-			return result
+	if is_changing_animation:
+		print("⚠️ Ya hay un cambio en progreso")
+		return
 	
-	return null
+	is_changing_animation = true
+	log_panel.add_log("🔄 Cambiando a: " + animation_name)
+	
+	if not current_combined_model:
+		print("❌ No hay modelo combinado")
+		_finish_animation_change(false, animation_name)
+		return
+	
+	var anim_player = _find_animation_player(current_combined_model)
+	if not anim_player:
+		print("❌ No se encontró AnimationPlayer")
+		_finish_animation_change(false, animation_name)
+		return
+	
+	# Búsqueda más inteligente de animaciones
+	var found_animation = ""
+	var clean_name = animation_name.get_basename()  # Quitar .fbx
+	
+	print("🔍 Buscando animación: '%s' (limpio: '%s')" % [animation_name, clean_name])
+	print("📋 Animaciones disponibles: %s" % str(anim_player.get_animation_list()))
+	
+	# Buscar coincidencia exacta primero
+	if anim_player.has_animation(animation_name):
+		found_animation = animation_name
+	elif anim_player.has_animation(clean_name):
+		found_animation = clean_name
+	else:
+		# Buscar en loaded_animations para obtener el nombre correcto
+		for loaded_name in loaded_animations.keys():
+			if loaded_name == clean_name or loaded_name == animation_name:
+				# Este es el archivo que queremos, buscar su animación
+				if anim_player.has_animation(loaded_name):
+					found_animation = loaded_name
+					break
+				# También probar con el nombre del archivo sin extensión
+				var file_base = loaded_name.get_basename()
+				if anim_player.has_animation(file_base):
+					found_animation = file_base
+					break
+		
+		# Si aún no encontramos, buscar parcialmente
+		if found_animation == "":
+			# Quitar caracteres problemáticos para comparación
+			var search_name = clean_name.replace("(", "").replace(")", "").strip_edges()
+			
+			for anim in anim_player.get_animation_list():
+				var anim_clean = anim.replace("(", "").replace(")", "").strip_edges()
+				
+				# Comparación flexible
+				if search_name in anim_clean or anim_clean in search_name:
+					found_animation = anim
+					print("   ✅ Encontrada por búsqueda parcial: '%s'" % anim)
+					break
+	
+	if found_animation == "":
+		print("❌ No se encontró la animación '%s'" % animation_name)
+		print("   Disponibles: %s" % str(anim_player.get_animation_list()))
+		_finish_animation_change(false, animation_name)
+		return
+	
+	print("✅ Animación encontrada: '%s'" % found_animation)
+	
+	# Cambiar la animación
+	if anim_player.is_playing():
+		anim_player.stop()
+	
+	# Configurar loop
+	var anim_lib = anim_player.get_animation_library("")
+	if anim_lib and anim_lib.has_animation(found_animation):
+		var animation = anim_lib.get_animation(found_animation)
+		animation.loop_mode = Animation.LOOP_LINEAR
+	
+	# Reproducir
+	anim_player.play(found_animation)
+	
+	# Notificar al panel
+	if animation_controls_panel and animation_controls_panel.has_method("on_model_recombined"):
+		animation_controls_panel.on_model_recombined(current_combined_model, found_animation)
+	
+	# Actualizar preview
+	if model_preview_panel and model_preview_panel.has_method("play_animation"):
+		model_preview_panel.play_animation(found_animation)
+	
+	log_panel.add_log("✅ Animación cambiada: " + found_animation)
+	_finish_animation_change(true, found_animation)
+	
+	print("=== FIN CAMBIO DE ANIMACIÓN ===\n")
+
+func _finish_animation_change(success: bool, animation_name: String):
+	"""Finalizar proceso de cambio de animación"""
+	is_changing_animation = false
+	
+	if not success:
+		log_panel.add_log("❌ Error al cambiar animación: " + animation_name)
+		
+		# Notificar error al panel
+		if animation_controls_panel and animation_controls_panel.has_method("_reset_ui_on_error"):
+			animation_controls_panel._reset_ui_on_error("No se pudo cambiar la animación")
 
 # === MANEJADORES EXISTENTES (sin cambios) ===
 
@@ -362,7 +398,11 @@ func _on_animations_selected_protected(animation_files: Array):
 	print("🔒 PROCESANDO ANIMACIONES - BLOQUEADO por 10 segundos")
 	log_panel.add_log("🎬 Cargando %d animaciones..." % animation_files.size())
 
-	# Cargar una por una
+	# Limpiar animaciones cargadas para recargar todas
+	loaded_animations.clear()
+	pending_animations_for_combination = animation_files.duplicate()
+
+	# Cargar TODAS las animaciones
 	for i in range(animation_files.size()):
 		var anim_file = animation_files[i]
 		var full_path = unit_data.path + "/" + anim_file
@@ -373,27 +413,63 @@ func _on_animations_selected_protected(animation_files: Array):
 		fbx_loader.load_animation_fbx(full_path)
 
 		if i < animation_files.size() - 1:
-			await get_tree().create_timer(1.0).timeout
+			await get_tree().create_timer(0.5).timeout
 
-	# Fin de carga
-	await get_tree().create_timer(2.0).timeout
+	# Esperar y luego combinar TODO
+	await get_tree().create_timer(1.0).timeout
+	
+	# Combinar todas las animaciones
+	if loaded_base_data and loaded_animations.size() > 0:
+		_combine_all_animations()
+	
 	is_processing_animations = false
-	print("🔓 PROCESAMIENTO DE ANIMACIONES DESBLOQUEADO")
-
-	# Actualizar paneles
-	#animation_controls_panel.update_animations_list(animation_files)
-
+	print("🔓 PROCESAMIENTO DESBLOQUEADO")
+	
+	# Fin de carga
 	var last_animation_path = animation_files[-1]
 	var last_animation_name = last_animation_path.get_file().get_basename()
-
-	#animation_controls_panel.select_animation_by_name(last_animation_name)
-	#model_preview_panel.play_animation(last_animation_name)
-	if loaded_base_data and loaded_animations.size() > 0:
-		print("LLAMANDO A _combine_all_animations ")
-
-		_combine_all_animations()  # <-- ESTA ES LA LÍNEA CRÍTICA
 	print("✅ Animación aplicada: " + last_animation_name)
 	print("=== FIN ANIMATIONS SELECTED ===\n")
+
+func _combine_all_animations():
+	"""Combinar TODAS las animaciones en un solo modelo"""
+	print("\n🔄 === COMBINANDO TODAS LAS ANIMACIONES ===")
+	print("Base disponible: %s" % loaded_base_data.get("name", "Unknown"))
+	print("Animaciones disponibles: %d" % loaded_animations.size())
+	
+	# Usar la primera animación como base para la combinación
+	var first_anim_name = loaded_animations.keys()[-1]
+	var first_anim_data = loaded_animations[first_anim_name]
+	
+	print("🔄 Combinando base con primera animación: %s" % first_anim_name)
+	
+	# Combinar base + primera animación
+	var combined = animation_manager.combine_base_with_animation(loaded_base_data, first_anim_data)
+
+	if not combined:
+		print("❌ Error en combinación inicial")
+		return
+	
+	# Guardar el modelo combinado
+	current_combined_model = combined
+	
+	# Actualizar UI
+	_on_combination_complete_safe(combined)
+	
+	# Actualizar lista de animaciones en el panel
+	if animation_controls_panel:
+		# Crear lista de nombres de archivo para el panel
+		var file_names = []
+		for anim_name in loaded_animations.keys():
+			file_names.append(anim_name + ".fbx")
+		
+		animation_controls_panel.update_animations_list(file_names)
+		
+		# Seleccionar la primera
+		if file_names.size() > 0:
+			animation_controls_panel.select_animation_by_name(first_anim_name)
+	
+	print("=== FIN COMBINACIÓN MÚLTIPLE ===\n")
 
 func _on_model_loaded(model_data: Dictionary):
 	"""Manejar modelo cargado"""
@@ -488,6 +564,20 @@ func _on_combination_failed(error: String):
 	print("❌ Error combinación: %s" % error)
 	log_panel.add_log("❌ Error combinación: " + error)
 
+# === FUNCIONES AUXILIARES ===
+
+func _find_animation_player(node: Node) -> AnimationPlayer:
+	"""Buscar AnimationPlayer recursivamente"""
+	if node is AnimationPlayer:
+		return node
+	
+	for child in node.get_children():
+		var result = _find_animation_player(child)
+		if result:
+			return result
+	
+	return null
+
 func _arrays_equal(a: Array, b: Array) -> bool:
 	"""Comparar arrays"""
 	if a.size() != b.size():
@@ -496,6 +586,301 @@ func _arrays_equal(a: Array, b: Array) -> bool:
 		if a[i] != b[i]:
 			return false
 	return true
+
+# === INICIALIZACIÓN DE EXTENSIONES ===
+
+func _initialize_extensions():
+	"""Inicializar extensiones de renderizado y exportación"""
+	print("🔧 Inicializando extensiones...")
+	
+	# Crear ExportManager si no existe
+	_setup_export_manager()
+	
+	# Crear controles de cámara
+	_setup_camera_controls()
+	
+	# Crear diálogo de exportación
+#	_setup_export_dialog()
+	
+	# Conectar señales adicionales
+	_connect_extension_signals()
+	
+	print("✅ Extensiones inicializadas")
+
+func _setup_export_manager():
+	"""Configurar Export Manager"""
+	export_manager = get_node_or_null("ExportManager")
+	
+	if not export_manager:
+		# Crear ExportManager usando script si existe
+		var export_script = load("res://scripts/export/export_manager.gd")
+		if export_script:
+			export_manager = export_script.new()
+			export_manager.name = "ExportManager"
+			add_child(export_manager)
+			print("✅ ExportManager creado")
+		else:
+			print("⚠️ Script ExportManager no encontrado")
+	else:
+		print("✅ ExportManager encontrado")
+
+func _setup_camera_controls():
+	"""Configurar controles de cámara"""
+	var camera_script = load("res://scripts/viewer/camera_controls.gd")
+	if camera_script:
+		camera_controls = camera_script.new()
+		camera_controls.name = "CameraControls"
+		add_child(camera_controls)
+		
+		# Conectar con sprite_renderer si existe
+		if sprite_renderer:
+			var camera_controller = sprite_renderer.get_node_or_null("CameraController")
+			if camera_controller:
+				camera_controls.setup_references(camera_controller, null, self)
+		
+		print("✅ Controles de cámara configurados")
+	else:
+		print("⚠️ Script CameraControls no encontrado")
+
+func _setup_export_dialog():
+	"""Configurar diálogo de exportación"""
+	var dialog_script = load("res://scripts/ui/export_dialog.gd")
+	if dialog_script:
+		# Crear instancia y verificar el tipo
+		var dialog_instance = dialog_script.new()
+		if dialog_instance is Control:
+			export_dialog = dialog_instance
+			export_dialog.name = "ExportDialog"
+			add_child(export_dialog)
+			print("✅ Diálogo de exportación creado")
+		else:
+			print("❌ El script ExportDialog no hereda de Control")
+			dialog_instance.queue_free()
+	else:
+		print("⚠️ Script ExportDialog no encontrado")
+
+func _connect_extension_signals():
+	"""Conectar señales de las extensiones"""
+	
+	# ExportManager
+	if export_manager:
+		if export_manager.has_signal("export_complete"):
+			export_manager.export_complete.connect(_on_export_complete)
+		if export_manager.has_signal("export_failed"):
+			export_manager.export_failed.connect(_on_export_failed)
+		if export_manager.has_signal("export_progress"):
+			export_manager.export_progress.connect(_on_export_progress)
+	
+	# ExportDialog
+	if export_dialog:
+		if export_dialog.has_signal("export_started"):
+			export_dialog.export_started.connect(_on_export_dialog_started)
+		if export_dialog.has_signal("export_cancelled"):
+			export_dialog.export_cancelled.connect(_on_export_dialog_cancelled)
+	
+	# SpriteRenderer
+	if sprite_renderer:
+		if sprite_renderer.has_signal("frame_rendered"):
+			sprite_renderer.frame_rendered.connect(_on_frame_rendered)
+		if sprite_renderer.has_signal("animation_complete"):
+			sprite_renderer.animation_complete.connect(_on_animation_render_complete)
+		if sprite_renderer.has_signal("rendering_progress"):
+			sprite_renderer.rendering_progress.connect(_on_rendering_progress)
+	
+	# Controles de cámara
+	if camera_controls:
+		if camera_controls.has_signal("camera_moved"):
+			camera_controls.camera_moved.connect(_on_camera_moved)
+		if camera_controls.has_signal("model_rotated"):
+			camera_controls.model_rotated.connect(_on_model_rotated)
+	
+	print("🔗 Señales de extensiones conectadas")
+
+# === FUNCIONES DE SOPORTE PARA RENDERIZADO ===
+
+func _get_current_render_settings() -> Dictionary:
+	"""Obtener configuración actual de renderizado"""
+	var settings = {
+		"directions": 16,
+		"sprite_size": 256,
+		"fps": 12,
+		"camera_angle": 45.0,
+		"camera_height": 12.0,
+		"north_offset": 0.0,
+		"pixelize": true
+	}
+	
+	# Obtener de settings_panel si existe
+	if settings_panel and settings_panel.has_method("get_current_settings"):
+		var panel_settings = settings_panel.get_current_settings()
+		for key in panel_settings:
+			settings[key] = panel_settings[key]
+	
+	return settings
+
+func _get_current_animation_name() -> String:
+	"""Obtener nombre de la animación actual"""
+	if animation_controls_panel and animation_controls_panel.has_method("get_selected_animation"):
+		return animation_controls_panel.get_selected_animation()
+	
+	# Fallback: usar la primera animación disponible
+	if current_combined_model:
+		var anim_player = _find_animation_player(current_combined_model)
+		if anim_player and anim_player.get_animation_list().size() > 0:
+			return anim_player.get_animation_list()[0]
+	
+	return ""
+
+func _get_available_animation_names() -> Array:
+	"""Obtener lista de animaciones disponibles"""
+	var animations = []
+	
+	if current_combined_model:
+		var anim_player = _find_animation_player(current_combined_model)
+		if anim_player:
+			animations = anim_player.get_animation_list()
+	
+	return animations
+
+func _start_animation_rendering(animation_name: String):
+	"""Iniciar renderizado de una animación específica"""
+	print("🚀 Iniciando renderizado de: %s" % animation_name)
+	
+	if not sprite_renderer or not sprite_renderer.has_method("render_animation"):
+		log_panel.add_log("❌ Función de renderizado no disponible")
+		rendering_in_progress = false
+		return
+	
+	# Configurar modelo en sprite renderer##Invalid call. Nonexistent function 'setup_model' in base 'Node3D (sprite_renderer.gd)'.
+	sprite_renderer.setup_preview(current_combined_model, current_render_settings)
+	
+	# Obtener configuración de renderizado
+	var directions = current_render_settings.get("directions", 16)
+	var total_directions = directions
+	
+	log_panel.add_log("🎬 Renderizando %d direcciones..." % total_directions)
+	
+	# Iniciar renderizado para cada dirección
+	_render_all_directions(animation_name, total_directions)
+
+func _render_all_directions(animation_name: String, total_directions: int):
+	"""Renderizar todas las direcciones de una animación"""
+	print("🔄 Renderizando todas las direcciones...")
+	
+	for direction in range(total_directions):
+		var angle = direction * (360.0 / total_directions)
+		
+		# Aplicar north offset si existe
+		var north_offset = current_render_settings.get("north_offset", 0.0)
+		angle += north_offset
+		
+		print("  📐 Dirección %d: %.1f°" % [direction, angle])
+		
+		# Renderizar esta dirección
+		if sprite_renderer.has_method("render_animation"):
+			sprite_renderer.render_animation(current_combined_model, animation_name, angle, direction)
+		
+		# Pequeña pausa entre direcciones
+		await get_tree().create_timer(0.1).timeout
+
+# === MANEJADORES DE SEÑALES DE RENDERIZADO ===
+
+func _on_frame_rendered(frame_data: Dictionary):
+	"""Manejar frame renderizado"""
+	# Añadir frame al export manager
+	if export_manager:
+		export_manager.add_frame(frame_data)
+	
+	# Actualizar progreso si es necesario
+	print("📸 Frame renderizado: %s dir:%d frame:%d" % [
+		frame_data.get("animation", ""),
+		frame_data.get("direction", 0),
+		frame_data.get("frame", 0)
+	])
+
+func _on_animation_render_complete(animation_name: String):
+	"""Manejar completación de renderizado de animación"""
+	rendering_in_progress = false
+	
+	print("✅ Renderizado completado: %s" % animation_name)
+	log_panel.add_log("✅ Renderizado de '%s' completado" % animation_name)
+	
+	if actions_panel:
+		actions_panel.complete_processing("Renderizado completado")
+
+func _on_rendering_progress(current: int, total: int):
+	"""Actualizar progreso de renderizado"""
+	if actions_panel:
+		# Calcular el porcentaje de progreso (valor entre 0.0 y 1.0)
+		var progress_value = float(current) / float(total) if total > 0 else 0.0
+		
+		# Crear mensaje descriptivo
+		var message = "Renderizando: %d/%d" % [current, total]
+		
+		# Llamar a la función con los parámetros correctos
+		actions_panel.update_progress(progress_value, message)
+#func update_progress(value: float, message: String = ""):
+
+# === MANEJADORES DE EXPORTACIÓN ===
+
+func _on_export_dialog_started(config: Dictionary):
+	"""Manejar inicio de exportación desde diálogo"""
+	print("🚀 Exportación iniciada con configuración:")
+	print(config)
+	
+	# Añadir animación actual si es necesario
+	if config.get("animation_mode") == "current":
+		config["current_animation"] = _get_current_animation_name()
+	
+	# Iniciar exportación
+	if export_manager:
+		export_manager.export_sprite_sheets(config)
+	else:
+		log_panel.add_log("❌ ExportManager no disponible")
+
+func _on_export_dialog_cancelled():
+	"""Manejar cancelación de exportación"""
+	log_panel.add_log("❌ Exportación cancelada por usuario")
+
+func _on_export_progress(current: int, total: int, message: String):
+	"""Actualizar progreso de exportación"""
+	if export_dialog:
+		export_dialog.update_progress(current, total, message)
+
+func _on_export_complete(output_folder: String):
+	"""Manejar completación exitosa de exportación"""
+	print("✅ Exportación completada en: %s" % output_folder)
+	
+	if export_dialog:
+		export_dialog.export_completed(true, "Exportación completada exitosamente")
+	
+	log_panel.add_log("✅ Sprites exportados a: %s" % output_folder)
+
+func _on_export_failed(error: String):
+	"""Manejar fallo en exportación"""
+	print("❌ Exportación falló: %s" % error)
+	
+	if export_dialog:
+		export_dialog.export_completed(false, error)
+	
+	log_panel.add_log("❌ Error en exportación: %s" % error)
+
+# === MANEJADORES DE CONTROLES DE CÁMARA ===
+
+func _on_camera_moved(new_position: Vector3):
+	"""Manejar movimiento de cámara"""
+	# Actualizar preview si es necesario
+	pass
+
+func _on_model_rotated(new_rotation: Vector3):
+	"""Manejar rotación de modelo"""
+	# Actualizar modelo actual
+	if current_combined_model:
+		current_combined_model.rotation_degrees = new_rotation
+	
+	# Actualizar controles de cámara con referencia al modelo
+	if camera_controls:
+		camera_controls.set_model(current_combined_model)
 
 # === FUNCIONES PÚBLICAS ===
 
@@ -529,10 +914,6 @@ func combine_and_view():
 		
 		_safe_populate_animation_controls()
 		
-		#if actions_panel:
-			#actions_panel.enable_preview_button()
-			#actions_panel.enable_render_button()
-		
 		log_panel.add_log("🎮 ¡Listo! Usa los controles")
 		return true
 	else:
@@ -546,334 +927,24 @@ func get_current_state() -> Dictionary:
 		"animations_count": loaded_animations.size(),
 		"combined_ready": current_combined_model != null,
 		"processing": is_processing_animations,
-		"changing_animation": is_changing_animation
+		"changing_animation": is_changing_animation,
+		"rendering_in_progress": rendering_in_progress,
+		"export_manager_available": export_manager != null,
+		"camera_controls_available": camera_controls != null,
+		"current_render_settings": current_render_settings
 	}
 
-func debug_state():
-	"""Debug detallado del estado"""
-	print("\n🎮 === COORDINATOR DEBUG ===")
-	var state = get_current_state()
-	print("📊 ESTADO:")
-	print("  Base cargada: %s" % state.base_loaded)
-	print("  Animaciones: %d" % state.animations_count)
-	print("  Modelo combinado: %s" % state.combined_ready)
-	print("  Procesando: %s" % state.processing)
-	print("  Cambiando animación: %s" % state.changing_animation)
-	
-	if animation_controls_panel:
-		print("\n🎮 ANIMATION CONTROLS:")
-		if animation_controls_panel.has_method("debug_state"):
-			animation_controls_panel.debug_state()
-	
-	print("===========================\n")
+func get_system_status() -> Dictionary:
+	"""Obtener estado completo del sistema"""
+	return get_current_state()
 
+func show_export_dialog():
+	"""Mostrar diálogo de exportación manualmente"""
+	_on_export_requested()
 
-# Correcciones para el ViewerCoordinator para manejar múltiples animaciones
-# Agrega estas funciones mejoradas a viewer_coordinator.gd:
-
-# Variable adicional para rastrear si necesitamos recombinar
-var pending_animations_for_combination: Array = []
-
-#func _on_animations_selected_protected(animation_files: Array):
-	#"""Manejar selección de animaciones - MEJORADO para múltiples"""
-	#print("\n🛑 === ANIMATIONS SELECTED PROTECTED ===")
-	#print("Archivos recibidos: %s" % str(animation_files))
-#
-	## Protecciones existentes...
-	#if is_processing_animations:
-		#var elapsed = Time.get_ticks_msec() / 1000.0 - processing_start_time
-		#print("🛑 YA PROCESANDO ANIMACIONES (%.1fs transcurrido)" % elapsed)
-		#if elapsed < 10:
-			#print("🛑 IGNORANDO - muy pronto")
-			#return
-		#else:
-			#print("⚠️ Timeout alcanzado, continuando...")
-#
-	#if _arrays_equal(animation_files, last_animations_processed):
-		#print("🛑 ANIMACIONES IDÉNTICAS - ignorando")
-		#return
-#
-	#if animation_files.is_empty():
-		#print("🛑 ARRAY VACÍO - ignorando")
-		#return
-#
-	#var unit_data = file_loader_panel.get_current_unit_data()
-	#if unit_data.is_empty() or not unit_data.has("path"):
-		#print("🛑 UNIT DATA INVÁLIDO - ignorando")
-		#return
-#
-	## Marcar como procesando
-	#is_processing_animations = true
-	#processing_start_time = Time.get_ticks_msec() / 1000.0
-	#last_animations_processed = animation_files.duplicate()
-#
-	#print("🔒 PROCESANDO ANIMACIONES - BLOQUEADO")
-	#log_panel.add_log("🎬 Cargando %d animaciones..." % animation_files.size())
-#
-	## ✅ NUEVO: Limpiar animaciones cargadas para recargar todas
-	#loaded_animations.clear()
-	#pending_animations_for_combination = animation_files.duplicate()
-#
-	## Cargar TODAS las animaciones
-	#for i in range(animation_files.size()):
-		#var anim_file = animation_files[i]
-		#var full_path = unit_data.path + "/" + anim_file
-#
-		#print("📥 [%d/%d] Cargando: %s" % [i+1, animation_files.size(), anim_file])
-		#log_panel.add_log("📥 [%d/%d] %s" % [i+1, animation_files.size(), anim_file])
-#
-		#fbx_loader.load_animation_fbx(full_path)
-#
-		#if i < animation_files.size() - 1:
-			#await get_tree().create_timer(0.5).timeout
-#
-	## ✅ NUEVO: Esperar y luego combinar TODO
-	#await get_tree().create_timer(1.0).timeout
-	#
-	## Combinar todas las animaciones
-	#if loaded_base_data and loaded_animations.size() > 0:
-		#_combine_all_animations()
-	#
-	#is_processing_animations = false
-	#print("🔓 PROCESAMIENTO DESBLOQUEADO")
-	#print("=== FIN ANIMATIONS SELECTED ===\n")
-
-func _combine_all_animations():
-	"""✅ NUEVA FUNCIÓN: Combinar TODAS las animaciones en un solo modelo"""
-	print("\n🔄 === COMBINANDO TODAS LAS ANIMACIONES ===")
-	print("Base disponible: %s" % loaded_base_data.get("name", "Unknown"))
-	print("Animaciones disponibles: %d" % loaded_animations.size())
-	
-	# Usar la primera animación como base para la combinación
-	var first_anim_name = loaded_animations.keys()[-1]
-	var first_anim_data = loaded_animations[first_anim_name]
-	
-	print("🔄 Combinando base con primera animación: %s" % first_anim_name)
-	
-	# Combinar base + primera animación
-	var combined = animation_manager.combine_base_with_animation(loaded_base_data, first_anim_data)
-	#var combined = animation_manager.combine_base_with_multiple_animations(loaded_base_data, first_anim_data)
-
-	#combine_base_with_multiple_animations
-	if not combined:
-		print("❌ Error en combinación inicial")
-		return
-	
-	# ✅ CRÍTICO: Agregar las demás animaciones al modelo combinado
-	#if loaded_animations.size() > 1:
-		#print("📋 Agregando %d animaciones adicionales..." % (loaded_animations.size() - 1))
-		#
-		#var combined_anim_player = _find_animation_player(combined)
-		#if combined_anim_player:
-			## Obtener la librería de animaciones
-			#var anim_lib = combined_anim_player.get_animation_library("")
-			#if not anim_lib:
-				#print("❌ No se encontró librería de animaciones")
-				#return
-			#
-			## Agregar cada animación adicional
-			#var added_count = 0
-			#for anim_name in loaded_animations:
-				#if anim_name == first_anim_name:
-					#continue  # Skip la primera que ya está
-				#
-				#var anim_data = loaded_animations[anim_name]
-				#if anim_data.has("model"):
-					#var anim_model = anim_data["model"]
-					#var source_player = _find_animation_player(anim_model)
-					#
-					#if source_player:
-						#var source_anims = source_player.get_animation_list()
-						#for source_anim_name in source_anims:
-							## Copiar la animación
-							#var source_lib = source_player.get_animation_library("")
-							#if source_lib and source_lib.has_animation(source_anim_name):
-								#var anim_to_copy = source_lib.get_animation(source_anim_name)
-								#
-								## Usar el nombre limpio de la animación
-								#var clean_name = anim_name
-								#if source_anim_name != "mixamo_com" and source_anim_name != "":
-									#clean_name = source_anim_name
-								#
-								#print("  + Agregando: %s" % clean_name)
-								#
-								## Clonar y agregar la animación
-								#var anim_copy = anim_to_copy.duplicate()
-								#anim_lib.add_animation(clean_name, anim_copy)
-								#added_count += 1
-				#
-			#print("✅ Agregadas %d animaciones adicionales" % added_count)
-			#
-			## Configurar loops para todas
-			#var all_anims = combined_anim_player.get_animation_list()
-			#for anim in all_anims:
-				#if anim_lib.has_animation(anim):
-					#var animation = anim_lib.get_animation(anim)
-					#animation.loop_mode = Animation.LOOP_LINEAR
-			#
-			#print("📋 Total de animaciones en el modelo: %d" % all_anims.size())
-			#print("  Animaciones: %s" % str(all_anims))
-	#
-	# Guardar el modelo combinado
-	current_combined_model = combined
-	
-	# Actualizar UI
-	_on_combination_complete_safe(combined)
-	
-	# Actualizar lista de animaciones en el panel
-	if animation_controls_panel:
-		# Crear lista de nombres de archivo para el panel
-		var file_names = []
-		for anim_name in loaded_animations.keys():
-			file_names.append(anim_name + ".fbx")
-		
-		animation_controls_panel.update_animations_list(file_names)
-		
-		# Seleccionar la primera
-		if file_names.size() > 0:
-			animation_controls_panel.select_animation_by_name(first_anim_name)
-	
-	print("=== FIN COMBINACIÓN MÚLTIPLE ===\n")
-
-func _on_animation_change_requested(animation_name: String):
-	"""✅ MEJORADO: Manejar cambio con búsqueda más inteligente"""
-	print("\n🔄 === CAMBIO DE ANIMACIÓN SOLICITADO ===")
-	print("Animación solicitada: %s" % animation_name)
-	
-	if is_changing_animation:
-		print("⚠️ Ya hay un cambio en progreso")
-		return
-	
-	is_changing_animation = true
-	log_panel.add_log("🔄 Cambiando a: " + animation_name)
-	
-	if not current_combined_model:
-		print("❌ No hay modelo combinado")
-		_finish_animation_change(false, animation_name)
-		return
-	
-	var anim_player = _find_animation_player(current_combined_model)
-	if not anim_player:
-		print("❌ No se encontró AnimationPlayer")
-		_finish_animation_change(false, animation_name)
-		return
-	
-	# ✅ MEJORADO: Búsqueda más inteligente de animaciones
-	var found_animation = ""
-	var clean_name = animation_name.get_basename()  # Quitar .fbx
-	
-	print("🔍 Buscando animación: '%s' (limpio: '%s')" % [animation_name, clean_name])
-	print("📋 Animaciones disponibles: %s" % str(anim_player.get_animation_list()))
-	
-	# Buscar coincidencia exacta primero
-	if anim_player.has_animation(animation_name):
-		found_animation = animation_name
-	elif anim_player.has_animation(clean_name):
-		found_animation = clean_name
-	else:
-		# Buscar en loaded_animations para obtener el nombre correcto
-		for loaded_name in loaded_animations.keys():
-			if loaded_name == clean_name or loaded_name == animation_name:
-				# Este es el archivo que queremos, buscar su animación
-				if anim_player.has_animation(loaded_name):
-					found_animation = loaded_name
-					break
-				# También probar con el nombre del archivo sin extensión
-				var file_base = loaded_name.get_basename()
-				if anim_player.has_animation(file_base):
-					found_animation = file_base
-					break
-		
-		# Si aún no encontramos, buscar parcialmente
-		if found_animation == "":
-			for anim in anim_player.get_animation_list():
-				if clean_name in anim or anim in clean_name:
-					found_animation = anim
-					break
-	
-	if found_animation == "":
-		print("❌ No se encontró la animación '%s'" % animation_name)
-		print("   Animaciones disponibles: %s" % str(anim_player.get_animation_list()))
-		_finish_animation_change(false, animation_name)
-		return
-	
-	print("✅ Animación encontrada: '%s'" % found_animation)
-	
-	# Cambiar la animación
-	if anim_player.is_playing():
-		anim_player.stop()
-	
-	# Configurar loop
-	var anim_lib = anim_player.get_animation_library("")
-	if anim_lib and anim_lib.has_animation(found_animation):
-		var animation = anim_lib.get_animation(found_animation)
-		animation.loop_mode = Animation.LOOP_LINEAR
-	
-	# Reproducir
-	anim_player.play(found_animation)
-	
-	# Notificar al panel
-	if animation_controls_panel and animation_controls_panel.has_method("on_model_recombined"):
-		animation_controls_panel.on_model_recombined(current_combined_model, found_animation)
-	
-	# Actualizar preview
-	if model_preview_panel and model_preview_panel.has_method("play_animation"):
-		model_preview_panel.play_animation(found_animation)
-	
-	log_panel.add_log("✅ Animación cambiada: " + found_animation)
-	_finish_animation_change(true, found_animation)
-	
-	print("=== FIN CAMBIO DE ANIMACIÓN ===\n")
-
-
-# Parte crítica de _on_animation_change_requested en viewer_coordinator.gd
-# Esta es la búsqueda mejorada que encuentra animaciones con nombres problemáticos:
-
-	# ✅ BÚSQUEDA INTELIGENTE DE ANIMACIONES
-  # Quitar .fbx si existe
-	
-	print("🔍 Buscando animación: '%s' (limpio: '%s')" % [animation_name, clean_name])
-	print("📋 Animaciones disponibles: %s" % str(anim_player.get_animation_list()))
-	
-	# 1. Buscar coincidencia exacta
-	if anim_player.has_animation(animation_name):
-		found_animation = animation_name
-	elif anim_player.has_animation(clean_name):
-		found_animation = clean_name
-	else:
-		# 2. Buscar en loaded_animations para mapear nombres
-		for loaded_name in loaded_animations.keys():
-			# Ejemplo: "Zombie Death(1)" == "Zombie Death(1).fbx".get_basename()
-			if loaded_name == clean_name or loaded_name == animation_name:
-				if anim_player.has_animation(loaded_name):
-					found_animation = loaded_name
-					break
-		
-		# 3. Si aún no encontramos, buscar parcialmente
-		if found_animation == "":
-			# Quitar caracteres problemáticos para comparación
-			var search_name = clean_name.replace("(", "").replace(")", "").strip_edges()
-			
-			for anim in anim_player.get_animation_list():
-				var anim_clean = anim.replace("(", "").replace(")", "").strip_edges()
-				
-				# Comparación flexible
-				if search_name in anim_clean or anim_clean in search_name:
-					found_animation = anim
-					print("   ✅ Encontrada por búsqueda parcial: '%s'" % anim)
-					break
-	
-	if found_animation == "":
-		print("❌ No se encontró la animación '%s'" % animation_name)
-		print("   Disponibles: %s" % str(anim_player.get_animation_list()))
-		_finish_animation_change(false, animation_name)
-		return
-	
-	print("✅ Animación encontrada: '%s'" % found_animation)
-
-
-# scripts/viewer/viewer_coordinator.gd
-# INTEGRACIÓN: Agregar esta llamada en la función force_reset() existente
+func start_full_render():
+	"""Iniciar renderizado completo manualmente"""
+	_on_render_requested()
 
 func force_reset():
 	"""Reset completo del coordinator"""
@@ -883,16 +954,20 @@ func force_reset():
 	is_processing_animations = false
 	last_animations_processed.clear()
 	processing_start_time = 0.0
+	is_changing_animation = false
+	rendering_in_progress = false
 	
 	# Clear data
 	loaded_base_data.clear()
 	loaded_animations.clear()
+	current_render_settings.clear()
+	pending_animations_for_combination.clear()
 	
 	if current_combined_model:
 		current_combined_model.queue_free()
 		current_combined_model = null
 	
-	# ✅ NUEVO: Reset del sistema de animaciones del AnimationManager
+	# Reset del sistema de animaciones del AnimationManager
 	if animation_manager and animation_manager.has_method("reset_animation_system"):
 		animation_manager.reset_animation_system()
 		print("🔄 Sistema de animaciones reseteado")
@@ -906,7 +981,6 @@ func force_reset():
 	
 	print("✅ COORDINATOR RESET COMPLETO")
 
-# ✅ FUNCIÓN NUEVA: Reset público fácil de usar desde consola
 func full_system_reset():
 	"""Reset completo del sistema - función pública para usar desde consola"""
 	print("🔥 === FULL SYSTEM RESET SOLICITADO ===")
@@ -914,7 +988,40 @@ func full_system_reset():
 	print("✅ Full system reset completado")
 	print("💡 Ahora puedes cargar nuevas animaciones desde cero")
 
-# ✅ FUNCIÓN NUEVA: Debug del estado del AnimationManager
+func debug_state():
+	"""Debug detallado del estado"""
+	print("\n🎮 === COORDINATOR DEBUG ===")
+	var state = get_current_state()
+	print("📊 ESTADO:")
+	print("  Base cargada: %s" % state.base_loaded)
+	print("  Animaciones: %d" % state.animations_count)
+	print("  Modelo combinado: %s" % state.combined_ready)
+	print("  Procesando: %s" % state.processing)
+	print("  Cambiando animación: %s" % state.changing_animation)
+	print("  Renderizando: %s" % ("🔄 Sí" if state.rendering_in_progress else "⏸️ No"))
+	
+	if animation_controls_panel:
+		print("\n🎮 ANIMATION CONTROLS:")
+		if animation_controls_panel.has_method("debug_state"):
+			animation_controls_panel.debug_state()
+	
+	print("===========================\n")
+
+func debug_extensions():
+	"""Debug de las extensiones"""
+	print("\n🔧 === DEBUG EXTENSIONES ===")
+	print("ExportManager: %s" % ("✅ Disponible" if export_manager else "❌ No disponible"))
+	print("ExportDialog: %s" % ("✅ Disponible" if export_dialog else "❌ No disponible"))
+	print("CameraControls: %s" % ("✅ Disponible" if camera_controls else "❌ No disponible"))
+	print("Renderizando: %s" % ("🔄 Sí" if rendering_in_progress else "⏸️ No"))
+	
+	if export_manager and export_manager.has_method("get_export_stats"):
+		var stats = export_manager.get_export_stats()
+		print("📊 Stats de exportación: %s" % str(stats))
+	
+	print("⚙️ Render settings actuales: %s" % str(current_render_settings))
+	print("===============================\n")
+
 func debug_animation_manager():
 	"""Debug específico del AnimationManager"""
 	print("\n🎭 === ANIMATION MANAGER DEBUG ===")
@@ -935,7 +1042,27 @@ func debug_animation_manager():
 	
 	# Verificar cachés
 	print("📦 Estado de cachés:")
-	print("   Base meshes cache: %d items" % (animation_manager.base_meshes_cache.size() if animation_manager.has_method("get") else 0))
-	print("   Animations metadata cache: %d items" % (animation_manager.animations_metadata_cache.size() if animation_manager.has_method("get") else 0))
+	if animation_manager.has_method("get_cache_info"):
+		var cache_info = animation_manager.get_cache_info()
+		print("   Cache info: %s" % str(cache_info))
 	
 	print("=========================================\n")
+
+func enable_camera_controls():
+	"""Habilitar controles de cámara"""
+	if camera_controls:
+		camera_controls.enable_controls()
+
+func disable_camera_controls():
+	"""Deshabilitar controles de cámara"""
+	if camera_controls:
+		camera_controls.disable_controls()
+
+func apply_game_mode_preset(mode: String):
+	"""Aplicar preset de modo de juego"""
+	if camera_controls:
+		match mode:
+			"rts":
+				camera_controls.apply_rts_preset()
+			"platform":
+				camera_controls.apply_platform_preset()

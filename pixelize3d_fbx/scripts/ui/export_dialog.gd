@@ -1,5 +1,5 @@
 # pixelize3d_fbx/scripts/export/export_manager.gd
-# Export Manager - VERSIÓN CORREGIDA SIN RECURSIÓN INFINITA
+# Manager corregido para exportación de sprite sheets
 # Input: Frames renderizados y configuración de exportación
 # Output: Sprite sheets PNG y archivos de metadata
 
@@ -18,78 +18,27 @@ var current_export_config: Dictionary = {}
 var metadata_generator: Node
 
 func _ready():
-	print("🔧 ExportManager iniciando...")
-	# ✅ SOLUCIÓN: Crear MetadataGenerator de forma diferida y segura
-	call_deferred("_setup_metadata_generator_safely")
-	print("✅ ExportManager inicializado")
-
-func _setup_metadata_generator_safely():
-	"""Crear MetadataGenerator de forma segura sin recursión"""
-	print("🔧 Configurando MetadataGenerator de forma segura...")
-	
-	# Verificar que no existe ya
-	metadata_generator = get_node_or_null("MetadataGenerator")
-	if metadata_generator:
-		print("✅ MetadataGenerator ya existe")
-		return
-	
-	# Intentar crear con protecciones
-	var success = _try_create_metadata_generator()
-	if success:
-		print("✅ MetadataGenerator creado exitosamente")
-	else:
-		print("⚠️ MetadataGenerator no pudo crearse - funcionará sin metadata avanzada")
-
-func _try_create_metadata_generator() -> bool:
-	"""Intentar crear MetadataGenerator con manejo de errores"""
-	var script_path = "res://scripts/export/metadata_generator.gd"
-	
-	# Verificar que el script existe
-	if not ResourceLoader.exists(script_path):
-		print("⚠️ Script MetadataGenerator no encontrado: %s" % script_path)
-		return false
-	
-	# Intentar cargar el script
-	var script_resource = load(script_path)
-	if not script_resource:
-		print("⚠️ No se pudo cargar el script MetadataGenerator")
-		return false
-	
-	# Crear instancia
-	metadata_generator = script_resource.new()
+	# Conectar con metadata generator si existe
+	metadata_generator = get_node_or_null("../MetadataGenerator")
 	if not metadata_generator:
-		print("⚠️ No se pudo instanciar MetadataGenerator")
-		return false
-	
-	# Configurar y agregar
-	metadata_generator.name = "MetadataGenerator"
-	add_child(metadata_generator)
-	
-	return true
+		# Crear instancia si no existe
+		metadata_generator = preload("res://scripts/export/metadata_generator.gd").new()
+		add_child(metadata_generator)
 
-func get_metadata_generator():
-	"""Obtener MetadataGenerator, creándolo bajo demanda si es necesario"""
-	if not metadata_generator:
-		print("🔄 Creando MetadataGenerator bajo demanda...")
-		_setup_metadata_generator_safely()
-	
-	return metadata_generator
+# === FUNCIONES DE GESTIÓN DE FRAMES ===
 
-# Funciones de gestión de frames
 func add_frame(frame_data: Dictionary):
-	var animation_name = frame_data.get("animation", "default")
+	"""Añadir frame a la colección"""
+	var animation_name = frame_data.animation
 	
 	if not animation_name in frames_collection:
 		frames_collection[animation_name] = []
 	
 	frames_collection[animation_name].append(frame_data)
-	print("✅ Frame añadido: %s dir:%d frame:%d" % [
-		animation_name, 
-		frame_data.get("direction", 0), 
-		frame_data.get("frame", 0)
-	])
+	print("✅ Frame añadido: %s dir:%d frame:%d" % [animation_name, frame_data.direction, frame_data.frame])
 
 func clear_frames(animation_name: String = ""):
+	"""Limpiar frames de animación específica o todas"""
 	if animation_name.is_empty():
 		frames_collection.clear()
 		print("🗑️ Todos los frames limpiados")
@@ -98,43 +47,51 @@ func clear_frames(animation_name: String = ""):
 		print("🗑️ Frames de '%s' limpiados" % animation_name)
 
 func get_available_animations() -> Array:
+	"""Obtener lista de animaciones con frames disponibles"""
 	return frames_collection.keys()
 
 func has_frames(animation_name: String) -> bool:
+	"""Verificar si hay frames para una animación"""
 	return animation_name in frames_collection and frames_collection[animation_name].size() > 0
 
-# Función principal de exportación
+# === FUNCIÓN PRINCIPAL DE EXPORTACIÓN ===
+
 func export_sprite_sheets(export_config: Dictionary):
+	"""Exportar sprite sheets según configuración"""
 	print("🚀 INICIANDO EXPORTACIÓN DE SPRITE SHEETS")
 	current_export_config = export_config
 	
+	# Validar configuración
 	if not _validate_export_config():
 		return
 	
 	# Crear carpeta de salida
-	var output_folder = export_config.get("output_folder", "res://output/")
+	var output_folder = export_config.output_folder
 	if not DirAccess.dir_exists_absolute(output_folder):
 		DirAccess.make_dir_recursive_absolute(output_folder)
 	
 	# Determinar animaciones a exportar
-	var animations_to_export = []
+	var animations_to_export: Array = []
 	
-	match export_config.get("animation_mode", "current"):
+	match export_config.animation_mode:
 		"current":
+			# Solo la animación actual
 			var current_anim = export_config.get("current_animation", "")
 			if has_frames(current_anim):
 				animations_to_export.append(current_anim)
 			else:
-				emit_signal("export_failed", "No hay frames para la animación actual")
+				emit_signal("export_failed", "No hay frames para la animación actual: " + current_anim)
 				return
 		
 		"all":
+			# Todas las animaciones disponibles
 			animations_to_export = get_available_animations()
 			if animations_to_export.is_empty():
-				emit_signal("export_failed", "No hay animaciones con frames")
+				emit_signal("export_failed", "No hay animaciones con frames para exportar")
 				return
 		
 		"selected":
+			# Animaciones seleccionadas
 			animations_to_export = export_config.get("selected_animations", [])
 	
 	print("📋 Animaciones a exportar: %s" % str(animations_to_export))
@@ -151,12 +108,14 @@ func export_sprite_sheets(export_config: Dictionary):
 			emit_signal("export_failed", "Error exportando: " + animation_name)
 			return
 		
+		# Pequeña pausa para no saturar el sistema
 		await get_tree().process_frame
 	
 	print("✅ EXPORTACIÓN COMPLETADA")
 	emit_signal("export_complete", output_folder)
 
 func export_single_spritesheet(animation_name: String, output_folder: String) -> bool:
+	"""Exportar sprite sheet de una animación específica"""
 	print("--- EXPORTANDO SPRITE SHEET: %s ---" % animation_name)
 	
 	if not has_frames(animation_name):
@@ -174,20 +133,20 @@ func export_single_spritesheet(animation_name: String, output_folder: String) ->
 	var directions_count = frames_by_direction.size()
 	var max_frames_per_direction = 0
 	
+	# Encontrar el máximo número de frames por dirección
 	for direction in frames_by_direction:
 		var frame_count = frames_by_direction[direction].size()
 		if frame_count > max_frames_per_direction:
 			max_frames_per_direction = frame_count
 	
-	print("📏 Sprite size: %s, Direcciones: %d, Max frames: %d" % [
-		sprite_size, directions_count, max_frames_per_direction
-	])
+	print("📏 Sprite size: %s, Direcciones: %d, Max frames: %d" % [sprite_size, directions_count, max_frames_per_direction])
 	
-	# Calcular dimensiones del spritesheet
-	var sheet_width = max_frames_per_direction * sprite_size.x
-	var sheet_height = directions_count * sprite_size.y
+	# Calcular layout del spritesheet
+	var layout = _calculate_spritesheet_layout(directions_count, max_frames_per_direction)
+	var sheet_width = layout.columns * sprite_size.x
+	var sheet_height = layout.rows * sprite_size.y
 	
-	print("🖼️ Spritesheet final: %dx%d" % [sheet_width, sheet_height])
+	print("🖼️ Spritesheet final: %dx%d (%d cols x %d rows)" % [sheet_width, sheet_height, layout.columns, layout.rows])
 	
 	# Crear imagen del spritesheet
 	var spritesheet = Image.create(sheet_width, sheet_height, false, Image.FORMAT_RGBA8)
@@ -196,7 +155,7 @@ func export_single_spritesheet(animation_name: String, output_folder: String) ->
 	# Colocar frames en el spritesheet
 	var current_row = 0
 	var direction_keys = frames_by_direction.keys()
-	direction_keys.sort()
+	direction_keys.sort()  # Ordenar direcciones numéricamente
 	
 	for direction_key in direction_keys:
 		var direction_frames = frames_by_direction[direction_key]
@@ -209,7 +168,9 @@ func export_single_spritesheet(animation_name: String, output_folder: String) ->
 			var x = frame_idx * sprite_size.x
 			var y = current_row * sprite_size.y
 			
+			# Verificar que no nos salimos del spritesheet
 			if x + sprite_size.x <= sheet_width and y + sprite_size.y <= sheet_height:
+				# Copiar frame al spritesheet
 				spritesheet.blit_rect(
 					frame_data.image,
 					Rect2i(0, 0, sprite_size.x, sprite_size.y),
@@ -234,17 +195,19 @@ func export_single_spritesheet(animation_name: String, output_folder: String) ->
 	
 	# Generar metadata si está habilitado
 	if current_export_config.get("generate_metadata", true):
-		_generate_metadata_for_animation(animation_name, frames_by_direction, sprite_size, output_folder)
+		_generate_metadata_for_animation(animation_name, frames_by_direction, sprite_size, layout, output_folder)
 	
 	print("✅ Spritesheet '%s' exportado exitosamente" % animation_name)
 	return true
 
-# Funciones auxiliares
+# === FUNCIONES AUXILIARES ===
+
 func _organize_frames_by_direction(frames: Array) -> Dictionary:
+	"""Organizar frames por dirección"""
 	var by_direction = {}
 	
 	for frame_data in frames:
-		var direction = frame_data.get("direction", 0)
+		var direction = frame_data.direction
 		
 		if not direction in by_direction:
 			by_direction[direction] = []
@@ -254,9 +217,20 @@ func _organize_frames_by_direction(frames: Array) -> Dictionary:
 	return by_direction
 
 func _sort_frames_by_number(a: Dictionary, b: Dictionary) -> bool:
-	return a.get("frame", 0) < b.get("frame", 0)
+	"""Ordenar frames por número de frame"""
+	return a.frame < b.frame
+
+func _calculate_spritesheet_layout(directions: int, frames_per_direction: int) -> Dictionary:
+	"""Calcular layout óptimo del spritesheet"""
+	# Layout simple: frames horizontalmente, direcciones verticalmente
+	return {
+		"columns": frames_per_direction,
+		"rows": directions,
+		"type": "grid"
+	}
 
 func _sanitize_filename(filename: String) -> String:
+	"""Limpiar nombre de archivo de caracteres problemáticos"""
 	var sanitized = filename.replace(" ", "_")
 	sanitized = sanitized.replace("/", "_")
 	sanitized = sanitized.replace("\\", "_")
@@ -269,16 +243,22 @@ func _sanitize_filename(filename: String) -> String:
 	sanitized = sanitized.replace("|", "_")
 	return sanitized
 
-func _generate_metadata_for_animation(animation_name: String, frames_by_direction: Dictionary, sprite_size: Vector2i, output_folder: String):
+func _generate_metadata_for_animation(animation_name: String, frames_by_direction: Dictionary, sprite_size: Vector2i, layout: Dictionary, output_folder: String):
+	"""Generar archivos de metadata para la animación"""
 	print("📄 Generando metadata para: %s" % animation_name)
 	
-	# Estructura básica de metadata
+	# Estructura de metadata
 	var metadata = {
 		"animation_name": animation_name,
 		"sprite_size": {
 			"width": sprite_size.x,
 			"height": sprite_size.y
 		},
+		"spritesheet_size": {
+			"width": layout.columns * sprite_size.x,
+			"height": layout.rows * sprite_size.y
+		},
+		"layout": layout,
 		"directions": [],
 		"total_frames": 0,
 		"fps": current_export_config.get("fps", 12),
@@ -302,6 +282,7 @@ func _generate_metadata_for_animation(animation_name: String, frames_by_directio
 			"frames": []
 		}
 		
+		# Añadir información de cada frame
 		for frame_idx in range(direction_frames.size()):
 			var frame_info = {
 				"index": frame_idx,
@@ -321,22 +302,19 @@ func _generate_metadata_for_animation(animation_name: String, frames_by_directio
 	_save_json_metadata(metadata, json_path)
 	
 	# Generar formatos adicionales si están habilitados
-	var mg = get_metadata_generator()  # ✅ CAMBIO: Usar getter seguro
-	if mg:
+	if metadata_generator:
 		var formats = current_export_config.get("metadata_formats", ["json"])
 		var base_path = output_folder.path_join(_sanitize_filename(animation_name))
 		
-		for format in formats:
-			if mg.has_method("generate_format"):
-				mg.generate_format(format, metadata, base_path)
-			elif mg.has_method("generate_all_metadata_formats"):
-				# Fallback para versiones anteriores
-				mg.generate_all_metadata_formats(metadata, base_path)
-				break
-	else:
-		print("⚠️ MetadataGenerator no disponible - solo metadata JSON")
+		if "unity" in formats:
+			metadata_generator.generate_unity_metadata(metadata, base_path)
+		if "web" in formats:
+			metadata_generator.generate_web_metadata(metadata, base_path)
+		if "css" in formats:
+			metadata_generator.generate_css_sprites(metadata, base_path)
 
 func _save_json_metadata(metadata: Dictionary, file_path: String):
+	"""Guardar metadata en formato JSON"""
 	var file = FileAccess.open(file_path, FileAccess.WRITE)
 	if file:
 		var json_string = JSON.stringify(metadata, "\t")
@@ -347,8 +325,13 @@ func _save_json_metadata(metadata: Dictionary, file_path: String):
 		print("❌ Error guardando metadata JSON: %s" % file_path)
 
 func _validate_export_config() -> bool:
+	"""Validar configuración de exportación"""
 	if not current_export_config.has("output_folder"):
 		emit_signal("export_failed", "Carpeta de destino no especificada")
+		return false
+	
+	if not current_export_config.has("animation_mode"):
+		emit_signal("export_failed", "Modo de animación no especificado")
 		return false
 	
 	var output_folder = current_export_config.output_folder
@@ -356,42 +339,59 @@ func _validate_export_config() -> bool:
 		emit_signal("export_failed", "Carpeta de destino vacía")
 		return false
 	
+	# Verificar permisos de escritura
+	var test_file = output_folder.path_join("test_write.tmp")
+	var file = FileAccess.open(test_file, FileAccess.WRITE)
+	if file:
+		file.close()
+		DirAccess.remove_absolute(test_file)
+		print("✅ Permisos de escritura verificados")
+	else:
+		emit_signal("export_failed", "Sin permisos de escritura en: " + output_folder)
+		return false
+	
 	return true
 
+# === FUNCIONES DE INFORMACIÓN ===
+
 func get_export_stats() -> Dictionary:
+	"""Obtener estadísticas de la colección actual"""
 	var stats = {
 		"animations": frames_collection.size(),
 		"total_frames": 0,
-		"metadata_generator_available": metadata_generator != null
+		"directions": {},
+		"sprite_sizes": {}
 	}
 	
 	for animation_name in frames_collection:
 		var frames = frames_collection[animation_name]
 		stats.total_frames += frames.size()
+		
+		for frame_data in frames:
+			# Contar direcciones
+			var dir = frame_data.direction
+			if not dir in stats.directions:
+				stats.directions[dir] = 0
+			stats.directions[dir] += 1
+			
+			# Contar tamaños de sprite
+			var size_key = "%dx%d" % [frame_data.image.get_width(), frame_data.image.get_height()]
+			if not size_key in stats.sprite_sizes:
+				stats.sprite_sizes[size_key] = 0
+			stats.sprite_sizes[size_key] += 1
 	
 	return stats
 
-# ✅ FUNCIONES ADICIONALES DE DEBUG Y CONTROL
-
-func force_recreate_metadata_generator():
-	"""Forzar recreación del MetadataGenerator - útil para debug"""
-	if metadata_generator:
-		metadata_generator.queue_free()
-		metadata_generator = null
+func estimate_export_time(config: Dictionary) -> float:
+	"""Estimar tiempo de exportación en segundos"""
+	var animations_count = 1
+	if config.animation_mode == "all":
+		animations_count = frames_collection.size()
+	elif config.animation_mode == "selected":
+		animations_count = config.get("selected_animations", []).size()
 	
-	call_deferred("_setup_metadata_generator_safely")
-	print("🔄 MetadataGenerator forzado a recrearse")
-
-func has_metadata_generator() -> bool:
-	"""Verificar si el MetadataGenerator está disponible"""
-	return metadata_generator != null
-
-func debug_export_manager():
-	"""Debug del estado del ExportManager"""
-	print("\n📊 === EXPORT MANAGER DEBUG ===")
-	print("Frames collection: %d animaciones" % frames_collection.size())
-	for anim_name in frames_collection:
-		print("  - %s: %d frames" % [anim_name, frames_collection[anim_name].size()])
+	# Estimación: ~1-3 segundos por animación dependiendo del tamaño
+	var avg_frames_per_animation = 50  # Estimación
+	var time_per_frame = 0.02  # 20ms por frame
 	
-	print("MetadataGenerator: %s" % ("✅ Disponible" if metadata_generator else "❌ No disponible"))
-	print("=================================\n")
+	return animations_count * avg_frames_per_animation * time_per_frame

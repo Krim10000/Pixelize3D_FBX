@@ -156,6 +156,8 @@ func update_progress(value: float, message: String = ""):
 	if message != "":
 		set_status("⏳ " + message)
 
+
+
 func finish_processing(success: bool, message: String):
 	is_processing = false
 	

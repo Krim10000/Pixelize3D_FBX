@@ -12,6 +12,8 @@ signal rendering_progress(current: int, total: int)
 #@onready var viewport: SubViewport = $SubViewport
 @onready var viewport: SubViewport = $/root/ViewerModular/HSplitContainer/RightPanel/ModelPreviewPanel/ViewportContainer/SubViewport
 @onready var camera_controller = $/root/ViewerModular/HSplitContainer/RightPanel/ModelPreviewPanel/ViewportContainer/SubViewport/CameraController
+@onready var anim_manager = get_parent().get_node("AnimationManager")
+
 
 var render_settings: Dictionary
 var current_model: Node3D
@@ -112,7 +114,7 @@ func render_animation(model: Node3D, animation_name: String, angle: float, direc
 	var anim_player = current_model.get_node_or_null("AnimationPlayer")
 	if anim_player and anim_player.has_animation(animation_name):
 		var anim = anim_player.get_animation(animation_name)
-		var fps = render_settings.fps
+		var fps = render_settings.get("fps", 12)  # Usar get() con valor por defecto
 		total_frames = int(anim.length * fps)
 		
 		# Iniciar renderizado de frames
@@ -122,6 +124,52 @@ func render_animation(model: Node3D, animation_name: String, angle: float, direc
 		total_frames = 1
 		_render_static_frame()
 
+#func _render_next_frame():
+	#if current_frame >= total_frames:
+		## Animación completa para esta dirección
+		#is_rendering = false
+		#emit_signal("animation_complete", current_animation)
+		#return
+	#
+	## Preparar el modelo para el frame actual
+	#var anim_manager = get_node("AnimationManager")
+	#anim_manager.prepare_model_for_rendering(
+		#current_model,
+		#current_frame,
+		#total_frames,
+		#current_animation
+	#)
+	#
+	## Esperar un frame para que se actualice la pose
+	#await get_tree().process_frame
+	#
+	## Renderizar el frame
+	#viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
+	#await RenderingServer.frame_post_draw
+	#
+	## Capturar la imagen
+	#var image = viewport.get_texture().get_image()
+	#
+	## Aplicar pixelización si es necesario
+	#if render_settings.get("pixelize", true):
+		#image = _apply_pixelization(image)
+	#
+	## Emitir frame renderizado
+	#var frame_data = {
+		#"animation": current_animation,
+		#"direction": current_direction,
+		#"frame": current_frame,
+		#"angle": camera_controller.pivot_node.rotation_degrees.y,
+		#"image": image
+	#}
+	#
+	#emit_signal("frame_rendered", frame_data)
+	#emit_signal("rendering_progress", current_frame + 1, total_frames)
+	#
+	## Continuar con el siguiente frame
+	#current_frame += 1
+	#call_deferred("_render_next_frame")
+
 func _render_next_frame():
 	if current_frame >= total_frames:
 		# Animación completa para esta dirección
@@ -130,13 +178,26 @@ func _render_next_frame():
 		return
 	
 	# Preparar el modelo para el frame actual
-	var anim_manager = get_node("/root/Main/AnimationManager")
-	anim_manager.prepare_model_for_rendering(
-		current_model,
-		current_frame,
-		total_frames,
-		current_animation
-	)
+	var anim_manager = get_parent().get_node("AnimationManager")
+	
+	# Verificar y llamar a la función de preparación
+	if anim_manager and anim_manager.has_method("prepare_model_for_rendering"):
+		anim_manager.prepare_model_for_rendering(
+			current_model,
+			current_frame,
+			total_frames,
+			current_animation
+		)
+	else:
+		# Implementación de respaldo si AnimationManager no está disponible
+		var anim_player = current_model.get_node_or_null("AnimationPlayer")
+		if anim_player and anim_player.has_animation(current_animation):
+			var anim = anim_player.get_animation(current_animation)
+			var time = (float(current_frame) / total_frames) * anim.length
+			anim_player.seek(time, true)
+			anim_player.advance(0)  # Forzar actualización
+		else:
+			push_error("❌ No se pudo preparar modelo para renderizado")
 	
 	# Esperar un frame para que se actualice la pose
 	await get_tree().process_frame
