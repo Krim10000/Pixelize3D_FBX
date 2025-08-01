@@ -2,6 +2,7 @@
 # VERSIÓN REFACTORIZADA - Coordinador UI limpio sin lógica de renderizado
 # Input: Señales de UI
 # Output: Coordinación limpia entre UI y Pipeline
+# ✅ INCLUYE: Monitor de animaciones integrado
 
 extends Control
 
@@ -51,6 +52,9 @@ var is_changing_animation: bool = false
 var export_manager: Node
 var export_dialog: Control
 var camera_controls: Node
+
+# ✅ NUEVO: Monitor de animaciones
+var animation_monitor: Node
 
 # Variable para rastrear animaciones pendientes de combinación
 var pending_animations_for_combination: Array = []
@@ -754,7 +758,7 @@ func _arrays_equal(a: Array, b: Array) -> bool:
 	return true
 
 # ========================================================================
-# INICIALIZACIÓN DE EXTENSIONES (SIN CAMBIOS SIGNIFICATIVOS)
+# INICIALIZACIÓN DE EXTENSIONES - ✅ MODIFICADO PARA INCLUIR MONITOR
 # ========================================================================
 
 func _initialize_extensions():
@@ -769,6 +773,9 @@ func _initialize_extensions():
 	
 	# Crear diálogo de exportación
 	_setup_export_dialog()
+	
+	# ✅ NUEVO: Configurar monitor de animaciones
+	_setup_animation_monitor()
 	
 	# Conectar señales adicionales
 	_connect_extension_signals()
@@ -827,6 +834,29 @@ func _setup_export_dialog():
 	else:
 		print("⚠️ Script ExportDialog no encontrado")
 
+# ========================================================================
+# ✅ NUEVA FUNCIÓN: CONFIGURAR MONITOR DE ANIMACIONES
+# ========================================================================
+
+func _setup_animation_monitor():
+	"""Configurar monitor de animaciones"""
+	var monitor_script = load("res://scripts/debug/animation_monitor.gd")
+	if monitor_script:
+		animation_monitor = monitor_script.new()
+		animation_monitor.name = "AnimationMonitor"
+		add_child(animation_monitor)
+		
+		# Configuración inicial
+		animation_monitor.update_interval = 1.0  # Actualizar cada segundo
+		
+		print("✅ Monitor de animaciones configurado")
+	else:
+		print("⚠️ Script AnimationMonitor no encontrado")
+
+# ========================================================================
+# CONECTAR SEÑALES DE EXTENSIONES - ✅ MODIFICADO PARA INCLUIR MONITOR
+# ========================================================================
+
 func _connect_extension_signals():
 	"""Conectar señales de las extensiones"""
 	
@@ -846,9 +876,6 @@ func _connect_extension_signals():
 		if export_dialog.has_signal("export_cancelled"):
 			export_dialog.export_cancelled.connect(_on_export_dialog_cancelled)
 	
-	# SpriteRenderer - ✅ YA NO CONECTAMOS AQUÍ, EL PIPELINE SE ENCARGA
-	# Las señales del sprite_renderer ahora las maneja el pipeline
-	
 	# Controles de cámara
 	if camera_controls:
 		if camera_controls.has_signal("camera_moved"):
@@ -856,7 +883,26 @@ func _connect_extension_signals():
 		if camera_controls.has_signal("model_rotated"):
 			camera_controls.model_rotated.connect(_on_model_rotated)
 	
+	# ✅ NUEVO: Monitor de animaciones
+	if animation_monitor:
+		if animation_monitor.has_signal("animations_status_changed"):
+			animation_monitor.animations_status_changed.connect(_on_animations_status_changed)
+	
 	print("🔗 Señales de extensiones conectadas")
+
+# ========================================================================
+# ✅ NUEVA FUNCIÓN: MANEJADOR DE SEÑALES DEL MONITOR
+# ========================================================================
+
+func _on_animations_status_changed(active_count: int, total_count: int):
+	"""Manejar cambios en el estado de animaciones"""
+	# Log solo si hay múltiples animaciones activas (posible problema)
+	if active_count > 1:
+		print("⚠️ MÚLTIPLES ANIMACIONES DETECTADAS: %d/%d activas" % [active_count, total_count])
+		log_panel.add_log("⚠️ Múltiples animaciones detectadas: %d activas" % active_count)
+	elif active_count == 0 and total_count > 0:
+		# Esto podría indicar que las animaciones se detuvieron inesperadamente
+		print("🔍 Todas las animaciones se detuvieron (%d disponibles)" % total_count)
 
 # ========================================================================
 # FUNCIONES DE SOPORTE (SIMPLIFICADAS)
@@ -986,7 +1032,7 @@ func get_current_combined_model() -> Node3D:
 	return current_combined_model
 
 # ========================================================================
-# FUNCIONES PÚBLICAS PARA DEBUG Y CONTROL MANUAL (ACTUALIZADAS)
+# FUNCIONES PÚBLICAS PARA DEBUG Y CONTROL MANUAL - ✅ MODIFICADAS
 # ========================================================================
 
 func force_reset():
@@ -1012,6 +1058,11 @@ func force_reset():
 		spritesheet_pipeline.force_reset_pipeline()
 		print("🔄 Pipeline reseteado")
 	
+	# ✅ NUEVO: Reset del monitor de animaciones
+	if animation_monitor:
+		animation_monitor.stop_monitoring()
+		print("🔄 Monitor de animaciones detenido")
+	
 	# Reset del sistema de animaciones del AnimationManager
 	if animation_manager and animation_manager.has_method("reset_animation_system"):
 		animation_manager.reset_animation_system()
@@ -1027,10 +1078,20 @@ func force_reset():
 	print("✅ COORDINATOR RESET COMPLETO")
 
 func get_current_state() -> Dictionary:
-	"""Estado actual del sistema"""
+	"""Estado actual del sistema - ✅ MODIFICADO PARA INCLUIR MONITOR"""
 	var pipeline_status = {}
 	if spritesheet_pipeline:
 		pipeline_status = spritesheet_pipeline.get_pipeline_status()
+	
+	# ✅ NUEVO: Estado del monitor de animaciones
+	var monitor_status = {}
+	if animation_monitor:
+		var snapshot = animation_monitor.get_animations_snapshot()
+		monitor_status = {
+			"total_players": snapshot.total_players,
+			"active_players": snapshot.active_players,
+			"monitoring_enabled": animation_monitor.monitoring_enabled
+		}
 	
 	return {
 		"base_loaded": not loaded_base_data.is_empty(),
@@ -1041,11 +1102,14 @@ func get_current_state() -> Dictionary:
 		"export_manager_available": export_manager != null,
 		"camera_controls_available": camera_controls != null,
 		"pipeline_available": spritesheet_pipeline != null,
-		"pipeline_status": pipeline_status
+		"pipeline_status": pipeline_status,
+		# ✅ NUEVO: Estado del monitor
+		"animation_monitor_available": animation_monitor != null,
+		"monitor_status": monitor_status
 	}
 
 func debug_state():
-	"""Debug detallado del estado"""
+	"""Debug detallado del estado - ✅ MODIFICADO PARA INCLUIR MONITOR"""
 	print("\n🎮 === COORDINATOR DEBUG (REFACTORIZADO) ===")
 	var state = get_current_state()
 	print("📊 ESTADO:")
@@ -1063,6 +1127,24 @@ func debug_state():
 	# ✅ NUEVO: Debug del pipeline
 	if spritesheet_pipeline and spritesheet_pipeline.has_method("debug_pipeline_state"):
 		spritesheet_pipeline.debug_pipeline_state()
+	
+	# ✅ NUEVO: Debug del monitor de animaciones
+	if animation_monitor:
+		print("\n🔍 MONITOR DE ANIMACIONES:")
+		var snapshot = animation_monitor.get_animations_snapshot()
+		print("  Total AnimationPlayers: %d" % snapshot.total_players)
+		print("  Animaciones activas: %d" % snapshot.active_players)
+		print("  Monitoreo activo: %s" % animation_monitor.monitoring_enabled)
+		
+		if snapshot.active_players > 0:
+			print("  🎬 ANIMACIONES ACTIVAS:")
+			var active_anims = animation_monitor.get_detailed_active_animations()
+			for anim in active_anims:
+				print("    - %s: %s (%.1f%%)" % [
+					anim.player_name, 
+					anim.animation_name, 
+					anim.progress * 100
+				])
 	
 	print("==============================\n")
 
@@ -1101,3 +1183,44 @@ func generate_complete_spritesheet():
 	"""Función legacy - ahora redirige al pipeline"""
 	print("⚠️ Función legacy detectada - redirigiendo a pipeline")
 	return generate_spritesheet_simple()
+
+# ========================================================================
+# ✅ NUEVAS FUNCIONES PÚBLICAS PARA CONTROL DEL MONITOR
+# ========================================================================
+
+func start_animation_monitoring(interval: float = 1.0):
+	"""Iniciar monitoreo automático de animaciones"""
+	if animation_monitor:
+		animation_monitor.start_monitoring(interval)
+		print("🔍 Monitoreo de animaciones iniciado")
+	else:
+		print("❌ Monitor de animaciones no disponible")
+
+func stop_animation_monitoring():
+	"""Detener monitoreo automático de animaciones"""
+	if animation_monitor:
+		animation_monitor.stop_monitoring()
+		print("🔍 Monitoreo de animaciones detenido")
+	else:
+		print("❌ Monitor de animaciones no disponible")
+
+func get_animations_report() -> Dictionary:
+	"""Obtener reporte detallado de animaciones"""
+	if animation_monitor:
+		return animation_monitor.get_animations_snapshot()
+	else:
+		return {"error": "Monitor no disponible"}
+
+func print_animations_status():
+	"""Imprimir estado actual de animaciones"""
+	if animation_monitor:
+		animation_monitor.print_current_status()
+	else:
+		print("❌ Monitor de animaciones no disponible")
+
+func count_active_animations() -> int:
+	"""Obtener conteo rápido de animaciones activas"""
+	if animation_monitor:
+		return animation_monitor.get_active_animations_count()
+	else:
+		return -1
