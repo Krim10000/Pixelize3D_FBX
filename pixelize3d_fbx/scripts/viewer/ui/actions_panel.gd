@@ -13,7 +13,7 @@ signal settings_requested()
 
 # UI propia de este panel
 var section_label: Label
-var preview_button: Button
+#var preview_button: Button
 var render_button: Button
 var export_button: Button
 var settings_button: Button
@@ -21,7 +21,7 @@ var progress_bar: ProgressBar
 var status_label: Label
 
 # Estado interno
-var preview_enabled: bool = true
+var preview_enabled: bool = false
 var render_enabled: bool = false
 var is_processing: bool = false
 
@@ -50,12 +50,12 @@ func _create_ui():
 	var main_actions = HBoxContainer.new()
 	add_child(main_actions)
 	
-	preview_button = Button.new()
-	preview_button.text = "🎬 Preview"
-	preview_button.disabled = true
-	preview_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	preview_button.pressed.connect(_on_preview_pressed)
-	main_actions.add_child(preview_button)
+	#preview_button = Button.new()
+	#preview_button.text = "🎬 Preview"
+	#preview_button.disabled = true
+	#preview_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	#preview_button.pressed.connect(_on_preview_pressed)
+	#main_actions.add_child(preview_button)
 	
 	render_button = Button.new()
 	render_button.text = "🎨 Renderizar"
@@ -94,9 +94,9 @@ func _on_preview_pressed():
 	set_status("🎬 Activando preview...")
 	emit_signal("preview_requested")
 	
-	# Actualizar estado del botón
-	preview_button.text = "🎬 Preview ✓"
-	preview_button.add_theme_color_override("font_color", Color.GREEN)
+	## Actualizar estado del botón
+	#preview_button.text = "🎬 Preview ✓"
+	#preview_button.add_theme_color_override("font_color", Color.GREEN)
 
 func _on_render_pressed():
 	if not render_enabled or is_processing:
@@ -118,7 +118,7 @@ func _on_settings_pressed():
 # Funciones públicas para control de estado
 func enable_preview_button():
 	preview_enabled = true
-	preview_button.disabled = false
+	#preview_button.disabled = false
 	set_status("✅ Listo para preview")
 
 func enable_render_button():
@@ -126,11 +126,11 @@ func enable_render_button():
 	render_button.disabled = false
 	set_status("✅ Listo para renderizar")
 
-func disable_preview_button():
-	preview_enabled = false
-	preview_button.disabled = true
-	preview_button.text = "🎬 Preview"
-	preview_button.remove_theme_color_override("font_color")
+#func disable_preview_button():
+	#preview_enabled = false
+	#preview_button.disabled = true
+	#preview_button.text = "🎬 Preview"
+	#preview_button.remove_theme_color_override("font_color")
 
 func disable_render_button():
 	render_enabled = false
@@ -140,7 +140,7 @@ func start_processing(process_name: String):
 	is_processing = true
 	
 	# Deshabilitar botones durante procesamiento
-	preview_button.disabled = true
+	#preview_button.disabled = true
 	render_button.disabled = true
 	export_button.disabled = true
 	
@@ -162,7 +162,7 @@ func finish_processing(success: bool, message: String):
 	is_processing = false
 	
 	# Restaurar estado de botones
-	preview_button.disabled = not preview_enabled
+	#preview_button.disabled = not preview_enabled
 	render_button.disabled = not render_enabled
 	export_button.disabled = false
 	
@@ -211,12 +211,12 @@ func reset_all_buttons():
 	render_enabled = false
 	is_processing = false
 	
-	preview_button.disabled = true
+	#preview_button.disabled = true
 	render_button.disabled = true
 	export_button.disabled = true
 	
-	preview_button.text = "🎬 Preview"
-	preview_button.remove_theme_color_override("font_color")
+	#preview_button.text = "🎬 Preview"
+	#preview_button.remove_theme_color_override("font_color")
 	
 	progress_bar.visible = false
 	set_status("Carga un modelo para comenzar")

@@ -209,7 +209,7 @@ func render_animation(model: Node3D, animation_name: String, angle: float, direc
 	
 	# Añadir nuevo modelo al viewport
 	current_model = model
-	viewport.add_child(current_model)
+	#viewport.add_child(current_model)
 	
 	# Configurar cámara para el modelo
 	var bounds = _calculate_model_bounds(current_model)

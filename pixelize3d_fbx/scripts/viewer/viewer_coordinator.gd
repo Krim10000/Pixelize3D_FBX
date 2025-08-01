@@ -180,27 +180,32 @@ func _connect_pipeline_signals():
 # ✅ REFACTORIZADO: MANEJADORES DE ACCIONES
 # ========================================================================
 
-func _on_preview_requested():
-	"""Manejar solicitud de preview"""
-	print("🎬 Preview solicitado")
-	log_panel.add_log("🎬 Activando preview...")
-	
-	if not current_combined_model or not is_instance_valid(current_combined_model):
-		log_panel.add_log("❌ No hay modelo válido para preview")
-		return
-	
-	# Configurar preview en sprite_renderer
-	if sprite_renderer and sprite_renderer.has_method("setup_preview"):
-		var preview_settings = _get_current_render_settings()
-		sprite_renderer.setup_preview(current_combined_model, preview_settings)
-		log_panel.add_log("✅ Preview configurado")
-	
-	# El preview también debería estar activo en model_preview_panel
-	if model_preview_panel and model_preview_panel.has_method("set_model"):
-		model_preview_panel.set_model(current_combined_model)
-		model_preview_panel.show()
-		log_panel.add_log("✅ Preview activo")
+#func _on_preview_requested():
+	#"""Manejar solicitud de preview"""
+	#print("🎬 Preview solicitado")
+	#log_panel.add_log("🎬 Activando preview...")
+	#
+	#if not current_combined_model or not is_instance_valid(current_combined_model):
+		#log_panel.add_log("❌ No hay modelo válido para preview")
+		#return
+	#
+	## Configurar preview en sprite_renderer
+	#if sprite_renderer and sprite_renderer.has_method("setup_preview"):
+		#var preview_settings = _get_current_render_settings()
+		#sprite_renderer.setup_preview(current_combined_model, preview_settings)
+		#log_panel.add_log("✅ Preview configurado")
+	#
+	## El preview también debería estar activo en model_preview_panel
+	#if model_preview_panel and model_preview_panel.has_method("set_model"):
+		#model_preview_panel.set_model(current_combined_model)
+		#model_preview_panel.show()
+		#log_panel.add_log("✅ Preview activo")
 
+
+func _on_preview_requested():
+	pass
+	
+	
 func _on_render_requested_refactored():
 	"""✅ REFACTORIZADO: Manejar solicitud de renderizado usando pipeline"""
 	print("🎨 Renderizado solicitado - USANDO PIPELINE")

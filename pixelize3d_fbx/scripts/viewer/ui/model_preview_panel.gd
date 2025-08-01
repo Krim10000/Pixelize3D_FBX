@@ -121,7 +121,7 @@ func set_model(model: Node3D):
 	# Actualizar UI
 	status_label.text = "Modelo: " + model.name
 	controls_help_label.visible = true
-	preview_active = true
+	#preview_active = true
 	
 	emit_signal("preview_ready")
 
