@@ -15,12 +15,17 @@
 
 [node name="ViewerModular" type="Control"]
 layout_mode = 3
-anchors_preset = 15
-anchor_right = 1.0
-anchor_bottom = 1.0
+anchor_right = 1.003
+anchor_bottom = 1.003
+offset_left = 4.0
+offset_top = 2.0
+offset_right = 0.400024
+offset_bottom = -0.100037
 grow_horizontal = 2
-grow_vertical = 2
+grow_vertical = 0
+size_flags_vertical = 0
 script = ExtResource("1_gl66s")
+metadata/_edit_use_anchors_ = true
 
 [node name="FBXLoader" type="Node" parent="."]
 script = ExtResource("2_yh1ys")
@@ -32,19 +37,28 @@ script = ExtResource("3_xctl6")
 script = ExtResource("4_yifrl")
 
 [node name="HSplitContainer" type="HSplitContainer" parent="."]
+layout_direction = 1
 layout_mode = 1
-anchors_preset = 15
-anchor_right = 1.0
+anchors_preset = -1
+anchor_left = -0.003
+anchor_right = 1.013
 anchor_bottom = 1.0
-grow_horizontal = 2
-grow_vertical = 2
-split_offset = 400
+offset_left = -0.4
+offset_right = 0.400024
+localize_numeral_system = false
 
 [node name="LeftPanel" type="ScrollContainer" parent="HSplitContainer"]
+clip_contents = false
+custom_minimum_size = Vector2(0, 650)
 layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
+horizontal_scroll_mode = 0
+vertical_scroll_mode = 2
 
 [node name="VBoxContainer" type="VBoxContainer" parent="HSplitContainer/LeftPanel"]
 layout_mode = 2
+size_flags_vertical = 2
 
 [node name="HeaderLabel" type="Label" parent="HSplitContainer/LeftPanel/VBoxContainer"]
 layout_mode = 2
@@ -58,6 +72,7 @@ script = ExtResource("5_ta1ix")
 [node name="Label_FileLoaderPanel" type="Label" parent="HSplitContainer/LeftPanel/VBoxContainer/FileLoaderPanel"]
 layout_mode = 2
 text = "Label_FileLoaderPanel"
+horizontal_alignment = 1
 
 [node name="SettingsPanel" type="VBoxContainer" parent="HSplitContainer/LeftPanel/VBoxContainer"]
 layout_mode = 2
@@ -76,26 +91,28 @@ layout_mode = 2
 text = "Label_ActionsPanel"
 
 [node name="RightPanel" type="VBoxContainer" parent="HSplitContainer"]
+custom_minimum_size = Vector2(512, 648)
 layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 0
+localize_numeral_system = false
 
 [node name="ModelPreviewPanel" type="VBoxContainer" parent="HSplitContainer/RightPanel"]
+clip_contents = true
+custom_minimum_size = Vector2(512, 512)
 layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+localize_numeral_system = false
+alignment = 1
 script = ExtResource("8_6t80q")
 
-[node name="PreviewLabel" type="Label" parent="HSplitContainer/RightPanel/ModelPreviewPanel"]
-layout_mode = 2
-
-[node name="PreviewStatusLabel" type="Label" parent="HSplitContainer/RightPanel/ModelPreviewPanel"]
-layout_mode = 2
-
 [node name="ViewportContainer" type="SubViewportContainer" parent="HSplitContainer/RightPanel/ModelPreviewPanel"]
-custom_minimum_size = Vector2(256, 256)
+custom_minimum_size = Vector2(512, 512)
 layout_mode = 2
-mouse_target = true
 
 [node name="SubViewport" type="SubViewport" parent="HSplitContainer/RightPanel/ModelPreviewPanel/ViewportContainer"]
 handle_input_locally = false
-size = Vector2i(256, 256)
 render_target_update_mode = 4
 
 [node name="Camera3D" type="Camera3D" parent="HSplitContainer/RightPanel/ModelPreviewPanel/ViewportContainer/SubViewport"]

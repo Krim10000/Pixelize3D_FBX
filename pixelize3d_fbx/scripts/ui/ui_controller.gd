@@ -59,6 +59,8 @@ func _ready():
 	_create_ui()
 	_connect_ui_signals()
 	_apply_theme()
+	_connect_north_slider_signal()
+	call_deferred("_connect_north_slider_signal")
 
 func _create_ui():
 	# Panel principal
@@ -631,18 +633,18 @@ func enable_animation_selection():
 	add_export_log("Modelo base cargado correctamente")
 
 # Función para manejar el cambio de orientación norte
-func _on_north_offset_changed(value: float):
-	if north_offset_label:
-		north_offset_label.text = "%.0f°" % value
-	
-	# Emitir cambio de configuración
-	_on_camera_setting_changed()
-
-# Función para manejar presets de orientación
-func _on_north_preset_pressed(angle: float):
-	if north_offset_slider:
-		north_offset_slider.value = angle
-		add_export_log("🧭 Orientación aplicada: %.0f°" % angle)
+#func _on_north_offset_changed(value: float):
+	#if north_offset_label:
+		#north_offset_label.text = "%.0f°" % value
+	#
+	## Emitir cambio de configuración
+	#_on_camera_setting_changed()
+#
+## Función para manejar presets de orientación
+##func _on_north_preset_pressed(angle: float):
+	##if north_offset_slider:
+		##north_offset_slider.value = angle
+		##add_export_log("🧭 Orientación aplicada: %.0f°" % angle)
 
 # Función para habilitar modo preview
 func enable_preview_mode():
@@ -688,19 +690,19 @@ func _find_node_by_name(parent: Node, node_name: String) -> Node:
 	return null
 
 # Función de configuración de cámara que incluye north_offset
-func _on_camera_setting_changed(_value = null):
-	var settings = {
-		"camera_angle": camera_angle_slider.value if camera_angle_slider else 45.0,
-		"camera_height": camera_height_slider.value if camera_height_slider else 10.0,
-		"camera_distance": camera_distance_slider.value if camera_distance_slider else 15.0,
-		"directions": int(directions_spinbox.value) if directions_spinbox else 16,
-		"sprite_size": int(sprite_size_spinbox.value) if sprite_size_spinbox else 256,
-		"fps": int(fps_spinbox.value) if fps_spinbox else 12,
-		"pixelize": pixelize_checkbox.button_pressed if pixelize_checkbox else true,
-		# Incluir orientación norte en la configuración
-		"north_offset": north_offset_slider.value if north_offset_slider else 0.0
-	}
-	emit_signal("render_settings_changed", settings)
+#func _on_camera_setting_changed(_value = null):
+	#var settings = {
+		#"camera_angle": camera_angle_slider.value if camera_angle_slider else 45.0,
+		#"camera_height": camera_height_slider.value if camera_height_slider else 10.0,
+		#"camera_distance": camera_distance_slider.value if camera_distance_slider else 15.0,
+		#"directions": int(directions_spinbox.value) if directions_spinbox else 16,
+		#"sprite_size": int(sprite_size_spinbox.value) if sprite_size_spinbox else 256,
+		#"fps": int(fps_spinbox.value) if fps_spinbox else 12,
+		#"pixelize": pixelize_checkbox.button_pressed if pixelize_checkbox else true,
+		## Incluir orientación norte en la configuración
+		#"north_offset": north_offset_slider.value if north_offset_slider else 0.0
+	#}
+	#emit_signal("render_settings_changed", settings)
 
 func _on_preview_pressed():
 	if preview_mode_active:
@@ -744,3 +746,99 @@ func add_export_log(message: String):
 
 func is_preview_active() -> bool:
 	return preview_mode_active
+
+
+
+# Función CORREGIDA para manejar presets de orientación
+#func _on_north_preset_pressed(angle: float):
+	#print("🧭 Preset presionado: %.0f°" % angle)
+	#
+	#if north_offset_slider:
+		## Cambiar valor del slider
+		#north_offset_slider.value = angle
+		#
+		## IMPORTANTE: Forzar actualización del label
+		#if north_offset_label:
+			#north_offset_label.text = "%.0f°" % angle
+		#
+		## CRÍTICO: Notificar manualmente al sistema de cámara
+		#_on_camera_setting_changed()
+		#
+		#add_export_log("🧭 Orientación aplicada: %.0f°" % angle)
+		#print("✅ Preset aplicado y notificado al sistema")
+#
+## AGREGAR: Función para conectar la señal del slider correctamente
+##func _connect_north_slider_signal():
+	##"""Conectar señal del slider de orientación norte"""
+	##if north_offset_slider:
+		### Asegurarse de que la señal esté conectada
+		##if not north_offset_slider.value_changed.is_connected(_on_north_offset_changed):
+			##north_offset_slider.value_changed.connect(_on_north_offset_changed)
+			##print("✅ Señal de north_offset_slider conectada")
+#
+## MEJORAR: Función _on_north_offset_changed para que también notifique al camera
+##func _on_north_offset_changed(value: float):
+	##print("🧭 Slider norte cambiado: %.0f°" % value)
+	##
+	##if north_offset_label:
+		##north_offset_label.text = "%.0f°" % value
+	##
+	### CRÍTICO: Notificar al sistema de cámara
+	##_on_camera_setting_changed()
+
+
+
+func _on_camera_setting_changed(_value = null):
+	var settings = {
+		"camera_angle": camera_angle_slider.value if camera_angle_slider else 45.0,
+		"camera_height": camera_height_slider.value if camera_height_slider else 10.0,
+		"camera_distance": camera_distance_slider.value if camera_distance_slider else 15.0,
+		"directions": int(directions_spinbox.value) if directions_spinbox else 16,
+		"sprite_size": int(sprite_size_spinbox.value) if sprite_size_spinbox else 256,
+		"fps": int(fps_spinbox.value) if fps_spinbox else 12,
+		"pixelize": pixelize_checkbox.button_pressed if pixelize_checkbox else true,
+		# VERIFICAR que esta línea esté presente:
+		"north_offset": north_offset_slider.value if north_offset_slider else 0.0
+	}
+	emit_signal("render_settings_changed", settings)
+	print("📡 Configuración enviada con north_offset: %.0f°" % settings.north_offset)
+	
+	
+func _connect_north_slider_signal():
+	"""Conectar señal del slider de orientación norte correctamente"""
+	if north_offset_slider:
+		# Desconectar si ya estaba conectada para evitar duplicados
+		if north_offset_slider.value_changed.is_connected(_on_north_offset_changed):
+			north_offset_slider.value_changed.disconnect(_on_north_offset_changed)
+		
+		# Reconectar
+		north_offset_slider.value_changed.connect(_on_north_offset_changed)
+		print("✅ Señal de north_offset_slider conectada correctamente")
+
+
+func _on_north_offset_changed(value: float):
+	print("🧭 Slider norte cambiado: %.0f°" % value)
+	
+	if north_offset_label:
+		north_offset_label.text = "%.0f°" % value
+	
+	# CRÍTICO: Notificar al sistema de cámara
+	_on_camera_setting_changed()
+	
+	
+func _on_north_preset_pressed(angle: float):
+	print("🧭 Preset presionado: %.0f°" % angle)
+	
+	if north_offset_slider:
+		# Cambiar valor del slider
+		north_offset_slider.value = angle
+		
+		# IMPORTANTE: Forzar actualización del label
+		if north_offset_label:
+			north_offset_label.text = "%.0f°" % angle
+		
+		# CRÍTICO: Notificar manualmente al sistema de cámara
+		_on_camera_setting_changed()
+		
+		add_export_log("🧭 Orientación aplicada: %.0f°" % angle)
+		print("✅ Preset aplicado y notificado al sistema")

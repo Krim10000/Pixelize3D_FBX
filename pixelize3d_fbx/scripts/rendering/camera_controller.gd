@@ -7,11 +7,16 @@ extends Node3D
 
 signal camera_ready()
 signal camera_moved()
+signal north_indicator_toggled(visible: bool)
 
 # Referencias a nodos existentes (se configuran en _ready)
 var camera_3d: Camera3D
 var directional_light: DirectionalLight3D
 var model_container: Node3D
+
+# NUEVO: Indicador visual de orientación norte
+var north_indicator: NorthIndicator = null
+var show_north_indicator: bool = true
 
 # Configuración de cámara
 @export var camera_angle: float = 45.0  # Ángulo de elevación (0-90°)
@@ -19,7 +24,7 @@ var model_container: Node3D
 @export var camera_height: float = 2.0   # Altura sobre el modelo
 @export var target_position: Vector3 = Vector3.ZERO
 @export var use_orthographic: bool = true
-@export var orthographic_size: float = 3.0
+@export var orthographic_size: float = 15.0  # ← AUMENTADO: 3.0 → 15.0
 
 # Nodo pivot para rotaciones
 var pivot_node: Node3D
@@ -39,6 +44,8 @@ func _ready():
 	_find_existing_nodes()
 	_setup_pivot_system()
 	_configure_camera()
+	_setup_north_indicator()
+	print("✅ CameraController con indicador norte inicializado")
 
 func _find_existing_nodes():
 	print("🔍 CameraController: Buscando nodos existentes...")
@@ -99,6 +106,36 @@ func _configure_camera():
 		orthographic_size if use_orthographic else camera_3d.fov
 	])
 
+# NUEVA: Configurar el indicador visual de norte
+func _setup_north_indicator():
+	"""Configurar el indicador visual de norte"""
+	if not north_indicator:
+		# Cargar la clase del indicador
+		var NorthIndicatorClass = load("res://scripts/orientation/north_indicator.gd")
+		north_indicator = NorthIndicatorClass.new()
+		north_indicator.name = "NorthIndicator"
+		
+		# Añadir al scene tree (mismo nivel que la cámara)
+		add_child(north_indicator)
+		
+		# Conectar señales
+		north_indicator.indicator_clicked.connect(_on_north_indicator_clicked)
+		north_indicator.north_changed.connect(_on_indicator_north_changed)
+		
+		print("🧭 Indicador de norte creado y conectado")
+
+# NUEVAS: Callbacks del indicador
+func _on_north_indicator_clicked():
+	"""Callback cuando se hace clic en el indicador"""
+	print("🖱️ Indicador de norte clickeado")
+	# Aquí podrías abrir un menú de ajuste rápido o similar
+
+func _on_indicator_north_changed(new_angle: float):
+	"""Callback cuando el indicador cambia la orientación"""
+	current_north_offset = new_angle
+	set_rotation_angle(new_angle)
+	print("🧭 Norte cambiado desde indicador: %.1f°" % new_angle)
+
 func update_camera_position():
 	"""Actualizar posición de la cámara basada en parámetros actuales"""
 	if not camera_3d:
@@ -123,7 +160,7 @@ func update_camera_position():
 # === FUNCIONES DE CONFIGURACIÓN ===
 
 func setup_for_model(model_bounds: AABB):
-	"""Configurar cámara para encuadrar un modelo específico"""
+	"""Configurar cámara para encuadrar un modelo específico - CORREGIDO"""
 	print("--- CONFIGURANDO CÁMARA PARA MODELO ---")
 	print("Bounds del modelo: %s" % str(model_bounds))
 	
@@ -138,19 +175,45 @@ func setup_for_model(model_bounds: AABB):
 	
 	print("Model size: %.2f, Distance: %.2f, Height: %.2f" % [model_size, camera_distance, camera_height])
 	
-	# Ajustar tamaño ortográfico
+	# ← CORREGIDO: Lógica de zoom mejorada
 	if use_orthographic:
-		orthographic_size = model_size * 1.2  # 20% de padding
+		# Verificar si hay override manual
+		var config_manager = get_node_or_null("/root/ConfigManager")
+		var manual_override = false
+		var fixed_size = 15.0  # ← Default más seguro
+		
+		if config_manager:
+			manual_override = config_manager.get_config_value("camera", "manual_zoom_override", false)
+			fixed_size = config_manager.get_config_value("camera", "fixed_orthographic_size", 15.0)
+		
+		if manual_override:
+			orthographic_size = fixed_size
+			print("🔧 Usando tamaño ortográfico FIJO: %.2f" % orthographic_size)
+		else:
+			# ← CORREGIDO: Más padding para evitar recorte
+			orthographic_size = max(model_size * 1.8, 8.0)  # 80% padding mínimo + mínimo absoluto
+			print("📏 Tamaño ortográfico AUTO: %.2f (model_size: %.2f)" % [orthographic_size, model_size])
+		
 		camera_3d.size = orthographic_size
-		print("Orthographic size: %.2f" % orthographic_size)
+	
+	# NUEVO: Configurar indicador de norte para el modelo
+	if north_indicator:
+		north_indicator.setup_for_model(model_bounds)
+		north_indicator.set_north_angle(current_north_offset)
+		
+		# Mostrar indicador si está habilitado
+		if show_north_indicator:
+			north_indicator.show_indicator()
+		else:
+			north_indicator.hide_indicator()
 	
 	update_camera_position()
-	print("✅ Cámara configurada para modelo")
+	print("✅ Cámara e indicador configurados para modelo")
 	emit_signal("camera_ready")
 
 func set_camera_settings(settings: Dictionary):
 	"""Aplicar configuración de cámara desde diccionario"""
-	print("--- APLICANDO CONFIGURACIÓN DE CÁMARA ---")
+	print("--- APLICANDO CONFIGURACIÓN DE CÁMARA CON INDICADOR ---")
 	
 	if settings.has("camera_angle"):
 		camera_angle = settings.camera_angle
@@ -172,6 +235,10 @@ func set_camera_settings(settings: Dictionary):
 		current_north_offset = settings.north_offset
 		print("  Norte relativo: %.1f°" % current_north_offset)
 		
+		# NUEVO: Sincronizar indicador
+		if north_indicator:
+			north_indicator.set_north_angle(current_north_offset)
+		
 		# Aplicar orientación si estamos en preview
 		if preview_mode_enabled:
 			set_rotation_angle(current_north_offset)
@@ -182,8 +249,22 @@ func set_camera_settings(settings: Dictionary):
 			camera_3d.size = orthographic_size
 		print("  Tamaño ortográfico: %.1f" % orthographic_size)
 	
+	# ← MEJORADO: Manejar configuración de zoom manual
+	if settings.has("manual_zoom_override"):
+		var manual_override = settings.manual_zoom_override
+		var fixed_size = settings.get("fixed_orthographic_size", 15.0)  # ← Default seguro
+		
+		if manual_override and use_orthographic:
+			orthographic_size = fixed_size
+			camera_3d.size = orthographic_size
+			print("🔧 Zoom manual activado: %.1f" % orthographic_size)
+	
+	# NUEVO: Manejar visibilidad del indicador
+	if settings.has("show_north_indicator"):
+		set_north_indicator_visible(settings.show_north_indicator)
+	
 	update_camera_position()
-	print("✅ Configuración aplicada")
+	print("✅ Configuración aplicada con indicador sincronizado")
 
 # === FUNCIONES DE CONTROL DE USUARIO ===
 
@@ -191,6 +272,10 @@ func set_rotation_angle(degrees: float):
 	"""Rotar la cámara a un ángulo específico"""
 	pivot_node.rotation_degrees.y = degrees
 	update_camera_position()
+	
+	# NUEVO: Sincronizar con indicador visual
+	if north_indicator:
+		north_indicator.set_north_angle(current_north_offset)
 	
 	if abs(degrees - current_north_offset) > 0.1:
 		print("🧭 Cámara rotada a: %.1f° (norte: %.1f°)" % [degrees, current_north_offset])
@@ -213,13 +298,52 @@ func set_height(new_height: float):
 	update_camera_position()
 	print("📏 Altura ajustada: %.2f" % camera_height)
 
+# ← NUEVA: Función para cambiar zoom manualmente
+func set_orthographic_size(new_size: float):
+	"""Cambiar tamaño ortográfico manualmente"""
+	if use_orthographic and camera_3d:
+		orthographic_size = clamp(new_size, 1.0, 50.0)
+		camera_3d.size = orthographic_size
+		print("🔍 Zoom ajustado: %.2f" % orthographic_size)
+
+# === NUEVAS FUNCIONES DEL INDICADOR NORTE ===
+
+func toggle_north_indicator():
+	"""Alternar visibilidad del indicador de norte"""
+	show_north_indicator = !show_north_indicator
+	
+	if north_indicator:
+		if show_north_indicator:
+			north_indicator.show_indicator()
+		else:
+			north_indicator.hide_indicator()
+	
+	emit_signal("north_indicator_toggled", show_north_indicator)
+	print("🧭 Indicador de norte: %s" % ("MOSTRADO" if show_north_indicator else "OCULTO"))
+
+func set_north_indicator_visible(visible: bool):
+	"""Establecer visibilidad del indicador de norte"""
+	show_north_indicator = visible
+	
+	if north_indicator:
+		if visible:
+			north_indicator.show_indicator()
+		else:
+			north_indicator.hide_indicator()
+	
+	emit_signal("north_indicator_toggled", show_north_indicator)
+
+func is_north_indicator_visible() -> bool:
+	"""Verificar si el indicador está visible"""
+	return show_north_indicator
+
 # === FUNCIONES DE ZOOM ===
 
 func zoom_in():
 	"""Acercar la cámara"""
 	if use_orthographic:
 		orthographic_size *= 0.9
-		orthographic_size = max(orthographic_size, 0.5)
+		orthographic_size = max(orthographic_size, 2.0)  # ← Mínimo más seguro
 		camera_3d.size = orthographic_size
 		print("🔍 Zoom in: size=%.2f" % orthographic_size)
 	else:
@@ -262,6 +386,10 @@ func disable_preview_mode():
 	set_process_input(false)
 	is_rotating = false
 	is_panning = false
+
+func get_preview_mode_enabled() -> bool:
+	"""Verificar si preview mode está habilitado"""
+	return preview_mode_enabled
 
 func _input(event):
 	"""Manejar input del usuario en preview mode"""
@@ -316,9 +444,32 @@ func reset_to_north():
 	print("🧭 Reseteando a orientación norte: %.1f°" % current_north_offset)
 	set_rotation_angle(current_north_offset)
 
+func reset_to_default():
+	"""Resetear cámara a configuración por defecto"""
+	camera_angle = 45.0
+	camera_height = 2.0
+	camera_distance = 5.0
+	target_position = Vector3.ZERO
+	orthographic_size = 15.0  # ← Default más seguro
+	
+	if camera_3d:
+		camera_3d.size = orthographic_size
+	
+	pivot_node.rotation_degrees = Vector3.ZERO
+	update_camera_position()
+	print("🔄 Cámara reseteada a valores por defecto")
+
 func get_relative_angle() -> float:
 	"""Obtener ángulo actual relativo al norte"""
 	return pivot_node.rotation_degrees.y - current_north_offset
+
+func get_current_rotation() -> float:
+	"""Obtener rotación actual del pivot"""
+	return pivot_node.rotation_degrees.y
+
+func get_target_position() -> Vector3:
+	"""Obtener posición objetivo de la cámara"""
+	return target_position
 
 func get_view_info() -> Dictionary:
 	"""Obtener información completa del estado de la cámara"""
@@ -333,19 +484,21 @@ func get_view_info() -> Dictionary:
 		"angle": camera_angle,
 		"height": camera_height,
 		"orthographic_size": camera_3d.size if camera_3d and use_orthographic else 0.0,
-		"preview_mode": preview_mode_enabled
+		"preview_mode": preview_mode_enabled,
+		# NUEVO: información del indicador
+		"north_indicator_visible": show_north_indicator,
+		"north_indicator_info": north_indicator.get_visual_info() if north_indicator else {}
 	}
 
 func debug_camera_state():
 	"""Imprimir estado actual de la cámara para debugging"""
-	print("\n=== CAMERA CONTROLLER DEBUG ===")
+	print("\n=== CAMERA CONTROLLER DEBUG CON INDICADOR ===")
 	var info = get_view_info()
 	for key in info:
 		print("  %s: %s" % [key, str(info[key])])
-	print("================================\n")
-
-
-#
-#func focus_on_bounds(bounds: AABB):
-	#"""Alias para mantener compatibilidad con código antiguo"""
-	#setup_for_model(bounds)
+	
+	# Debug específico del indicador
+	if north_indicator:
+		north_indicator.debug_indicator_state()
+	
+	print("============================================\n")

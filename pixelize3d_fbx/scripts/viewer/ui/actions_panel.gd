@@ -22,7 +22,7 @@ var status_label: Label
 
 # Estado interno
 var preview_enabled: bool = false
-var render_enabled: bool = false
+var render_enabled: bool = true
 var is_processing: bool = false
 
 func _ready():
@@ -32,7 +32,7 @@ func _create_ui():
 	# Título de sección
 	section_label = Label.new()
 	section_label.text = "🎯 Acciones"
-	section_label.add_theme_font_size_override("font_size", 16)
+	section_label.add_theme_font_size_override("font_size", 20)
 	section_label.add_theme_color_override("font_color", Color(0.2, 0.6, 1.0))
 	add_child(section_label)
 	
@@ -41,7 +41,7 @@ func _create_ui():
 	# Status actual
 	status_label = Label.new()
 	status_label.text = "Carga un modelo para comenzar"
-	status_label.add_theme_font_size_override("font_size", 10)
+	status_label.add_theme_font_size_override("font_size", 20)
 	status_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 	status_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(status_label)
@@ -59,10 +59,12 @@ func _create_ui():
 	
 	render_button = Button.new()
 	render_button.text = "🎨 Renderizar"
-	render_button.disabled = true
+	render_button.visible = true
+	render_button.disabled = false
 	render_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	render_button.pressed.connect(_on_render_pressed)
 	main_actions.add_child(render_button)
+
 	
 	# Botones secundarios
 	var secondary_actions = HBoxContainer.new()
@@ -70,7 +72,8 @@ func _create_ui():
 	
 	export_button = Button.new()
 	export_button.text = "💾 Exportar"
-	export_button.disabled = true
+	export_button.disabled = false
+	export_button.visible = true
 	export_button.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	export_button.pressed.connect(_on_export_pressed)
 	secondary_actions.add_child(export_button)
@@ -116,10 +119,10 @@ func _on_settings_pressed():
 	emit_signal("settings_requested")
 
 # Funciones públicas para control de estado
-func enable_preview_button():
-	preview_enabled = true
-	#preview_button.disabled = false
-	set_status("✅ Listo para preview")
+#func enable_preview_button():
+	#preview_enabled = true
+	##preview_button.disabled = false
+	#set_status("✅ Listo para preview")
 
 func enable_render_button():
 	render_enabled = true
@@ -133,7 +136,7 @@ func enable_render_button():
 	#preview_button.remove_theme_color_override("font_color")
 
 func disable_render_button():
-	render_enabled = false
+	render_enabled = true
 	render_button.disabled = true
 
 func start_processing(process_name: String):
@@ -207,8 +210,7 @@ func get_current_status() -> String:
 	return status_label.text
 
 func reset_all_buttons():
-	preview_enabled = false
-	render_enabled = false
+	render_enabled = true
 	is_processing = false
 	
 	#preview_button.disabled = true
@@ -217,6 +219,7 @@ func reset_all_buttons():
 	
 	#preview_button.text = "🎬 Preview"
 	#preview_button.remove_theme_color_override("font_color")
-	
+	render_enabled = true
+
 	progress_bar.visible = false
 	set_status("Carga un modelo para comenzar")

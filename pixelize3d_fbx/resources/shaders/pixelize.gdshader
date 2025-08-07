@@ -31,30 +31,30 @@ void vertex() {
 void fragment() {
     // Obtener el tamaño de la textura
     vec2 texture_size = vec2(textureSize(main_texture, 0));
-    
+
     // Calcular coordenadas pixelizadas
     vec2 pixel_coord = UV * texture_size;
     vec2 pixelated_coord = floor(pixel_coord / pixel_size) * pixel_size;
     vec2 pixelated_uv = pixelated_coord / texture_size;
-    
+
     // Obtener el color de la textura
     vec4 color = texture(main_texture, pixelated_uv);
-    
+
     // Aplicar dithering si está activado
     if (enable_dithering) {
         ivec2 dither_pos = ivec2(mod(pixel_coord, 4.0));
         float dither_value = dither_matrix[dither_pos.x][dither_pos.y];
-        
+
         // Aplicar dithering al color antes de la cuantización
         vec3 dithered = color.rgb + (dither_value - 0.5) * dither_strength;
         color.rgb = clamp(dithered, 0.0, 1.0);
     }
-    
+
     // Aplicar reducción de colores si está activada
     if (reduce_colors) {
         color.rgb = quantize_color(color.rgb, float(color_levels));
     }
-    
+
     // Aplicar el color final
     ALBEDO = color.rgb;
     ALPHA = color.a;

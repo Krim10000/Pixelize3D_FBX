@@ -13,6 +13,13 @@ class TestResults:
 	var frames_captured: int = 0
 	var export_success: bool = false
 	var export_error: String = ""
+
+	# Variables anti-loop que faltaban
+	var last_animations_processed: Array = []
+	var processing_start_time: float = 0.0
+
+	# Referencia a camera_controller que falta
+	var camera_controller: Node
 	
 	func reset():
 		frames_captured = 0
@@ -58,6 +65,7 @@ var animation_monitor: Node
 
 # Variable para rastrear animaciones pendientes de combinación
 var pending_animations_for_combination: Array = []
+var camera_sync_helper: Node
 
 func _ready():
 	print("🎮 ViewerCoordinator REFACTORIZADO iniciado")
@@ -68,11 +76,13 @@ func _ready():
 	_validate_and_connect()
 	_initialize_extensions()
 	_initialize_spritesheet_pipeline()
-	
+	size_flags_vertical = Control.SIZE_EXPAND_FILL
+	call_deferred("_setup_unified_camera_system")
+
 func _validate_and_connect():
 	"""Validar y conectar de forma segura"""
 	print("🔍 Validando componentes...")
-	
+
 	# Validar componentes críticos
 	if not fbx_loader:
 		print("❌ FBXLoader no encontrado")
@@ -86,21 +96,40 @@ func _validate_and_connect():
 	if not log_panel:
 		print("❌ LogPanel no encontrado")
 		return
-	
+
+	if not actions_panel:
+		print("❌ actions_panel no encontrado")
+		return
+
 	print("✅ Componentes validados")
 	_connect_all_signals()
 
 func _connect_all_signals():
 	"""Conectar TODAS las señales incluyendo las huérfanas"""
 	print("🔗 Conectando TODAS las señales...")
-	
+
 	# FileLoaderPanel
 	if file_loader_panel:
 		file_loader_panel.file_selected.connect(_on_file_selected)
 		file_loader_panel.unit_selected.connect(_on_unit_selected)
 		file_loader_panel.animations_selected.connect(_on_animations_selected_protected)
 		print("✅ FileLoaderPanel conectado")
+
+
+	var ui_controller = get_node_or_null("UIController")
+	if not ui_controller:
+		ui_controller = find_child("UIController", true, false)
 	
+	if ui_controller:
+		# Conectar señal de configuración de renderizado
+		if ui_controller.has_signal("render_settings_changed"):
+			ui_controller.render_settings_changed.connect(_on_render_settings_changed)
+			print("✅ UI Controller render_settings_changed conectado")
+		else:
+			print("⚠️ UI Controller no tiene señal render_settings_changed")
+	else:
+		print("⚠️ UI Controller no encontrado")
+
 	# AnimationControlsPanel - CONECTAR SEÑAL HUÉRFANA
 	if animation_controls_panel:
 		animation_controls_panel.animation_selected.connect(_on_animation_selected_ui)
@@ -109,7 +138,7 @@ func _connect_all_signals():
 		animation_controls_panel.pause_requested.connect(_on_pause_requested)
 		animation_controls_panel.stop_requested.connect(_on_stop_requested)
 		print("✅ AnimationControlsPanel COMPLETAMENTE conectado")
-	
+
 	# ActionsPanel - CONECTAR SEÑALES HUÉRFANAS
 	if actions_panel:
 		actions_panel.preview_requested.connect(_on_preview_requested)
@@ -117,19 +146,19 @@ func _connect_all_signals():
 		actions_panel.export_requested.connect(_on_export_requested)
 		actions_panel.settings_requested.connect(_on_settings_requested)
 		print("✅ ActionsPanel COMPLETAMENTE conectado")
-	
+
 	# FBX Loader
 	if fbx_loader:
 		fbx_loader.model_loaded.connect(_on_model_loaded)
 		fbx_loader.load_failed.connect(_on_load_failed)
 		print("✅ FBXLoader conectado")
-	
+
 	# Animation Manager
 	if animation_manager:
 		animation_manager.combination_complete.connect(_on_combination_complete_safe)
 		animation_manager.combination_failed.connect(_on_combination_failed)
 		print("✅ AnimationManager conectado")
-	
+
 	print("🔗 TODAS las conexiones completadas")
 
 # ========================================================================
@@ -139,7 +168,7 @@ func _connect_all_signals():
 func _initialize_spritesheet_pipeline():
 	"""Inicializar el pipeline de sprite sheets"""
 	print("🏭 Inicializando SpritesheetPipeline...")
-	
+
 	# Crear instancia del pipeline
 	var pipeline_script = load("res://scripts/rendering/spritesheet_pipeline.gd")
 	if pipeline_script:
@@ -161,75 +190,67 @@ func _connect_pipeline_signals():
 	"""Conectar señales del pipeline"""
 	if not spritesheet_pipeline:
 		return
-	
+
 	# Señales de progreso del pipeline
 	spritesheet_pipeline.pipeline_started.connect(_on_pipeline_started)
 	spritesheet_pipeline.pipeline_progress.connect(_on_pipeline_progress)
 	spritesheet_pipeline.pipeline_complete.connect(_on_pipeline_complete)
 	spritesheet_pipeline.pipeline_failed.connect(_on_pipeline_failed)
-	
+
 	# Señales de fases específicas
 	spritesheet_pipeline.rendering_phase_started.connect(_on_rendering_phase_started)
 	spritesheet_pipeline.rendering_phase_complete.connect(_on_rendering_phase_complete)
 	spritesheet_pipeline.export_phase_started.connect(_on_export_phase_started)
 	spritesheet_pipeline.export_phase_complete.connect(_on_export_phase_complete)
-	
+
 	print("🔗 Señales del pipeline conectadas")
 
 # ========================================================================
 # ✅ REFACTORIZADO: MANEJADORES DE ACCIONES
 # ========================================================================
 
-#func _on_preview_requested():
-	#"""Manejar solicitud de preview"""
-	#print("🎬 Preview solicitado")
-	#log_panel.add_log("🎬 Activando preview...")
-	#
-	#if not current_combined_model or not is_instance_valid(current_combined_model):
-		#log_panel.add_log("❌ No hay modelo válido para preview")
-		#return
-	#
-	## Configurar preview en sprite_renderer
-	#if sprite_renderer and sprite_renderer.has_method("setup_preview"):
-		#var preview_settings = _get_current_render_settings()
-		#sprite_renderer.setup_preview(current_combined_model, preview_settings)
-		#log_panel.add_log("✅ Preview configurado")
-	#
-	## El preview también debería estar activo en model_preview_panel
-	#if model_preview_panel and model_preview_panel.has_method("set_model"):
-		#model_preview_panel.set_model(current_combined_model)
-		#model_preview_panel.show()
-		#log_panel.add_log("✅ Preview activo")
-
-
 func _on_preview_requested():
-	pass
-	
-	
+	"""Manejar solicitud de preview con sistema unificado"""
+	print("🎬 Preview solicitado - sistema unificado")
+	log_panel.add_log("🎬 Activando preview unificado...")
+
+	if not current_combined_model or not is_instance_valid(current_combined_model):
+		log_panel.add_log("❌ No hay modelo válido para preview")
+		return
+
+	# Usar ModelPreviewPanel directamente - SpriteRenderer se sincronizará automáticamente
+	if model_preview_panel and model_preview_panel.has_method("set_model"):
+		model_preview_panel.set_model(current_combined_model)
+		log_panel.add_log("✅ Preview unificado configurado")
+
+	# Verificar sincronización si está disponible
+	if camera_sync_helper and camera_sync_helper.has_method("_validate_sync_setup"):
+		camera_sync_helper._validate_sync_setup()
+
 func _on_render_requested_refactored():
 	"""✅ REFACTORIZADO: Manejar solicitud de renderizado usando pipeline"""
 	print("🎨 Renderizado solicitado - USANDO PIPELINE")
 	log_panel.add_log("🎨 Iniciando renderizado con pipeline...")
-	
+
 	# Validar prerrequisitos
 	if not current_combined_model or not is_instance_valid(current_combined_model):
 		log_panel.add_log("❌ No hay modelo válido para renderizar")
 		if actions_panel:
 			actions_panel.show_error("No hay modelo cargado")
 		return
-	
+
 	if not spritesheet_pipeline:
 		log_panel.add_log("❌ Pipeline no disponible")
 		if actions_panel:
 			actions_panel.show_error("Pipeline no inicializado")
 		return
-	
+
 	if spritesheet_pipeline.is_busy():
 		log_panel.add_log("⚠️ Pipeline ocupado")
 		if actions_panel:
 			actions_panel.show_error("Pipeline ocupado, espera a que termine")
 		return
-	
+
 	# Obtener animación actual
 	var current_anim = _get_current_animation_name()
 	if current_anim == "":
@@ -237,13 +258,13 @@ func _on_render_requested_refactored():
 		if actions_panel:
 			actions_panel.show_error("Selecciona una animación")
 		return
-	
+
 	# Obtener configuración
 	var config = _get_current_render_settings()
-	
+
 	# ✅ USAR PIPELINE: Una sola línea limpia en lugar de 200+ líneas de lógica
 	var success = spritesheet_pipeline.generate_spritesheet(current_anim, config)
-	
+
 	if not success:
 		log_panel.add_log("❌ No se pudo iniciar pipeline")
 		if actions_panel:
@@ -253,12 +274,12 @@ func _on_export_requested():
 	"""Manejar solicitud de exportación - VERSIÓN CORREGIDA"""
 	print("💾 Exportación solicitada - VERSIÓN CORREGIDA")
 	log_panel.add_log("💾 Abriendo diálogo de exportación...")
-	
+
 	if not current_combined_model or not is_instance_valid(current_combined_model):
 		if actions_panel:
 			actions_panel.show_error("No hay modelo cargado")
 		return
-	
+
 	# ✅ CORREGIDO: Verificar métodos antes de llamarlos
 	if export_dialog:
 		var available_animations = _get_available_animation_names()
@@ -274,7 +295,7 @@ func _on_export_requested():
 func _on_settings_requested():
 	"""Manejar solicitud de configuración"""
 	print("⚙️ Configuración solicitada")
-	
+
 	# Mostrar/ocultar panel de configuración
 	if settings_panel:
 		settings_panel.visible = not settings_panel.visible
@@ -288,7 +309,7 @@ func _on_pipeline_started(animation_name: String):
 	"""Manejar inicio del pipeline"""
 	print("🚀 Pipeline iniciado: %s" % animation_name)
 	log_panel.add_log("🚀 Pipeline iniciado: " + animation_name)
-	
+
 	if actions_panel:
 		actions_panel.start_processing("Iniciando pipeline...")
 
@@ -296,7 +317,7 @@ func _on_pipeline_progress(current_step: int, total_steps: int, message: String)
 	"""Manejar progreso del pipeline"""
 	var progress = float(current_step) / float(total_steps)
 	log_panel.add_log("📊 %s (%d/%d)" % [message, current_step, total_steps])
-	
+
 	if actions_panel:
 		actions_panel.update_progress(progress, message)
 
@@ -305,7 +326,7 @@ func _on_pipeline_complete(animation_name: String, output_path: String):
 	print("✅ Pipeline completado: %s → %s" % [animation_name, output_path])
 	log_panel.add_log("✅ Sprite sheet generado: " + animation_name)
 	log_panel.add_log("📁 Ubicación: " + output_path)
-	
+
 	if actions_panel:
 		actions_panel.finish_processing(true, "Sprite sheet generado exitosamente")
 
@@ -313,7 +334,7 @@ func _on_pipeline_failed(animation_name: String, error: String):
 	"""Manejar fallo del pipeline"""
 	print("❌ Pipeline falló: %s - %s" % [animation_name, error])
 	log_panel.add_log("❌ Error en pipeline: " + error)
-	
+
 	if actions_panel:
 		actions_panel.finish_processing(false, "Error: " + error)
 
@@ -344,21 +365,21 @@ func _on_animation_selected_ui(animation_name: String):
 func _on_play_requested(animation_name: String):
 	"""Manejar solicitud de reproducción"""
 	print("▶️ Reproducción solicitada: %s" % animation_name)
-	
+
 	if model_preview_panel and model_preview_panel.has_method("play_animation"):
 		model_preview_panel.play_animation(animation_name)
 
 func _on_pause_requested():
 	"""Manejar solicitud de pausa"""
 	print("⏸️ Pausa solicitada")
-	
+
 	if model_preview_panel and model_preview_panel.has_method("pause_animation"):
 		model_preview_panel.pause_animation()
 
 func _on_stop_requested():
 	"""Manejar solicitud de detención"""
 	print("⏹️ Detención solicitada")
-	
+
 	if model_preview_panel and model_preview_panel.has_method("stop_animation"):
 		model_preview_panel.stop_animation()
 
@@ -370,33 +391,33 @@ func _on_animation_change_requested(animation_name: String):
 	"""Manejar cambio con búsqueda más inteligente - VERSIÓN CORREGIDA"""
 	print("\n🔄 === CAMBIO DE ANIMACIÓN SOLICITADO ===")
 	print("Animación solicitada: %s" % animation_name)
-	
+
 	if is_changing_animation:
 		print("⚠️ Ya hay un cambio en progreso")
 		return
-	
+
 	is_changing_animation = true
 	log_panel.add_log("🔄 Cambiando a: " + animation_name)
-	
+
 	# ✅ CRÍTICO: Validar modelo antes de usar
 	if not current_combined_model or not is_instance_valid(current_combined_model):
 		print("❌ No hay modelo combinado válido")
 		_finish_animation_change(false, animation_name)
 		return
-	
+
 	var anim_player = _find_animation_player(current_combined_model)
 	if not anim_player:
 		print("❌ No se encontró AnimationPlayer")
 		_finish_animation_change(false, animation_name)
 		return
-	
+
 	# Búsqueda más inteligente de animaciones
 	var found_animation = ""
 	var clean_name = animation_name.get_basename()  # Quitar .fbx
-	
+
 	print("🔍 Buscando animación: '%s' (limpio: '%s')" % [animation_name, clean_name])
 	print("📋 Animaciones disponibles: %s" % str(anim_player.get_animation_list()))
-	
+
 	# Buscar coincidencia exacta primero
 	if anim_player.has_animation(animation_name):
 		found_animation = animation_name
@@ -706,7 +727,6 @@ func _on_combination_complete_safe(combined_model: Node3D):
 	
 	# Habilitar botones de acción
 	if actions_panel:
-		actions_panel.enable_preview_button()
 		actions_panel.enable_render_button()
 		actions_panel.set_status("✅ Modelo listo para renderizar")
 
@@ -1229,3 +1249,83 @@ func count_active_animations() -> int:
 		return animation_monitor.get_active_animations_count()
 	else:
 		return -1
+
+func _setup_unified_camera_system():
+	"""Inicializar sistema de cámara unificada"""
+	print("🎥 Configurando sistema de cámara unificada...")
+
+	# Crear helper de sincronización
+	var helper_script = load("res://scripts/helpers/camera_sync_helper.gd")
+	if helper_script:
+		camera_sync_helper = helper_script.new()
+		camera_sync_helper.name = "CameraSyncHelper" 
+		add_child(camera_sync_helper)
+		print("✅ Sistema de cámara unificada configurado")
+	else:
+		print("⚠️ No se pudo cargar CameraSyncHelper")
+
+# ========================================================================
+# FUNCIONES DE DEBUG PARA EL SISTEMA UNIFICADO
+# ========================================================================
+
+func debug_unified_camera_system():
+	"""Debug del sistema de cámara unificada"""
+	print("\n🎥 === DEBUG SISTEMA CÁMARA UNIFICADA ===")
+	print("CameraSyncHelper: %s" % ("✅" if camera_sync_helper else "❌"))
+
+	if camera_sync_helper:
+		camera_sync_helper.debug_sync_state()
+
+	if sprite_renderer and sprite_renderer.has_method("debug_shared_state"):
+		sprite_renderer.debug_shared_state()
+
+	print("==========================================\n")
+
+func get_unified_camera_info() -> Dictionary:
+	"""Obtener información del sistema de cámara unificada"""
+	var info = {
+		"sync_helper_active": camera_sync_helper != null,
+		"shared_viewport": null,
+		"shared_camera": null,
+		"sync_status": "unknown"
+	}
+
+	if camera_sync_helper:
+		info.sync_status = "active" if camera_sync_helper.is_sync_active() else "inactive"
+		
+		if camera_sync_helper.has_method("get_shared_viewport"):
+			info.shared_viewport = camera_sync_helper.get_shared_viewport()
+		
+		if camera_sync_helper.has_method("get_shared_camera"):
+			info.shared_camera = camera_sync_helper.get_shared_camera()
+
+	return info
+
+
+func _on_render_settings_changed(settings: Dictionary):
+	"""Manejar cambios en configuración de renderizado desde UI"""
+	print("📡 Configuración recibida desde UI:")
+	print("  Norte: %.0f°" % settings.get("north_offset", 0.0))
+	
+	# Enviar al camera_controller si existe un modelo
+	if current_combined_model and is_instance_valid(current_combined_model):
+		# Buscar camera_controller en sprite_renderer
+		if sprite_renderer:
+			var camera_controller = sprite_renderer.get_node_or_null("CameraController")
+			if camera_controller and camera_controller.has_method("set_camera_settings"):
+				camera_controller.set_camera_settings(settings)
+				print("✅ Configuración enviada al camera_controller")
+			else:
+				print("❌ Camera controller no encontrado en sprite_renderer")
+		
+		# También enviar al model_preview_panel si existe
+		if model_preview_panel:
+			var preview_camera = model_preview_panel.get_node_or_null("ViewportContainer/SubViewport/CameraController")
+			if preview_camera and preview_camera.has_method("set_camera_settings"):
+				preview_camera.set_camera_settings(settings)
+				print("✅ Configuración enviada al preview camera")
+	else:
+		print("⚠️ No hay modelo combinado para aplicar configuración")
+
+	# También actualizar configuración interna
+	log_panel.add_log("⚙️ Configuración actualizada - Norte: %.0f°" % settings.get("north_offset", 0.0))

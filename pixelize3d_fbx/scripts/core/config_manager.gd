@@ -18,8 +18,8 @@ var presets: Dictionary = {}
 var default_config = {
 	"render": {
 		"directions": 16,
-		"sprite_size": 256,
-		"fps": 12,
+		"sprite_size": 512,  # ← CAMBIADO: 256 → 512
+		"fps": 30,  # ← CAMBIADO: 12 → 30
 		"background_color": Color(0, 0, 0, 0),
 		"pixelize": true,
 		"pixel_scale": 4,
@@ -37,8 +37,10 @@ var default_config = {
 		"distance": 15.0,
 		"fov": 35.0,
 		"orthographic": true,
-		"orthographic_size": 10.0,
-		"auto_fit": true
+		"orthographic_size": 15.0,  # ← AUMENTADO: 10.0 → 15.0
+		"auto_fit": true,  # ← CORREGIDO: false → true (mantener auto-ajuste)
+		"manual_zoom_override": false,  
+		"fixed_orthographic_size": 15.0  # ← AUMENTADO: 12.0 → 15.0
 	},
 	"export": {
 		"format": "png",
@@ -76,8 +78,8 @@ var default_presets = {
 		"config": {
 			"render": {
 				"directions": 16,
-				"sprite_size": 128,
-				"fps": 12,
+				"sprite_size": 512,  
+				"fps": 30,  
 				"pixelize": true,
 				"pixel_scale": 2
 			},
@@ -85,7 +87,10 @@ var default_presets = {
 				"angle": 45.0,
 				"height": 10.0,
 				"distance": 15.0,
-				"orthographic": true
+				"orthographic": true,
+				"auto_fit": true,  # ← Mantener auto-ajuste
+				"manual_zoom_override": false,
+				"fixed_orthographic_size": 15.0
 			}
 		}
 	},
@@ -96,7 +101,7 @@ var default_presets = {
 			"render": {
 				"directions": 32,
 				"sprite_size": 512,
-				"fps": 24,
+				"fps": 30,  
 				"pixelize": false,
 				"shadows": true
 			},
@@ -104,7 +109,10 @@ var default_presets = {
 				"angle": 30.0,
 				"height": 12.0,
 				"distance": 20.0,
-				"orthographic": true
+				"orthographic": true,
+				"auto_fit": true,  # ← Mantener auto-ajuste
+				"manual_zoom_override": false,
+				"fixed_orthographic_size": 18.0
 			}
 		}
 	},
@@ -113,9 +121,9 @@ var default_presets = {
 		"description": "Estilo pixel art clásico",
 		"config": {
 			"render": {
-				"directions": 8,
+				"directions": 16,
 				"sprite_size": 64,
-				"fps": 8,
+				"fps": 15,  
 				"pixelize": true,
 				"pixel_scale": 4,
 				"reduce_colors": true,
@@ -123,9 +131,14 @@ var default_presets = {
 			},
 			"camera": {
 				"angle": 45.0,
-				"height": 8.0,
-				"distance": 12.0,
-				"orthographic": true
+				"height": 10.0,
+				"distance": 15.0,
+				"fov": 35.0,
+				"orthographic_size": 12.0,  # ← Zoom más cerrado para pixel art
+				"orthographic": true,
+				"auto_fit": false,  # ← Usar zoom fijo para pixel art por consistencia
+				"manual_zoom_override": true,  
+				"fixed_orthographic_size": 12.0
 			}
 		}
 	},
@@ -135,8 +148,8 @@ var default_presets = {
 		"config": {
 			"render": {
 				"directions": 8,
-				"sprite_size": 128,
-				"fps": 15,
+				"sprite_size": 256,  
+				"fps": 20,  
 				"pixelize": false,
 				"shadows": false,
 				"anti_aliasing": false
@@ -145,11 +158,59 @@ var default_presets = {
 				"angle": 45.0,
 				"height": 10.0,
 				"distance": 15.0,
-				"orthographic": true
+				"orthographic": true,
+				"auto_fit": true,  # ← Mantener auto-ajuste
+				"manual_zoom_override": false,
+				"fixed_orthographic_size": 15.0
 			},
 			"export": {
 				"compression": 5,
 				"trim_transparent": true
+			}
+		}
+	},
+	"High_Detail": {
+		"name": "Máxima Calidad",
+		"description": "Para casos donde se necesita capturar más área del modelo",
+		"config": {
+			"render": {
+				"directions": 16,
+				"sprite_size": 512,
+				"fps": 30,
+				"pixelize": false,
+				"shadows": true,
+				"anti_aliasing": true
+			},
+			"camera": {
+				"angle": 45.0,
+				"height": 10.0,
+				"distance": 15.0,
+				"orthographic": true,
+				"auto_fit": false,  # ← Zoom fijo para consistencia
+				"manual_zoom_override": true,  
+				"fixed_orthographic_size": 20.0  # ← Zoom más alejado para capturar más área
+			}
+		}
+	},
+	"Debug_Large": {
+		"name": "Debug - Modelos Grandes",
+		"description": "Para debuggear modelos que se cortan en pantalla",
+		"config": {
+			"render": {
+				"directions": 8,  # ← Menos direcciones para debug rápido
+				"sprite_size": 512,
+				"fps": 15,  # ← FPS más bajo para debug
+				"pixelize": false,
+				"shadows": true
+			},
+			"camera": {
+				"angle": 45.0,
+				"height": 10.0,
+				"distance": 15.0,
+				"orthographic": true,
+				"auto_fit": false,  # ← Zoom fijo para debug
+				"manual_zoom_override": true,  
+				"fixed_orthographic_size": 25.0  # ← Zoom MUY alejado para capturar todo
 			}
 		}
 	}
@@ -260,12 +321,13 @@ func apply_preset(preset_name: String) -> void:
 			
 			save_config()
 			emit_signal("preset_loaded", preset_name)
+			print("✅ Preset aplicado: %s" % preset_name)
 
 func save_custom_preset(preset_name: String, description: String = "") -> void:
 	var preset_key = preset_name.replace(" ", "_")
 	
 	presets[preset_key] = {
-		"name": name,
+		"name": preset_name,  
 		"description": description,
 		"config": current_config.duplicate(true),
 		"custom": true,
@@ -273,11 +335,13 @@ func save_custom_preset(preset_name: String, description: String = "") -> void:
 	}
 	
 	save_presets()
+	print("✅ Preset personalizado guardado: %s" % preset_name)
 
 func delete_preset(preset_name: String) -> bool:
 	if preset_name in presets and presets[preset_name].get("custom", false):
 		presets.erase(preset_name)
 		save_presets()
+		print("🗑️ Preset eliminado: %s" % preset_name)
 		return true
 	return false
 
@@ -304,6 +368,7 @@ func reset_to_defaults() -> void:
 	current_config = default_config.duplicate(true)
 	save_config()
 	emit_signal("config_loaded", current_config)
+	print("🔄 Configuración reseteada a valores por defecto")
 
 # Funciones de utilidad para acceso rápido
 func get_render_settings() -> Dictionary:
@@ -314,6 +379,26 @@ func get_camera_settings() -> Dictionary:
 
 func get_export_settings() -> Dictionary:
 	return get_section("export")
+
+# ← MEJORADAS: Funciones específicas para zoom
+func is_manual_zoom_enabled() -> bool:
+	return get_config_value("camera", "manual_zoom_override", false)
+
+func get_fixed_zoom_size() -> float:
+	return get_config_value("camera", "fixed_orthographic_size", 15.0)  # ← Default más seguro
+
+func set_manual_zoom(enabled: bool, size: float = 15.0) -> void:  # ← Default más seguro
+	set_config_value("camera", "manual_zoom_override", enabled)
+	set_config_value("camera", "fixed_orthographic_size", size)
+	print("🔧 Zoom manual %s (tamaño: %.1f)" % ("habilitado" if enabled else "deshabilitado"),( size))
+
+# ← NUEVA: Función de emergencia para modelos que se cortan
+func apply_emergency_zoom() -> void:
+	"""Aplicar zoom de emergencia para modelos que se cortan"""
+	set_config_value("camera", "manual_zoom_override", true)
+	set_config_value("camera", "fixed_orthographic_size", 25.0)
+	save_config()
+	print("🆘 Zoom de emergencia aplicado (25.0) - usar en casos donde el modelo se corta")
 
 # Gestión de carpetas recientes
 func add_recent_folder(folder_path: String) -> void:
