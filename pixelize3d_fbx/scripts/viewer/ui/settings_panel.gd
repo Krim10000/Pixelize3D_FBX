@@ -8,6 +8,7 @@ extends VBoxContainer
 # Señales específicas de este panel
 signal settings_changed(settings: Dictionary)
 signal preset_applied(preset_name: String)
+signal request_auto_north_detection() 
 
 # UI propia de este panel
 var section_label: Label
@@ -34,7 +35,7 @@ var current_settings: Dictionary = {
 	"camera_angle": 45.0,
 	"north_offset": 0.0,
 	"capture_area_size": 8.0,
-	"auto_north_detection": false
+	"auto_north_detection": true
 }
 
 func _ready():
@@ -257,7 +258,7 @@ func _create_orientation_settings():
 	# Detección automática de norte
 	auto_north_check = CheckBox.new()
 	auto_north_check.text = "Detectar orientación norte automáticamente"
-	auto_north_check.button_pressed = false
+	auto_north_check.button_pressed = true
 	auto_north_check.toggled.connect(_on_auto_north_toggled)
 	add_child(auto_north_check)
 	
@@ -410,6 +411,8 @@ func _on_auto_north_toggled(enabled: bool):
 	"""Manejar detección automática de norte"""
 	current_settings.auto_north_detection = enabled
 	print("🧭 Detección automática de norte %s" % ("habilitada" if enabled else "deshabilitada"))
+	if enabled:
+		emit_signal("request_auto_north_detection")  # Nueva señal
 	emit_signal("settings_changed", current_settings.duplicate())
 
 func _on_preset_pressed(angle: float):
@@ -465,7 +468,7 @@ func apply_preset(preset_name: String):
 			current_settings.sprite_size = 512
 			current_settings.camera_angle = 45.0
 			current_settings.capture_area_size = 8.0
-			current_settings.auto_north_detection = false
+			current_settings.auto_north_detection = true
 		
 		"high_quality":
 			current_settings.sprite_size = 512
@@ -478,7 +481,7 @@ func apply_preset(preset_name: String):
 			current_settings.sprite_size = 256
 			current_settings.fps = 15
 			current_settings.capture_area_size = 10.0  # Modelo más pequeño para preview rápido
-			current_settings.auto_north_detection = false
+			current_settings.auto_north_detection = true
 		
 		"model_showcase":
 			current_settings.sprite_size = 512

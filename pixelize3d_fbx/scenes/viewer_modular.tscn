@@ -131,4 +131,6 @@ script = ExtResource("9_6txo2")
 
 [node name="LogPanel" type="VBoxContainer" parent="HSplitContainer/RightPanel"]
 layout_mode = 2
+size_flags_horizontal = 0
+size_flags_vertical = 0
 script = ExtResource("10_635jc")

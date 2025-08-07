@@ -16,6 +16,7 @@ var camera: Camera3D
 var camera_controller: Node3D
 var model_container: Node3D
 var anim_manager: Node
+var orientation_analyzer: Node
 
 var render_settings: Dictionary
 var current_model: Node3D
@@ -31,10 +32,18 @@ var total_frames: int = 0
 # ✅ NUEVO: Estado de la cámara durante renderizado
 var original_viewport_mode: int
 var render_backup_model: Node3D
+@onready  var analyzer_script = load("res://scripts/orientation/orientation_analyzer.gd")
 
 func _ready():
 	print("🎬 SpriteRenderer MODIFICADO iniciado - Usa cámara del preview")
 	call_deferred("_initialize_shared_references")
+	
+	if analyzer_script:
+		orientation_analyzer = analyzer_script.new()
+		add_child(orientation_analyzer)
+		print("✅ OrientationAnalyzer inicializado")
+	else:
+		push_error("❌ No se pudo cargar orientation_analyzer.gd")
 
 func _initialize_shared_references():
 	"""Inicializar referencias compartidas con ModelPreviewPanel"""
@@ -172,6 +181,24 @@ func _prepare_viewport_for_rendering(settings: Dictionary):
 	# No cambiar el tamaño para mantener consistencia con preview
 	# El tamaño se mantendrá igual al preview para garantizar WYSIWYG
 
+#func _configure_camera_for_rendering(settings: Dictionary):
+	#"""Configurar cámara compartida para renderizado"""
+	#if not camera or not camera_controller:
+		#return
+	#
+	#print("📸 Configurando cámara compartida para renderizado...")
+	#
+	## La cámara ya está configurada por el preview, solo aplicamos settings específicos de renderizado
+	#if camera_controller.has_method("set_camera_settings"):
+		#var camera_settings = {
+			#"camera_angle": settings.get("camera_angle", 45.0),
+			#"camera_height": settings.get("camera_height", 12.0),
+			#"camera_distance": settings.get("camera_distance", 20.0),
+			#"north_offset": settings.get("north_offset", 0.0)
+		#}
+		#camera_controller.set_camera_settings(camera_settings)
+		#print("✅ Configuración de cámara aplicada para renderizado")
+
 func _configure_camera_for_rendering(settings: Dictionary):
 	"""Configurar cámara compartida para renderizado"""
 	if not camera or not camera_controller:
@@ -179,16 +206,32 @@ func _configure_camera_for_rendering(settings: Dictionary):
 	
 	print("📸 Configurando cámara compartida para renderizado...")
 	
-	# La cámara ya está configurada por el preview, solo aplicamos settings específicos de renderizado
+	# 1. Verificar si necesitamos auto-detección de norte
+	var final_settings = settings.duplicate()
+	if settings.get("auto_north_detection", true) and current_model:
+		print("🧭 Aplicando detección automática de norte...")
+		
+		# 2. Obtener orientación sugerida
+		var suggested_north = orientation_analyzer.analyze_model_quick(current_model)
+		
+		# 3. Calcular compensación para la cámara
+		var camera_offset = -suggested_north
+		
+		# 4. Actualizar settings con el nuevo norte
+		final_settings["north_offset"] = camera_offset
+		print("   Norte automático aplicado: %.1f° (modelo: %.1f°)" % [camera_offset, suggested_north])
+	
+	# 5. Aplicar configuración de cámara
 	if camera_controller.has_method("set_camera_settings"):
 		var camera_settings = {
-			"camera_angle": settings.get("camera_angle", 45.0),
-			"camera_height": settings.get("camera_height", 12.0),
-			"camera_distance": settings.get("camera_distance", 20.0),
-			"north_offset": settings.get("north_offset", 0.0)
+			"camera_angle": final_settings.get("camera_angle", 45.0),
+			"camera_height": final_settings.get("camera_height", 12.0),
+			"camera_distance": final_settings.get("camera_distance", 20.0),
+			"north_offset": final_settings.get("north_offset", 0.0)
 		}
 		camera_controller.set_camera_settings(camera_settings)
 		print("✅ Configuración de cámara aplicada para renderizado")
+
 
 # ========================================================================
 # RENDERIZADO DE ANIMACIONES - MODIFICADO PARA USAR CÁMARA COMPARTIDA

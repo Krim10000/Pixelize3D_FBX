@@ -632,7 +632,8 @@ func enable_animation_selection():
 		preview_button.disabled = false
 	add_export_log("Modelo base cargado correctamente")
 
-# Función para manejar el cambio de orientación norte
+ #Función para manejar el cambio de orientación norte
+
 #func _on_north_offset_changed(value: float):
 	#if north_offset_label:
 		#north_offset_label.text = "%.0f°" % value
@@ -749,7 +750,7 @@ func is_preview_active() -> bool:
 
 
 
-# Función CORREGIDA para manejar presets de orientación
+ #Función CORREGIDA para manejar presets de orientación
 #func _on_north_preset_pressed(angle: float):
 	#print("🧭 Preset presionado: %.0f°" % angle)
 	#
@@ -785,7 +786,7 @@ func is_preview_active() -> bool:
 	##
 	### CRÍTICO: Notificar al sistema de cámara
 	##_on_camera_setting_changed()
-
+#
 
 
 func _on_camera_setting_changed(_value = null):
@@ -795,7 +796,7 @@ func _on_camera_setting_changed(_value = null):
 		"camera_distance": camera_distance_slider.value if camera_distance_slider else 15.0,
 		"directions": int(directions_spinbox.value) if directions_spinbox else 16,
 		"sprite_size": int(sprite_size_spinbox.value) if sprite_size_spinbox else 256,
-		"fps": int(fps_spinbox.value) if fps_spinbox else 12,
+		"fps": int(fps_spinbox.value) if fps_spinbox else 30,
 		"pixelize": pixelize_checkbox.button_pressed if pixelize_checkbox else true,
 		# VERIFICAR que esta línea esté presente:
 		"north_offset": north_offset_slider.value if north_offset_slider else 0.0

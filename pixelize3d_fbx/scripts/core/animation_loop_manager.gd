@@ -54,8 +54,8 @@ func setup_infinite_loops(animation_player: AnimationPlayer) -> void:
 	if not animation_player:
 		return
 	
-	for name in animation_player.get_animation_list():
-		var anim = animation_player.get_animation(name)
+	for ani_name in animation_player.get_animation_list():
+		var anim = animation_player.get_animation(ani_name)
 		if anim:
 			anim.loop_mode = Animation.LOOP_LINEAR  # ❗ LOOP_LINEAR es el modo estándar
 

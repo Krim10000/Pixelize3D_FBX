@@ -24,7 +24,7 @@ var show_north_indicator: bool = true
 @export var camera_height: float = 2.0   # Altura sobre el modelo
 @export var target_position: Vector3 = Vector3.ZERO
 @export var use_orthographic: bool = true
-@export var orthographic_size: float = 15.0  # ← AUMENTADO: 3.0 → 15.0
+@export var orthographic_size: float = 10.0  # ← AUMENTADO: 3.0 → 15.0
 
 # Nodo pivot para rotaciones
 var pivot_node: Node3D
@@ -34,7 +34,7 @@ var mouse_sensitivity = 0.3
 var is_rotating = false
 var is_panning = false
 var is_zooming = false
-var preview_mode_enabled = false
+var preview_mode_enabled = true
 var pan_start_pos: Vector2
 
 # Variable para orientación norte del modelo

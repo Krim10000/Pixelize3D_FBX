@@ -28,7 +28,7 @@ const RING_RADIUS = 1.5
 
 func _ready():
 	print("🧭 NorthIndicator inicializado")
-	_create_visual_components()
+	#_create_visual_components()
 	set_visible(false)
 
 func _create_visual_components():

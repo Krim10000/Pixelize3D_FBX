@@ -39,6 +39,9 @@ class TestResults:
 @onready var animation_manager = get_node("AnimationManager")
 @onready var sprite_renderer = get_node("SpriteRenderer")
 
+@onready   var analyzer_script = load("res://scripts/orientation/orientation_analyzer.gd")
+
+
 # ✅ NUEVO: Pipeline de sprite sheets
 var spritesheet_pipeline: Node
 
@@ -67,6 +70,9 @@ var animation_monitor: Node
 var pending_animations_for_combination: Array = []
 var camera_sync_helper: Node
 
+
+var orientation_analyzer = Node
+
 func _ready():
 	print("🎮 ViewerCoordinator REFACTORIZADO iniciado")
 	# Agregar a grupo para que el pipeline pueda encontrarnos
@@ -78,6 +84,13 @@ func _ready():
 	_initialize_spritesheet_pipeline()
 	size_flags_vertical = Control.SIZE_EXPAND_FILL
 	call_deferred("_setup_unified_camera_system")
+	
+	orientation_analyzer = analyzer_script.new()
+	add_child(orientation_analyzer)  # Importante para que funcione	
+	print("🧠 OrientationAnalyzer inicializado")
+	settings_panel.request_auto_north_detection.connect(_on_auto_north_requested)
+
+	orientation_analyzer.analysis_complete.connect(_on_orientation_analysis_complete)
 
 func _validate_and_connect():
 	"""Validar y conectar de forma segura"""
@@ -103,6 +116,31 @@ func _validate_and_connect():
 
 	print("✅ Componentes validados")
 	_connect_all_signals()
+
+
+func _on_auto_north_requested():
+	if current_combined_model.get_child_count() > 0:
+		var current_model = current_combined_model.get_child(0)
+		orientation_analyzer.analyze_model_orientation(current_model)
+	else:
+		print("⚠️ No hay modelo cargado para analizar")
+
+func _on_orientation_analysis_complete(result: Dictionary):
+	print("🧭 Análisis completado: Norte sugerido = %.1f°" % result.suggested_north)
+	
+	# Actualizar configuración con el resultado
+	var new_settings = {
+		"north_offset": result.suggested_north,
+		"auto_north_detection": true
+	}
+	
+	settings_panel.apply_settings(new_settings)
+	
+	# Rotar modelo físicamente
+	if current_combined_model.get_child_count() > 0:
+		var model = current_combined_model.get_child(0)
+		model.rotation_degrees.y = result.suggested_north
+
 
 func _connect_all_signals():
 	"""Conectar TODAS las señales incluyendo las huérfanas"""
@@ -937,8 +975,8 @@ func _get_current_render_settings() -> Dictionary:
 	"""Obtener configuración actual de renderizado"""
 	var settings = {
 		"directions": 16,
-		"sprite_size": 256,
-		"fps": 12,
+		"sprite_size": 512,
+		"fps": 30,
 		"camera_angle": 45.0,
 		"camera_height": 12.0,
 		"camera_distance": 20.0,
