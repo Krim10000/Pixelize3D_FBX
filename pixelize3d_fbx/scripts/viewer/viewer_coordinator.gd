@@ -62,10 +62,13 @@ func _ready():
 	print("🎮 ViewerCoordinator CORREGIDO iniciado")
 	add_to_group("coordinator")
 	
-	await get_tree().process_frame
+		# ✅ 1. CREAR COMPONENTES PRIMERO
 	_create_core_components()
-	
-	# ✅ CORREGIDO: Orden correcto de inicialización
+		# ✅ 2. ESPERAR UN FRAME PARA QUE SE ESTABILICEN
+	await get_tree().process_frame
+		# ✅ 3. LUEGO INICIALIZAR EL PIPELINE
+	_initialize_spritesheet_pipeline()
+		# ✅ CORREGIDO: Orden correcto de inicialización
 	_initialize_orientation_analyzer()
 	_validate_and_connect()
 	_initialize_extensions()
@@ -218,25 +221,57 @@ func _on_auto_north_requested():
 	else:
 		print("⚠️ Modelo combinado no tiene hijos para analizar")
 
+#func _on_orientation_analysis_complete(result: Dictionary):
+	#"""Manejar completación de análisis de orientación"""
+	#print("🧭 Análisis completado: Norte sugerido = %.1f°" % result.get("suggested_north", 0.0))
+	#
+	#var new_settings = {
+		#"north_offset": result.get("suggested_north", 0.0),
+		#"auto_north_detection": true
+	#}
+	#
+	#if settings_panel and settings_panel.has_method("apply_settings"):
+		#settings_panel.apply_settings(new_settings)
+		#print("✅ Configuración aplicada al settings panel")
+	#
+	#if current_combined_model and current_combined_model.get_child_count() > 0:
+		#var model = current_combined_model.get_child(0)
+		#model.rotation_degrees.y = result.get("suggested_north", 0.0)
+		#print("✅ Modelo rotado físicamente")
+	#
+	#log_panel.add_log("🧭 Orientación automática aplicada: %.1f°" % result.get("suggested_north", 0.0))
+
 func _on_orientation_analysis_complete(result: Dictionary):
-	"""Manejar completación de análisis de orientación"""
-	print("🧭 Análisis completado: Norte sugerido = %.1f°" % result.get("suggested_north", 0.0))
+	print("🧭 Análisis completado: Norte sugerido = %.1f°" % result.suggested_north)
 	
+	# ✅ AÑADIR OFFSET DE 270°
+	var adjusted_north = result.suggested_north + 270.0
+	
+	# Normalizar a rango 0-360
+	while adjusted_north >= 360.0:
+		adjusted_north -= 360.0
+	while adjusted_north < 0.0:
+		adjusted_north += 360.0
+	
+	print("🔄 Norte ajustado con offset 270°: %.1f°" % adjusted_north)
+	
+	# Actualizar configuración con el resultado ajustado
 	var new_settings = {
-		"north_offset": result.get("suggested_north", 0.0),
+		"north_offset": adjusted_north,  # ✅ USAR VALOR AJUSTADO
 		"auto_north_detection": true
 	}
 	
 	if settings_panel and settings_panel.has_method("apply_settings"):
 		settings_panel.apply_settings(new_settings)
-		print("✅ Configuración aplicada al settings panel")
 	
+	# Rotar modelo físicamente con valor ajustado
 	if current_combined_model and current_combined_model.get_child_count() > 0:
 		var model = current_combined_model.get_child(0)
-		model.rotation_degrees.y = result.get("suggested_north", 0.0)
-		print("✅ Modelo rotado físicamente")
+		model.rotation_degrees.y = adjusted_north  # ✅ USAR VALOR AJUSTADO
 	
-	log_panel.add_log("🧭 Orientación automática aplicada: %.1f°" % result.get("suggested_north", 0.0))
+	if log_panel:
+		log_panel.add_log("🧭 Orientación automática aplicada: %.1f°" % adjusted_north)
+
 
 func _on_orientation_analysis_failed(error: String):
 	"""Manejar fallo en análisis de orientación"""
@@ -374,17 +409,17 @@ func get_current_combined_model() -> Node3D:
 # INICIALIZACIÓN DE SISTEMAS
 # ========================================================================
 
-func _initialize_spritesheet_pipeline():
-	"""Inicializar el pipeline de sprite sheets"""
-	print("🏭 Inicializando SpritesheetPipeline...")
-	var pipeline_script = load("res://scripts/rendering/spritesheet_pipeline.gd")
-	if pipeline_script:
-		spritesheet_pipeline = pipeline_script.new()
-		spritesheet_pipeline.name = "SpritesheetPipeline"
-		add_child(spritesheet_pipeline)
-		print("✅ SpritesheetPipeline inicializado")
-	else:
-		print("❌ No se pudo cargar script de SpritesheetPipeline")
+#func _initialize_spritesheet_pipeline():
+	#"""Inicializar el pipeline de sprite sheets"""
+	#print("🏭 Inicializando SpritesheetPipeline...")
+	#var pipeline_script = load("res://scripts/rendering/spritesheet_pipeline.gd")
+	#if pipeline_script:
+		#spritesheet_pipeline = pipeline_script.new()
+		#spritesheet_pipeline.name = "SpritesheetPipeline"
+		#add_child(spritesheet_pipeline)
+		#print("✅ SpritesheetPipeline inicializado")
+	#else:
+		#print("❌ No se pudo cargar script de SpritesheetPipeline")
 
 func _initialize_extensions():
 	"""Inicializar extensiones básicas"""
@@ -536,27 +571,6 @@ func _setup_unified_camera_system():
 # ========================================================================
 # ✅ NUEVO: INICIALIZACIÓN DEL PIPELINE
 # ========================================================================
-
-#func _initialize_spritesheet_pipeline():
-	#"""Inicializar el pipeline de sprite sheets"""
-	#print("🏭 Inicializando SpritesheetPipeline...")
-#
-	## Crear instancia del pipeline
-	#var pipeline_script = load("res://scripts/rendering/spritesheet_pipeline.gd")
-	#if pipeline_script:
-		#spritesheet_pipeline = pipeline_script.new()
-		#spritesheet_pipeline.name = "SpritesheetPipeline"
-		#add_child(spritesheet_pipeline)
-		#
-		## Configurar pipeline con componentes
-		#spritesheet_pipeline.setup_pipeline(sprite_renderer, export_manager, animation_manager)
-		#
-		## Conectar señales del pipeline
-		#_connect_pipeline_signals()
-		#
-		#print("✅ SpritesheetPipeline inicializado y configurado")
-	#else:
-		#print("❌ No se pudo cargar script de SpritesheetPipeline")
 
 func _connect_pipeline_signals():
 	"""Conectar señales del pipeline"""
@@ -1854,22 +1868,63 @@ func debug_preview_camera_path():
 	#print("✅ Componentes core creados")
 
 
+
+# En viewer_coordinator.gd - FUNCIÓN A AÑADIR/CORREGIR:
+
 func _create_core_components():
 	"""Crear componentes core que no existen en la escena"""
 	print("🔧 Creando componentes core...")
 	
-	# SpriteRenderer
+	# ✅ Crear SpriteRenderer
 	var sprite_script = load("res://scripts/rendering/sprite_renderer.gd")
 	if sprite_script:
 		sprite_renderer = sprite_script.new()
 		sprite_renderer.name = "SpriteRenderer"
 		add_child(sprite_renderer)
 		print("✅ SpriteRenderer creado")
+	else:
+		print("❌ No se pudo cargar script de SpriteRenderer")
 	
-	# ExportManager  
+	# ✅ Crear ExportManager  
 	var export_script = load("res://scripts/export/export_manager.gd")
 	if export_script:
 		export_manager = export_script.new()
 		export_manager.name = "ExportManager"
 		add_child(export_manager)
 		print("✅ ExportManager creado")
+	else:
+		print("❌ No se pudo cargar script de ExportManager")
+	
+	print("✅ Componentes core creados")
+
+# ✅ CORREGIR LA FUNCIÓN DE INICIALIZACIÓN DEL PIPELINE:
+func _initialize_spritesheet_pipeline():
+	"""Inicializar el pipeline de sprite sheets"""
+	print("🏭 Inicializando SpritesheetPipeline...")
+	
+	# ✅ VALIDAR COMPONENTES ANTES DE CREAR PIPELINE
+	if not sprite_renderer:
+		print("❌ SpriteRenderer no disponible para pipeline")
+		return
+	
+	if not export_manager:
+		print("❌ ExportManager no disponible para pipeline")
+		return
+	
+	var pipeline_script = load("res://scripts/rendering/spritesheet_pipeline.gd")
+	if pipeline_script:
+		spritesheet_pipeline = pipeline_script.new()
+		spritesheet_pipeline.name = "SpritesheetPipeline"
+		add_child(spritesheet_pipeline)
+		
+		# ✅ CONFIGURAR CON COMPONENTES VALIDADOS
+		spritesheet_pipeline.setup_pipeline(sprite_renderer, export_manager, animation_manager)
+		
+		# ✅ VERIFICAR QUE LA CONFIGURACIÓN FUNCIONÓ
+		await get_tree().process_frame  # Esperar un frame
+		
+		_connect_pipeline_signals()
+		
+		print("✅ SpritesheetPipeline inicializado y configurado")
+	else:
+		print("❌ No se pudo cargar script de SpritesheetPipeline")

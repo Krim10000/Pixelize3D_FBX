@@ -230,12 +230,23 @@ func _configure_camera_for_rendering(settings: Dictionary):
 		# 2. Obtener orientación sugerida
 		var suggested_north = orientation_analyzer.analyze_model_quick(current_model)
 		
+		var adjusted_north = suggested_north + 270.0
+
+		# Normalizar
+		while adjusted_north >= 360.0:
+			adjusted_north -= 360.0
+		while adjusted_north < 0.0:
+			adjusted_north += 360.0
+
+		
 		# 3. Calcular compensación para la cámara
 		var camera_offset = -suggested_north
 		
+		
 		# 4. Actualizar settings con el nuevo norte
 		final_settings["north_offset"] = camera_offset
-		print("   Norte automático aplicado: %.1f° (modelo: %.1f°)" % [camera_offset, suggested_north])
+		print("   Norte automático aplicado: %.1f° (original: %.1f°, ajustado: %.1f°)" % [camera_offset, suggested_north, adjusted_north])	
+	
 	
 	# 5. Aplicar configuración de cámara
 	if camera_controller.has_method("set_camera_settings"):

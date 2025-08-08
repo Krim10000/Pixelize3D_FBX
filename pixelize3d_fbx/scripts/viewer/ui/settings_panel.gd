@@ -233,7 +233,7 @@ func _create_capture_area_settings():
 	capture_area_slider = HSlider.new()
 	capture_area_slider.min_value = 3.0    # Modelo MUY grande (área pequeña)
 	capture_area_slider.max_value = 20.0   # Modelo pequeño (área grande)
-	capture_area_slider.value = 8.0        # Tamaño normal
+	capture_area_slider.value = 4.5        # Tamaño normal
 	capture_area_slider.step = 0.5
 	capture_area_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	capture_area_slider.value_changed.connect(_on_capture_area_changed)
@@ -514,7 +514,7 @@ func reset_to_defaults():
 		"pixelize": true,
 		"camera_angle": 45.0,
 		"north_offset": 0.0,
-		"capture_area_size": 8.0,
+		"capture_area_size": 4.5,
 		"auto_north_detection": true
 	}
 	
