@@ -279,45 +279,45 @@ func _on_orientation_analysis_failed(error: String):
 	log_panel.add_log("❌ Error en análisis de orientación: " + error)
 
 # ✅ CORREGIDO: Manejador principal de configuración
-func _on_render_settings_changed(settings: Dictionary):
-	"""Manejar cambios en configuración de renderizado - CORREGIDO"""
-	print("📡 Configuración recibida desde SettingsPanel:")
-	print("  directions: %d" % settings.get("directions", 16))
-	print("  camera_height: %.1f" % settings.get("camera_height", 12.0))
-	print("  camera_angle: %.1f°" % settings.get("camera_angle", 45.0))
-	print("  sprite_size: %d" % settings.get("sprite_size", 512))
-	print("  Norte: %.0f°" % settings.get("north_offset", 0.0))
-	
-	# 1. Enviar al Model Preview Panel (para preview en tiempo real)
-	if model_preview_panel:
-		var preview_camera = model_preview_panel.get_node_or_null("ViewportContainer/SubViewport/CameraController")
-		if preview_camera and preview_camera.has_method("set_camera_settings"):
-			preview_camera.set_camera_settings(settings)
-			print("✅ Configuración enviada al preview camera")
-			
-			if preview_camera.has_method("update_camera_position"):
-				preview_camera.update_camera_position()
-		else:
-			print("❌ Preview camera controller no encontrado")
-	
-	# 2. Enviar al Sprite Renderer (para renderizado)
-	if sprite_renderer:
-		if sprite_renderer.has_method("initialize"):
-			sprite_renderer.initialize(settings)
-			print("✅ Configuración enviada al sprite renderer")
-		
-		if sprite_renderer.has_method("update_render_settings"):
-			sprite_renderer.update_render_settings(settings)
-	
-	# 3. Aplicar al pipeline
-	if spritesheet_pipeline and spritesheet_pipeline.has_method("update_pipeline_settings"):
-		spritesheet_pipeline.update_pipeline_settings(settings)
-		print("✅ Configuración enviada al pipeline")
-	
-	# 4. Guardar configuración actual
-	current_render_settings = settings
-	
-	log_panel.add_log("⚙️ Configuración actualizada - direcciones: %d, altura: %.1f" % [settings.get("directions", 16), settings.get("camera_height", 12.0)])
+#func _on_render_settings_changed(settings: Dictionary):
+	#"""Manejar cambios en configuración de renderizado - CORREGIDO"""
+	#print("📡 Configuración recibida desde SettingsPanel:")
+	#print("  directions: %d" % settings.get("directions", 16))
+	#print("  camera_height: %.1f" % settings.get("camera_height", 12.0))
+	#print("  camera_angle: %.1f°" % settings.get("camera_angle", 45.0))
+	#print("  sprite_size: %d" % settings.get("sprite_size", 512))
+	#print("  Norte: %.0f°" % settings.get("north_offset", 0.0))
+	#
+	## 1. Enviar al Model Preview Panel (para preview en tiempo real)
+	#if model_preview_panel:
+		#var preview_camera = model_preview_panel.get_node_or_null("ViewportContainer/SubViewport/CameraController")
+		#if preview_camera and preview_camera.has_method("set_camera_settings"):
+			#preview_camera.set_camera_settings(settings)
+			#print("✅ Configuración enviada al preview camera")
+			#
+			#if preview_camera.has_method("update_camera_position"):
+				#preview_camera.update_camera_position()
+		#else:
+			#print("❌ Preview camera controller no encontrado")
+	#
+	## 2. Enviar al Sprite Renderer (para renderizado)
+	#if sprite_renderer:
+		#if sprite_renderer.has_method("initialize"):
+			#sprite_renderer.initialize(settings)
+			#print("✅ Configuración enviada al sprite renderer")
+		#
+		#if sprite_renderer.has_method("update_render_settings"):
+			#sprite_renderer.update_render_settings(settings)
+	#
+	## 3. Aplicar al pipeline
+	#if spritesheet_pipeline and spritesheet_pipeline.has_method("update_pipeline_settings"):
+		#spritesheet_pipeline.update_pipeline_settings(settings)
+		#print("✅ Configuración enviada al pipeline")
+	#
+	## 4. Guardar configuración actual
+	#current_render_settings = settings
+	#
+	#log_panel.add_log("⚙️ Configuración actualizada - direcciones: %d, altura: %.1f" % [settings.get("directions", 16), settings.get("camera_height", 12.0)])
 
 # ========================================================================
 # FUNCIONES DE DEBUG
@@ -572,24 +572,24 @@ func _setup_unified_camera_system():
 # ✅ NUEVO: INICIALIZACIÓN DEL PIPELINE
 # ========================================================================
 
-func _connect_pipeline_signals():
-	"""Conectar señales del pipeline"""
-	if not spritesheet_pipeline:
-		return
-
-	# Señales de progreso del pipeline
-	spritesheet_pipeline.pipeline_started.connect(_on_pipeline_started)
-	spritesheet_pipeline.pipeline_progress.connect(_on_pipeline_progress)
-	spritesheet_pipeline.pipeline_complete.connect(_on_pipeline_complete)
-	spritesheet_pipeline.pipeline_failed.connect(_on_pipeline_failed)
-
-	# Señales de fases específicas
-	spritesheet_pipeline.rendering_phase_started.connect(_on_rendering_phase_started)
-	spritesheet_pipeline.rendering_phase_complete.connect(_on_rendering_phase_complete)
-	spritesheet_pipeline.export_phase_started.connect(_on_export_phase_started)
-	spritesheet_pipeline.export_phase_complete.connect(_on_export_phase_complete)
-
-	print("🔗 Señales del pipeline conectadas")
+#func _connect_pipeline_signals():
+	#"""Conectar señales del pipeline"""
+	#if not spritesheet_pipeline:
+		#return
+#
+	## Señales de progreso del pipeline
+	#spritesheet_pipeline.pipeline_started.connect(_on_pipeline_started)
+	#spritesheet_pipeline.pipeline_progress.connect(_on_pipeline_progress)
+	#spritesheet_pipeline.pipeline_complete.connect(_on_pipeline_complete)
+	#spritesheet_pipeline.pipeline_failed.connect(_on_pipeline_failed)
+#
+	## Señales de fases específicas
+	#spritesheet_pipeline.rendering_phase_started.connect(_on_rendering_phase_started)
+	#spritesheet_pipeline.rendering_phase_complete.connect(_on_rendering_phase_complete)
+	#spritesheet_pipeline.export_phase_started.connect(_on_export_phase_started)
+	#spritesheet_pipeline.export_phase_complete.connect(_on_export_phase_complete)
+#
+	#print("🔗 Señales del pipeline conectadas")
 
 # ========================================================================
 # ✅ REFACTORIZADO: MANEJADORES DE ACCIONES
@@ -1349,18 +1349,18 @@ func _on_animations_status_changed(active_count: int, total_count: int):
 	#
 	#return settings
 
-func _get_current_animation_name() -> String:
-	"""Obtener nombre de la animación actual"""
-	if animation_controls_panel and animation_controls_panel.has_method("get_selected_animation"):
-		return animation_controls_panel.get_selected_animation()
-	
-	# Fallback: usar la primera animación disponible
-	if current_combined_model and is_instance_valid(current_combined_model):
-		var anim_player = _find_animation_player(current_combined_model)
-		if anim_player and anim_player.get_animation_list().size() > 0:
-			return anim_player.get_animation_list()[0]
-	
-	return ""
+#func _get_current_animation_name() -> String:
+	#"""Obtener nombre de la animación actual"""
+	#if animation_controls_panel and animation_controls_panel.has_method("get_selected_animation"):
+		#return animation_controls_panel.get_selected_animation()
+	#
+	## Fallback: usar la primera animación disponible
+	#if current_combined_model and is_instance_valid(current_combined_model):
+		#var anim_player = _find_animation_player(current_combined_model)
+		#if anim_player and anim_player.get_animation_list().size() > 0:
+			#return anim_player.get_animation_list()[0]
+	#
+	#return ""
 
 func _get_available_animation_names() -> Array:
 	"""Obtener lista de animaciones disponibles"""
@@ -1928,3 +1928,676 @@ func _initialize_spritesheet_pipeline():
 		print("✅ SpritesheetPipeline inicializado y configurado")
 	else:
 		print("❌ No se pudo cargar script de SpritesheetPipeline")
+
+
+
+# scripts/viewer/viewer_coordinator.gd
+# FUNCIÓN CORREGIDA - Sin errores de conexión duplicada
+# Input: spritesheet_pipeline con señales disponibles
+# Output: Conexiones seguras sin duplicados + logging detallado
+
+# ========================================================================
+# ✅ NUEVA FUNCIÓN: DESCONECTAR SEÑALES DEL PIPELINE DE FORMA SEGURA
+# ========================================================================
+
+func _disconnect_pipeline_signals():
+	"""Desconectar señales del pipeline de forma segura"""
+	if not spritesheet_pipeline:
+		return
+	
+	print("🔌 Desconectando señales del pipeline...")
+	
+	# Lista de señales y sus manejadores para desconectar
+	var signal_connections = [
+		{"signal": "pipeline_started", "handler": _on_pipeline_started},
+		{"signal": "pipeline_progress", "handler": _on_pipeline_progress},
+		{"signal": "pipeline_complete", "handler": _on_pipeline_complete},
+		{"signal": "pipeline_failed", "handler": _on_pipeline_failed},
+		{"signal": "rendering_phase_started", "handler": _on_rendering_phase_started},
+		{"signal": "rendering_phase_complete", "handler": _on_rendering_phase_complete},
+		{"signal": "export_phase_started", "handler": _on_export_phase_started},
+		{"signal": "export_phase_complete", "handler": _on_export_phase_complete}
+	]
+	
+	var disconnected_count = 0
+	
+	for connection in signal_connections:
+		var signal_name = connection.signal
+		var handler = connection.handler
+		
+		# Verificar si la señal existe en el objeto
+		if spritesheet_pipeline.has_signal(signal_name):
+			# Verificar si está conectada antes de desconectar
+			if spritesheet_pipeline.is_connected(signal_name, handler):
+				spritesheet_pipeline.disconnect(signal_name, handler)
+				disconnected_count += 1
+				print("  ✅ Desconectado: %s" % signal_name)
+			else:
+				print("  ⚪ No conectado: %s" % signal_name)
+		else:
+			print("  ❌ Señal no existe: %s" % signal_name)
+	
+	print("🔌 Pipeline signals desconectadas: %d/%d" % [disconnected_count, signal_connections.size()])
+
+# ========================================================================
+# ✅ FUNCIÓN CORREGIDA: CONECTAR SEÑALES DEL PIPELINE SIN DUPLICADOS
+# ========================================================================
+
+func _connect_pipeline_signals():
+	"""Conectar señales del pipeline verificando duplicados"""
+	if not spritesheet_pipeline:
+		print("❌ spritesheet_pipeline no disponible para conectar señales")
+		return
+	
+	print("🔗 Conectando señales del pipeline (con verificación anti-duplicados)...")
+	
+	# Lista de señales y sus manejadores para conectar
+	var signal_connections = [
+		{"signal": "pipeline_started", "handler": _on_pipeline_started, "description": "Inicio del pipeline"},
+		{"signal": "pipeline_progress", "handler": _on_pipeline_progress, "description": "Progreso del pipeline"},
+		{"signal": "pipeline_complete", "handler": _on_pipeline_complete, "description": "Pipeline completado"},
+		{"signal": "pipeline_failed", "handler": _on_pipeline_failed, "description": "Pipeline falló"},
+		{"signal": "rendering_phase_started", "handler": _on_rendering_phase_started, "description": "Inicio renderizado"},
+		{"signal": "rendering_phase_complete", "handler": _on_rendering_phase_complete, "description": "Renderizado completo"},
+		{"signal": "export_phase_started", "handler": _on_export_phase_started, "description": "Inicio exportación"},
+		{"signal": "export_phase_complete", "handler": _on_export_phase_complete, "description": "Exportación completa"}
+	]
+	
+	var connected_count = 0
+	var skipped_count = 0
+	var error_count = 0
+	
+	for connection in signal_connections:
+		var signal_name = connection.signal
+		var handler = connection.handler
+		var description = connection.description
+		
+		# Verificar si la señal existe en el objeto
+		if not spritesheet_pipeline.has_signal(signal_name):
+			print("  ❌ Señal no existe: %s (%s)" % [signal_name, description])
+			error_count += 1
+			continue
+		
+		# Verificar si ya está conectada
+		if spritesheet_pipeline.is_connected(signal_name, handler):
+			print("  ⚠️ Ya conectado: %s (%s)" % [signal_name, description])
+			skipped_count += 1
+			continue
+		
+		# Intentar conectar la señal
+		var connection_result = spritesheet_pipeline.connect(signal_name, handler)
+		if connection_result == OK:
+			connected_count += 1
+			print("  ✅ Conectado: %s (%s)" % [signal_name, description])
+		else:
+			error_count += 1
+			print("  ❌ Error conectando: %s (%s) - Error: %s" % [signal_name, description, str(connection_result)])
+	
+	# Reporte final
+	print("🔗 Resumen conexiones pipeline:")
+	print("  ✅ Conectadas: %d" % connected_count)
+	print("  ⚠️ Saltadas (ya conectadas): %d" % skipped_count)
+	print("  ❌ Errores: %d" % error_count)
+	print("  📊 Total procesadas: %d/%d" % [connected_count + skipped_count, signal_connections.size()])
+	
+	# Validar que las conexiones críticas estén funcionando
+	if connected_count > 0 or skipped_count > 0:
+		print("✅ Pipeline signals operativo")
+	else:
+		print("❌ ADVERTENCIA: Ninguna señal del pipeline conectada")
+
+# ========================================================================
+# ✅ FUNCIÓN AUXILIAR: VERIFICAR ESTADO DE CONEXIONES
+# ========================================================================
+
+func debug_pipeline_connections():
+	"""Debug del estado actual de conexiones del pipeline"""
+	if not spritesheet_pipeline:
+		print("❌ spritesheet_pipeline no disponible")
+		return
+	
+	print("\n🔍 === DEBUG CONEXIONES PIPELINE ===")
+	
+	var pipeline_signals = [
+		"pipeline_started", "pipeline_progress", "pipeline_complete", "pipeline_failed",
+		"rendering_phase_started", "rendering_phase_complete", 
+		"export_phase_started", "export_phase_complete"
+	]
+	
+	for signal_name in pipeline_signals:
+		if spritesheet_pipeline.has_signal(signal_name):
+			var connections = spritesheet_pipeline.get_signal_connection_list(signal_name)
+			print("📡 %s: %d conexiones" % [signal_name, connections.size()])
+			
+			for conn in connections:
+				if conn.has("callable"):
+					print("    -> %s.%s" % [conn.callable.get_object().name if conn.callable.get_object() else "null", conn.callable.get_method()])
+				elif conn.has("target") and conn.has("method"):
+					print("    -> %s.%s" % [conn.target.name if conn.target else "null", conn.method])
+		else:
+			print("❌ %s: Señal no existe" % signal_name)
+	
+	print("=====================================\n")
+
+# ========================================================================
+# ✅ FUNCIÓN AUXILIAR: FORZAR RESET DE CONEXIONES
+# ========================================================================
+
+func force_reset_pipeline_connections():
+	"""Forzar reset completo de conexiones del pipeline"""
+	print("🚨 FORCE RESET - Conexiones del pipeline")
+	
+	# Primero desconectar todas
+	_disconnect_pipeline_signals()
+	
+	# Esperar un frame para que se estabilice
+	await get_tree().process_frame
+	
+	# Luego reconectar
+	_connect_pipeline_signals()
+	
+	# Verificar resultado
+	debug_pipeline_connections()
+	
+	print("✅ Reset de conexiones completado")
+
+# ========================================================================
+# ✅ CORECCIÓN: FUNCIÓN PARA PASAR PARÁMETROS DE ÁREA DE CAPTURA
+# ========================================================================
+
+#func _get_current_render_settings_with_capture_area() -> Dictionary:
+	#"""Obtener configuración actual incluyendo parámetros de área de captura"""
+	#
+	## Obtener configuración base
+	#var settings = _get_current_render_settings()
+	#
+	## ✅ ARREGLAR: Asegurar que el parámetro de tamaño se incluya correctamente
+	#if settings_panel and settings_panel.has_method("get_capture_area_settings"):
+		#var capture_settings = settings_panel.get_capture_area_settings()
+		#
+		## Validar y agregar configuración de área de captura
+		#if capture_settings.has("capture_size"):
+			#settings["capture_size"] = capture_settings.capture_size
+			#print("✅ Área de captura - tamaño: %d" % capture_settings.capture_size)
+		#
+		#if capture_settings.has("capture_enabled"):
+			#settings["capture_enabled"] = capture_settings.capture_enabled
+			#print("✅ Área de captura - habilitada: %s" % capture_settings.capture_enabled)
+			#
+		## Asegurar que sprite_size coincida con capture_size si está habilitado
+		#if capture_settings.get("capture_enabled", false) and capture_settings.has("capture_size"):
+			#settings["sprite_size"] = capture_settings.capture_size
+			#print("🔄 sprite_size actualizado a capture_size: %d" % capture_settings.capture_size)
+	#else:
+		## Fallback: usar sprite_size como capture_size si no hay configuración específica
+		#if settings.has("sprite_size"):
+			#settings["capture_size"] = settings.sprite_size
+			#settings["capture_enabled"] = true
+			#print("⚠️ Usando sprite_size como capture_size: %d" % settings.sprite_size)
+	#
+	#return settings
+
+# ========================================================================
+# ✅ FUNCIÓN CORREGIDA: RENDERIZADO CON PARÁMETROS CORRECTOS
+# ========================================================================
+
+#func _on_render_requested_with_capture_fix():
+	#"""✅ VERSIÓN CORREGIDA: Manejar renderizado con parámetros de área de captura"""
+	#print("🎨 Renderizado solicitado - CON CORRECCIÓN DE ÁREA DE CAPTURA")
+	#log_panel.add_log("🎨 Iniciando renderizado con área de captura...")
+#
+	## Validar prerrequisitos
+	#if not current_combined_model or not is_instance_valid(current_combined_model):
+		#log_panel.add_log("❌ No hay modelo válido para renderizar")
+		#if actions_panel:
+			#actions_panel.show_error("No hay modelo cargado")
+		#return
+#
+	#if not spritesheet_pipeline:
+		#log_panel.add_log("❌ Pipeline no disponible")
+		#if actions_panel:
+			#actions_panel.show_error("Pipeline no inicializado")
+		#return
+#
+	#if spritesheet_pipeline.is_busy():
+		#log_panel.add_log("⚠️ Pipeline ocupado")
+		#if actions_panel:
+			#actions_panel.show_error("Pipeline ocupado, espera a que termine")
+		#return
+#
+	## Obtener animación actual
+	#var current_anim = _get_current_animation_name()
+	#if current_anim == "":
+		#log_panel.add_log("❌ No hay animación seleccionada")
+		#if actions_panel:
+			#actions_panel.show_error("Selecciona una animación")
+		#return
+#
+	## ✅ CORRECCIÓN: Obtener configuración incluyendo área de captura
+	#var config = _get_current_render_settings_with_capture_area()
+	#
+	## Debug de configuración
+	#print("📋 Configuración de renderizado:")
+	#print("  sprite_size: %d" % config.get("sprite_size", 512))
+	#print("  capture_size: %d" % config.get("capture_size", 512))
+	#print("  capture_enabled: %s" % config.get("capture_enabled", true))
+	#print("  directions: %d" % config.get("directions", 16))
+#
+	## ✅ USAR PIPELINE con configuración corregida
+	#var success = spritesheet_pipeline.generate_spritesheet(current_anim, config)
+#
+	#if not success:
+		#log_panel.add_log("❌ No se pudo iniciar pipeline")
+		#if actions_panel:
+			#actions_panel.show_error("Error iniciando pipeline")
+	#else:
+		#log_panel.add_log("✅ Pipeline iniciado con área de captura: %d" % config.get("capture_size", 512))
+
+# ========================================================================
+# ✅ FUNCIÓN DE VALIDACIÓN: VERIFICAR PIPELINE COMPLETAMENTE CONFIGURADO
+# ========================================================================
+
+func validate_pipeline_setup() -> bool:
+	"""Validar que el pipeline esté completamente configurado"""
+	print("\n🔍 === VALIDACIÓN PIPELINE SETUP ===")
+	
+	var validation_passed = true
+	
+	# 1. Verificar que existe el pipeline
+	if not spritesheet_pipeline:
+		print("❌ spritesheet_pipeline no existe")
+		validation_passed = false
+	else:
+		print("✅ spritesheet_pipeline existe")
+	
+	# 2. Verificar métodos críticos del pipeline
+	if spritesheet_pipeline:
+		var required_methods = ["generate_spritesheet", "is_busy", "setup_pipeline"]
+		for method in required_methods:
+			if spritesheet_pipeline.has_method(method):
+				print("✅ Método disponible: %s" % method)
+			else:
+				print("❌ Método faltante: %s" % method)
+				validation_passed = false
+	
+	# 3. Verificar conexiones de señales
+	if spritesheet_pipeline:
+		var required_signals = ["pipeline_started", "export_phase_complete", "export_phase_started"]
+		for signal_name in required_signals:
+			if spritesheet_pipeline.has_signal(signal_name):
+				var connections = spritesheet_pipeline.get_signal_connection_list(signal_name)
+				if connections.size() > 0:
+					print("✅ Señal conectada: %s (%d conexiones)" % [signal_name, connections.size()])
+				else:
+					print("⚠️ Señal sin conectar: %s" % signal_name)
+			else:
+				print("❌ Señal faltante: %s" % signal_name)
+				validation_passed = false
+	
+	# 4. Verificar componentes del pipeline
+	if spritesheet_pipeline:
+		if spritesheet_pipeline.sprite_renderer:
+			print("✅ sprite_renderer configurado en pipeline")
+		else:
+			print("❌ sprite_renderer faltante en pipeline")
+			validation_passed = false
+			
+		if spritesheet_pipeline.export_manager:
+			print("✅ export_manager configurado en pipeline")
+		else:
+			print("❌ export_manager faltante en pipeline")
+			validation_passed = false
+	
+	print("📊 Validación pipeline: %s" % ("✅ PASÓ" if validation_passed else "❌ FALLÓ"))
+	print("=====================================\n")
+	
+	return validation_passed
+
+
+
+# scripts/viewer/viewer_coordinator.gd
+# CORRECCIÓN: Pasar correctamente parámetros de área de captura
+# Input: settings_changed del settings_panel con capture_area_size
+# Output: Configuración correcta para sprite_renderer con camera_distance
+
+# ========================================================================
+# ✅ FUNCIÓN CORREGIDA: OBTENER CONFIGURACIÓN CON ÁREA DE CAPTURA
+# ========================================================================
+
+func _get_current_render_settings_with_capture_area() -> Dictionary:
+	"""Obtener configuración actual incluyendo parámetros de área de captura CORREGIDOS"""
+	
+	# Obtener configuración base
+	var settings = _get_current_render_settings()
+	
+	print("🔍 Debug configuración original:")
+	print("  sprite_size: %d" % settings.get("sprite_size", 512))
+	print("  capture_area_size: %s" % str(settings.get("capture_area_size", "NO ENCONTRADO")))
+	
+	# ✅ CORRECCIÓN: La configuración ya viene con capture_area_size del settings_panel
+	if settings.has("capture_area_size"):
+		var capture_area = settings.capture_area_size
+		
+		print("✅ capture_area_size encontrado: %.1f" % capture_area)
+		
+		# ✅ CRÍTICO: Convertir capture_area_size a camera_distance
+		# Lógica: capture_area más pequeño = modelo más grande = cámara más cerca
+		var camera_distance = capture_area * 2.0  # Factor de conversión
+		settings["camera_distance"] = camera_distance
+		
+		# ✅ CRÍTICO: También configurar orthographic_size para cámaras ortográficas
+		settings["orthographic_size"] = capture_area
+		settings["manual_zoom_override"] = true
+		settings["fixed_orthographic_size"] = capture_area
+		
+		print("🔄 Conversiones aplicadas:")
+		print("  capture_area_size: %.1f → camera_distance: %.1f" % [capture_area, camera_distance])
+		print("  orthographic_size: %.1f" % capture_area)
+		
+	else:
+		# ✅ FALLBACK: Si no se encuentra capture_area_size, usar valores por defecto
+		print("⚠️ capture_area_size NO encontrado, usando valores por defecto")
+		settings["capture_area_size"] = 8.0
+		settings["camera_distance"] = 16.0
+		settings["orthographic_size"] = 8.0
+		settings["manual_zoom_override"] = true
+		settings["fixed_orthographic_size"] = 8.0
+	
+	# ✅ DEBUG: Mostrar configuración final
+	print("📋 Configuración final para renderizado:")
+	print("  sprite_size: %d" % settings.get("sprite_size", 512))
+	print("  capture_area_size: %.1f" % settings.get("capture_area_size", 8.0))
+	print("  camera_distance: %.1f" % settings.get("camera_distance", 16.0))
+	print("  orthographic_size: %.1f" % settings.get("orthographic_size", 8.0))
+	
+	return settings
+
+# ========================================================================
+# ✅ FUNCIÓN CORREGIDA: CONFIGURACIÓN DE RENDERIZADO CON DEBUG EXTENDIDO
+# ========================================================================
+
+func _on_render_settings_changed(settings: Dictionary):
+	"""Manejar cambios en configuración de renderizado - VERSIÓN CON DEBUG EXTENDIDO"""
+	print("\n📡 === CONFIGURACIÓN RECIBIDA DESDE SETTINGS_PANEL ===")
+	print("  directions: %d" % settings.get("directions", 16))
+	print("  camera_height: %.1f" % settings.get("camera_height", 12.0))
+	print("  camera_angle: %.1f°" % settings.get("camera_angle", 45.0))
+	print("  sprite_size: %d" % settings.get("sprite_size", 512))
+	print("  capture_area_size: %.1f" % settings.get("capture_area_size", 8.0))
+	print("  north_offset: %.0f°" % settings.get("north_offset", 0.0))
+	print("====================================================")
+
+	# ✅ CRÍTICO: Convertir capture_area_size a configuración de cámara
+	var enhanced_settings = settings.duplicate()
+	
+	if settings.has("capture_area_size"):
+		var capture_area = settings.capture_area_size
+		
+		# Convertir a camera_distance
+		enhanced_settings["camera_distance"] = capture_area * 2.0
+		enhanced_settings["orthographic_size"] = capture_area
+		enhanced_settings["manual_zoom_override"] = true
+		enhanced_settings["fixed_orthographic_size"] = capture_area
+		
+		print("🔄 Parámetros de cámara calculados:")
+		print("  camera_distance: %.1f" % enhanced_settings["camera_distance"])
+		print("  orthographic_size: %.1f" % enhanced_settings["orthographic_size"])
+	
+	# 1. Enviar al Model Preview Panel (para preview en tiempo real)
+	if model_preview_panel:
+		var preview_camera = model_preview_panel.get_node_or_null("ViewportContainer/SubViewport/CameraController")
+		if preview_camera and preview_camera.has_method("set_camera_settings"):
+			preview_camera.set_camera_settings(enhanced_settings)
+			print("✅ Configuración MEJORADA enviada al preview camera")
+			
+			if preview_camera.has_method("update_camera_position"):
+				preview_camera.update_camera_position()
+		else:
+			print("❌ Preview camera controller no encontrado")
+	
+	# 2. Enviar al Sprite Renderer (para renderizado) - CON CONFIGURACIÓN MEJORADA
+	if sprite_renderer:
+		if sprite_renderer.has_method("initialize"):
+			sprite_renderer.initialize(enhanced_settings)
+			print("✅ Configuración MEJORADA enviada al sprite renderer")
+		
+		if sprite_renderer.has_method("update_render_settings"):
+			sprite_renderer.update_render_settings(enhanced_settings)
+			print("✅ Configuración MEJORADA actualizada en sprite renderer")
+	
+	# 3. Aplicar al pipeline - CON CONFIGURACIÓN MEJORADA
+	if spritesheet_pipeline and spritesheet_pipeline.has_method("update_pipeline_settings"):
+		spritesheet_pipeline.update_pipeline_settings(enhanced_settings)
+		print("✅ Configuración MEJORADA enviada al pipeline")
+	
+	# 4. Guardar configuración actual - CON MEJORAS
+	current_render_settings = enhanced_settings
+	
+	log_panel.add_log("⚙️ Configuración actualizada - área: %.1f, distancia: %.1f" % [
+		enhanced_settings.get("capture_area_size", 8.0), 
+		enhanced_settings.get("camera_distance", 16.0)
+	])
+
+# ========================================================================
+# ✅ FUNCIÓN CORREGIDA: RENDERIZADO CON CONFIGURACIÓN MEJORADA
+# ========================================================================
+
+func _on_render_requested_with_capture_fix():
+	"""✅ VERSIÓN CORREGIDA: Manejar renderizado con parámetros de área de captura MEJORADOS"""
+	print("\n🎨 === RENDERIZADO CON ÁREA DE CAPTURA CORREGIDA ===")
+	log_panel.add_log("🎨 Iniciando renderizado con área de captura corregida...")
+
+	# Validar prerrequisitos
+	if not current_combined_model or not is_instance_valid(current_combined_model):
+		log_panel.add_log("❌ No hay modelo válido para renderizar")
+		if actions_panel:
+			actions_panel.show_error("No hay modelo cargado")
+		return
+
+	if not spritesheet_pipeline:
+		log_panel.add_log("❌ Pipeline no disponible")
+		if actions_panel:
+			actions_panel.show_error("Pipeline no inicializado")
+		return
+
+	if spritesheet_pipeline.is_busy():
+		log_panel.add_log("⚠️ Pipeline ocupado")
+		if actions_panel:
+			actions_panel.show_error("Pipeline ocupado, espera a que termine")
+		return
+
+	# Obtener animación actual
+	var current_anim = _get_current_animation_name()
+	if current_anim == "":
+		log_panel.add_log("❌ No hay animación seleccionada")
+		if actions_panel:
+			actions_panel.show_error("Selecciona una animación")
+		return
+
+	# ✅ CORRECCIÓN: Obtener configuración con área de captura corregida
+	var config = _get_current_render_settings_with_capture_area()
+	
+	# ✅ DEBUG EXTENDIDO: Mostrar configuración completa
+	print("📋 Configuración final para pipeline:")
+	print("  animation: %s" % current_anim)
+	print("  sprite_size: %d" % config.get("sprite_size", 512))
+	print("  capture_area_size: %.1f" % config.get("capture_area_size", 8.0))
+	print("  camera_distance: %.1f" % config.get("camera_distance", 16.0))
+	print("  orthographic_size: %.1f" % config.get("orthographic_size", 8.0))
+	print("  camera_height: %.1f" % config.get("camera_height", 12.0))
+	print("  camera_angle: %.1f°" % config.get("camera_angle", 45.0))
+	print("  directions: %d" % config.get("directions", 16))
+
+	# ✅ USAR PIPELINE con configuración corregida
+	var success = spritesheet_pipeline.generate_spritesheet(current_anim, config)
+
+	if not success:
+		log_panel.add_log("❌ No se pudo iniciar pipeline")
+		if actions_panel:
+			actions_panel.show_error("Error iniciando pipeline")
+	else:
+		log_panel.add_log("✅ Pipeline iniciado con área: %.1f → distancia: %.1f" % [
+			config.get("capture_area_size", 8.0), 
+			config.get("camera_distance", 16.0)
+		])
+
+# ========================================================================
+# ✅ FUNCIÓN DE DEBUG: VERIFICAR CADENA DE PARÁMETROS
+# ========================================================================
+
+func debug_capture_area_chain():
+	"""Debug completo de la cadena de parámetros de área de captura"""
+	print("\n🔍 === DEBUG CADENA ÁREA DE CAPTURA ===")
+	
+	# 1. Verificar settings_panel
+	if settings_panel and settings_panel.has_method("get_settings"):
+		var panel_settings = settings_panel.get_settings()
+		print("📋 SETTINGS_PANEL:")
+		print("  capture_area_size: %s" % str(panel_settings.get("capture_area_size", "NO ENCONTRADO")))
+		print("  manual_zoom_override: %s" % str(panel_settings.get("manual_zoom_override", "NO ENCONTRADO")))
+		print("  fixed_orthographic_size: %s" % str(panel_settings.get("fixed_orthographic_size", "NO ENCONTRADO")))
+	else:
+		print("❌ settings_panel no disponible o no tiene get_settings()")
+	
+	# 2. Verificar current_render_settings
+	print("\n📋 CURRENT_RENDER_SETTINGS:")
+	if not current_render_settings.is_empty():
+		print("  capture_area_size: %s" % str(current_render_settings.get("capture_area_size", "NO ENCONTRADO")))
+		print("  camera_distance: %s" % str(current_render_settings.get("camera_distance", "NO ENCONTRADO")))
+		print("  orthographic_size: %s" % str(current_render_settings.get("orthographic_size", "NO ENCONTRADO")))
+	else:
+		print("  current_render_settings está vacío")
+	
+	# 3. Verificar configuración final
+	print("\n📋 CONFIGURACIÓN PROCESADA:")
+	var processed_config = _get_current_render_settings_with_capture_area()
+	print("  capture_area_size: %s" % str(processed_config.get("capture_area_size", "NO ENCONTRADO")))
+	print("  camera_distance: %s" % str(processed_config.get("camera_distance", "NO ENCONTRADO")))
+	print("  orthographic_size: %s" % str(processed_config.get("orthographic_size", "NO ENCONTRADO")))
+	
+	# 4. Verificar sprite_renderer
+	if sprite_renderer:
+		print("\n📋 SPRITE_RENDERER:")
+		if sprite_renderer.has_method("get_render_settings"):
+			var renderer_settings = sprite_renderer.get_render_settings()
+			print("  render_settings disponibles: %s" % str(renderer_settings.keys() if renderer_settings else "NO DISPONIBLE"))
+		else:
+			print("  No tiene método get_render_settings()")
+		
+		# Verificar cámara del renderer
+		if sprite_renderer.camera_controller:
+			print("  camera_controller disponible: ✅")
+			if sprite_renderer.camera_controller.has_method("get_current_settings"):
+				var camera_settings = sprite_renderer.camera_controller.get_current_settings()
+				print("  camera_distance actual: %s" % str(camera_settings.get("camera_distance", "NO ENCONTRADO")))
+				print("  orthographic_size actual: %s" % str(camera_settings.get("orthographic_size", "NO ENCONTRADO")))
+		else:
+			print("  camera_controller: ❌")
+	else:
+		print("\n❌ sprite_renderer no disponible")
+	
+	print("==========================================\n")
+
+# ========================================================================
+# ✅ FUNCIÓN DE VALIDACIÓN: VERIFICAR QUE PREVIEW Y RENDER COINCIDAN
+# ========================================================================
+
+func validate_preview_render_consistency():
+	"""Verificar que preview y renderizado usen la misma configuración"""
+	print("\n🔍 === VALIDACIÓN CONSISTENCIA PREVIEW-RENDER ===")
+	
+	var preview_config = {}
+	var render_config = {}
+	
+	# Obtener configuración del preview
+	if model_preview_panel:
+		var preview_camera = model_preview_panel.get_node_or_null("ViewportContainer/SubViewport/CameraController")
+		if preview_camera and preview_camera.has_method("get_current_settings"):
+			preview_config = preview_camera.get_current_settings()
+	
+	# Obtener configuración del renderer
+	render_config = _get_current_render_settings_with_capture_area()
+	
+	# Comparar parámetros críticos
+	var comparison_params = ["camera_distance", "orthographic_size", "camera_height", "camera_angle"]
+	
+	print("📊 COMPARACIÓN PREVIEW vs RENDER:")
+	var all_match = true
+	
+	for param in comparison_params:
+		var preview_val = preview_config.get(param, "NO DISPONIBLE")
+		var render_val = render_config.get(param, "NO DISPONIBLE")
+		
+		var match_status = "✅" if preview_val == render_val else "❌"
+		if preview_val != render_val:
+			all_match = false
+		
+		print("  %s: Preview=%.2f, Render=%.2f %s" % [
+			param, 
+			float(str(preview_val)) if preview_val != "NO DISPONIBLE" else 0.0,
+			float(str(render_val)) if render_val != "NO DISPONIBLE" else 0.0,
+			match_status
+		])
+	
+	print("\n📋 RESULTADO: %s" % ("✅ CONSISTENTE" if all_match else "❌ INCONSISTENTE"))
+	print("=================================================\n")
+	
+	return all_match
+
+func _get_current_animation_name() -> String:
+	"""Obtener nombre de la animación actual - CORREGIDO PARA RENDERIZADO"""
+	
+	# ✅ MÉTODO 1: Usar get_current_animation() que SÍ existe
+	if animation_controls_panel and animation_controls_panel.has_method("get_current_animation"):
+		var current_anim = animation_controls_panel.get_current_animation()
+		if current_anim != "":
+			# ✅ CRÍTICO: Limpiar .fbx si existe
+			if current_anim.ends_with(".fbx"):
+				current_anim = current_anim.get_basename()
+			print("🎯 Animación desde panel: %s" % current_anim)
+			return current_anim
+	
+	# ✅ MÉTODO 2: Usar get_selected_animation() si existe (después de agregarlo)
+	if animation_controls_panel and animation_controls_panel.has_method("get_selected_animation"):
+		var selected_anim = animation_controls_panel.get_selected_animation()
+		if selected_anim != "":
+			# ✅ CRÍTICO: Limpiar .fbx para que AnimationPlayer lo encuentre
+			if selected_anim.ends_with(".fbx"):
+				selected_anim = selected_anim.get_basename()
+			print("🎯 Animación seleccionada (limpia): %s" % selected_anim)
+			return selected_anim
+	
+	# ✅ MÉTODO 3: Usar información de índice actual del panel
+	if animation_controls_panel and animation_controls_panel.has_method("get_current_animation_index"):
+		var current_index = animation_controls_panel.get_current_animation_index()
+		if current_index >= 0:
+			var available_anims = animation_controls_panel.get_available_animations()
+			if current_index < available_anims.size():
+				var selected_anim = available_anims[current_index]
+				# ✅ CRÍTICO: Limpiar .fbx
+				if selected_anim.ends_with(".fbx"):
+					selected_anim = selected_anim.get_basename()
+				print("🎯 Animación por índice %d (limpia): %s" % [current_index, selected_anim])
+				return selected_anim
+	
+	# ✅ MÉTODO 4: Obtener de AnimationPlayer actualmente reproduciendo
+	if current_combined_model and is_instance_valid(current_combined_model):
+		var anim_player = _find_animation_player(current_combined_model)
+		if anim_player and anim_player.is_playing():
+			var playing_anim = anim_player.current_animation
+			if playing_anim != "":
+				print("🎯 Animación reproduciendo: %s" % playing_anim)
+				return playing_anim
+	
+	# ❌ FALLBACK MEJORADO: Si todo falla, intentar obtener la primera disponible
+	# PERO emitir una advertencia clara
+	if current_combined_model and is_instance_valid(current_combined_model):
+		var anim_player = _find_animation_player(current_combined_model)
+		if anim_player and anim_player.get_animation_list().size() > 0:
+			var first_anim = anim_player.get_animation_list()[0]
+			print("⚠️ FALLBACK: Usando primera animación: %s" % first_anim)
+			print("   Esto indica que no se detectó correctamente la animación seleccionada")
+			return first_anim
+	
+	print("❌ No se pudo determinar animación actual")
+	return ""

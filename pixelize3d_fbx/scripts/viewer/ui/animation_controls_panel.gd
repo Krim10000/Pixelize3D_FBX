@@ -869,3 +869,26 @@ func debug_timeline_state():
 	
 	print("Time label: '%s'" % time_label.text)
 	print("========================\n")
+
+
+func get_selected_animation() -> String:
+	"""Obtener la animación actualmente seleccionada"""
+	if current_animation_index >= 0 and current_animation_index < available_animations.size():
+		var selected_animation = available_animations[current_animation_index]
+		print("🎯 Animación seleccionada: %s (índice %d)" % [selected_animation, current_animation_index])
+		return selected_animation
+	
+	print("⚠️ No hay animación seleccionada válida (índice: %d, total: %d)" % [current_animation_index, available_animations.size()])
+	return ""
+
+func get_selected_animation_clean_name() -> String:
+	"""Obtener el nombre limpio de la animación seleccionada (sin .fbx)"""
+	var selected = get_selected_animation()
+	if selected == "":
+		return ""
+	
+	# Remover .fbx si existe
+	if selected.ends_with(".fbx"):
+		return selected.get_basename()
+	
+	return selected

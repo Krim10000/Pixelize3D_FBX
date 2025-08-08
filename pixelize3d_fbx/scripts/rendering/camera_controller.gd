@@ -36,6 +36,10 @@ var is_panning = false
 var is_zooming = false
 var preview_mode_enabled = true
 var pan_start_pos: Vector2
+#var config_manager = get_node_or_null("/root/ConfigManager")  # ❌ NO EXISTE
+var manual_override = false  # ❌ SIEMPRE SERÁ FALSE
+var manual_zoom_active: bool = false
+var manual_orthographic_size: float = 15.0
 
 # Variable para orientación norte del modelo
 var current_north_offset: float = 0.0
@@ -158,115 +162,115 @@ func update_camera_position():
 	emit_signal("camera_moved")
 
 # === FUNCIONES DE CONFIGURACIÓN ===
-
-func setup_for_model(model_bounds: AABB):
-	"""Configurar cámara para encuadrar un modelo específico - CORREGIDO"""
-	print("--- CONFIGURANDO CÁMARA PARA MODELO ---")
-	print("Bounds del modelo: %s" % str(model_bounds))
-	
-	# Centrar objetivo en el modelo
-	target_position = model_bounds.get_center()
-	print("Target position: %s" % str(target_position))
-	
-	# Calcular distancia apropiada
-	var model_size = model_bounds.get_longest_axis_size()
-	camera_distance = max(model_size * 1.5, 3.0)  # Mínimo 3 unidades
-	camera_height = model_size * 0.3  # Altura proporcional
-	
-	print("Model size: %.2f, Distance: %.2f, Height: %.2f" % [model_size, camera_distance, camera_height])
-	
-	# ← CORREGIDO: Lógica de zoom mejorada
-	if use_orthographic:
-		# Verificar si hay override manual
-		var config_manager = get_node_or_null("/root/ConfigManager")
-		var manual_override = false
-		var fixed_size = 15.0  # ← Default más seguro
-		
-		if config_manager:
-			manual_override = config_manager.get_config_value("camera", "manual_zoom_override", false)
-			fixed_size = config_manager.get_config_value("camera", "fixed_orthographic_size", 15.0)
-		
-		if manual_override:
-			orthographic_size = fixed_size
-			print("🔧 Usando tamaño ortográfico FIJO: %.2f" % orthographic_size)
-		else:
-			# ← CORREGIDO: Más padding para evitar recorte
-			orthographic_size = max(model_size * 1.8, 8.0)  # 80% padding mínimo + mínimo absoluto
-			print("📏 Tamaño ortográfico AUTO: %.2f (model_size: %.2f)" % [orthographic_size, model_size])
-		
-		camera_3d.size = orthographic_size
-	
-	# NUEVO: Configurar indicador de norte para el modelo
-	if north_indicator:
-		north_indicator.setup_for_model(model_bounds)
-		north_indicator.set_north_angle(current_north_offset)
-		
-		# Mostrar indicador si está habilitado
-		if show_north_indicator:
-			north_indicator.show_indicator()
-		else:
-			north_indicator.hide_indicator()
-	
-	update_camera_position()
-	print("✅ Cámara e indicador configurados para modelo")
-	emit_signal("camera_ready")
-
-func set_camera_settings(settings: Dictionary):
-	"""Aplicar configuración de cámara desde diccionario"""
-	print("--- APLICANDO CONFIGURACIÓN DE CÁMARA CON INDICADOR ---")
-	
-	if settings.has("camera_angle"):
-		camera_angle = settings.camera_angle
-		print("  Ángulo: %.1f°" % camera_angle)
-	
-	if settings.has("camera_height"):
-		camera_height = settings.camera_height
-		print("  Altura: %.1f" % camera_height)
-	
-	if settings.has("camera_distance"):
-		camera_distance = settings.camera_distance
-		print("  Distancia: %.1f" % camera_distance)
-	
-	if settings.has("target_position"):
-		target_position = settings.target_position
-		print("  Target: %s" % str(target_position))
-	
-	if settings.has("north_offset"):
-		current_north_offset = settings.north_offset
-		print("  Norte relativo: %.1f°" % current_north_offset)
-		
-		# NUEVO: Sincronizar indicador
-		if north_indicator:
-			north_indicator.set_north_angle(current_north_offset)
-		
-		# Aplicar orientación si estamos en preview
-		if preview_mode_enabled:
-			set_rotation_angle(current_north_offset)
-	
-	if settings.has("orthographic_size"):
-		orthographic_size = settings.orthographic_size
-		if camera_3d and use_orthographic:
-			camera_3d.size = orthographic_size
-		print("  Tamaño ortográfico: %.1f" % orthographic_size)
-	
-	# ← MEJORADO: Manejar configuración de zoom manual
-	if settings.has("manual_zoom_override"):
-		var manual_override = settings.manual_zoom_override
-		var fixed_size = settings.get("fixed_orthographic_size", 15.0)  # ← Default seguro
-		
-		if manual_override and use_orthographic:
-			orthographic_size = fixed_size
-			camera_3d.size = orthographic_size
-			print("🔧 Zoom manual activado: %.1f" % orthographic_size)
-	
-	# NUEVO: Manejar visibilidad del indicador
-	if settings.has("show_north_indicator"):
-		set_north_indicator_visible(settings.show_north_indicator)
-	
-	update_camera_position()
-	print("✅ Configuración aplicada con indicador sincronizado")
-
-# === FUNCIONES DE CONTROL DE USUARIO ===
+#
+#func setup_for_model(model_bounds: AABB):
+	#"""Configurar cámara para encuadrar un modelo específico - CORREGIDO"""
+	#print("--- CONFIGURANDO CÁMARA PARA MODELO ---")
+	#print("Bounds del modelo: %s" % str(model_bounds))
+	#
+	## Centrar objetivo en el modelo
+	#target_position = model_bounds.get_center()
+	#print("Target position: %s" % str(target_position))
+	#
+	## Calcular distancia apropiada
+	#var model_size = model_bounds.get_longest_axis_size()
+	#camera_distance = max(model_size * 1.5, 3.0)  # Mínimo 3 unidades
+	#camera_height = model_size * 0.3  # Altura proporcional
+	#
+	#print("Model size: %.2f, Distance: %.2f, Height: %.2f" % [model_size, camera_distance, camera_height])
+	#
+	## ← CORREGIDO: Lógica de zoom mejorada
+	#if use_orthographic:
+		## Verificar si hay override manual
+		#var config_manager = get_node_or_null("/root/ConfigManager")
+		#var manual_override = false
+		#var fixed_size = 15.0  # ← Default más seguro
+		#
+		#if config_manager:
+			#manual_override = config_manager.get_config_value("camera", "manual_zoom_override", false)
+			#fixed_size = config_manager.get_config_value("camera", "fixed_orthographic_size", 15.0)
+		#
+		#if manual_override:
+			#orthographic_size = fixed_size
+			#print("🔧 Usando tamaño ortográfico FIJO: %.2f" % orthographic_size)
+		#else:
+			## ← CORREGIDO: Más padding para evitar recorte
+			#orthographic_size = max(model_size * 1.8, 8.0)  # 80% padding mínimo + mínimo absoluto
+			#print("📏 Tamaño ortográfico AUTO: %.2f (model_size: %.2f)" % [orthographic_size, model_size])
+		#
+		#camera_3d.size = orthographic_size
+	#
+	## NUEVO: Configurar indicador de norte para el modelo
+	#if north_indicator:
+		#north_indicator.setup_for_model(model_bounds)
+		#north_indicator.set_north_angle(current_north_offset)
+		#
+		## Mostrar indicador si está habilitado
+		#if show_north_indicator:
+			#north_indicator.show_indicator()
+		#else:
+			#north_indicator.hide_indicator()
+	#
+	#update_camera_position()
+	#print("✅ Cámara e indicador configurados para modelo")
+	#emit_signal("camera_ready")
+#
+##func set_camera_settings(settings: Dictionary):
+	##"""Aplicar configuración de cámara desde diccionario"""
+	##print("--- APLICANDO CONFIGURACIÓN DE CÁMARA CON INDICADOR ---")
+	##
+	##if settings.has("camera_angle"):
+		##camera_angle = settings.camera_angle
+		##print("  Ángulo: %.1f°" % camera_angle)
+	##
+	##if settings.has("camera_height"):
+		##camera_height = settings.camera_height
+		##print("  Altura: %.1f" % camera_height)
+	##
+	##if settings.has("camera_distance"):
+		##camera_distance = settings.camera_distance
+		##print("  Distancia: %.1f" % camera_distance)
+	##
+	##if settings.has("target_position"):
+		##target_position = settings.target_position
+		##print("  Target: %s" % str(target_position))
+	##
+	##if settings.has("north_offset"):
+		##current_north_offset = settings.north_offset
+		##print("  Norte relativo: %.1f°" % current_north_offset)
+		##
+		### NUEVO: Sincronizar indicador
+		##if north_indicator:
+			##north_indicator.set_north_angle(current_north_offset)
+		##
+		### Aplicar orientación si estamos en preview
+		##if preview_mode_enabled:
+			##set_rotation_angle(current_north_offset)
+	##
+	##if settings.has("orthographic_size"):
+		##orthographic_size = settings.orthographic_size
+		##if camera_3d and use_orthographic:
+			##camera_3d.size = orthographic_size
+		##print("  Tamaño ortográfico: %.1f" % orthographic_size)
+	##
+	### ← MEJORADO: Manejar configuración de zoom manual
+	##if settings.has("manual_zoom_override"):
+		##var manual_override = settings.manual_zoom_override
+		##var fixed_size = settings.get("fixed_orthographic_size", 15.0)  # ← Default seguro
+		##
+		##if manual_override and use_orthographic:
+			##orthographic_size = fixed_size
+			##camera_3d.size = orthographic_size
+			##print("🔧 Zoom manual activado: %.1f" % orthographic_size)
+	##
+	### NUEVO: Manejar visibilidad del indicador
+	##if settings.has("show_north_indicator"):
+		##set_north_indicator_visible(settings.show_north_indicator)
+	##
+	##update_camera_position()
+	##print("✅ Configuración aplicada con indicador sincronizado")
+##
+## === FUNCIONES DE CONTROL DE USUARIO ===
 
 func set_rotation_angle(degrees: float):
 	"""Rotar la cámara a un ángulo específico"""
@@ -502,3 +506,199 @@ func debug_camera_state():
 		north_indicator.debug_indicator_state()
 	
 	print("============================================\n")
+
+
+func set_camera_settings(settings: Dictionary):
+	"""Aplicar configuración de cámara desde diccionario - CORREGIDO"""
+	print("--- APLICANDO CONFIGURACIÓN DE CÁMARA CON INDICADOR ---")
+	
+	if settings.has("camera_angle"):
+		camera_angle = settings.camera_angle
+		print("  Ángulo: %.1f°" % camera_angle)
+	
+	if settings.has("camera_height"):
+		camera_height = settings.camera_height
+		print("  Altura: %.1f" % camera_height)
+	
+	if settings.has("camera_distance"):
+		camera_distance = settings.camera_distance
+		print("  Distancia: %.1f" % camera_distance)
+	
+	if settings.has("target_position"):
+		target_position = settings.target_position
+		print("  Target: %s" % str(target_position))
+	
+	if settings.has("north_offset"):
+		current_north_offset = settings.north_offset
+		print("  Norte relativo: %.1f°" % current_north_offset)
+		
+		# NUEVO: Sincronizar indicador
+		if north_indicator:
+			north_indicator.set_north_angle(current_north_offset)
+		
+		# Aplicar orientación si estamos en preview
+		if preview_mode_enabled:
+			set_rotation_angle(current_north_offset)
+	
+	if settings.has("orthographic_size"):
+		orthographic_size = settings.orthographic_size
+		if camera_3d and use_orthographic:
+			camera_3d.size = orthographic_size
+		print("  Tamaño ortográfico: %.1f" % orthographic_size)
+	
+	# ✅ CORRECCIÓN: Capturar configuración manual CORRECTAMENTE
+	if settings.has("manual_zoom_override"):
+		manual_zoom_active = settings.manual_zoom_override
+		
+		if settings.has("fixed_orthographic_size"):
+			manual_orthographic_size = settings.fixed_orthographic_size
+		elif settings.has("capture_area_size"):
+			# ✅ NUEVO: También aceptar capture_area_size directamente
+			manual_orthographic_size = settings.capture_area_size
+		elif settings.has("orthographic_size"):
+			# ✅ FALLBACK: Usar orthographic_size si está disponible
+			manual_orthographic_size = settings.orthographic_size
+		
+		if manual_zoom_active and use_orthographic:
+			orthographic_size = manual_orthographic_size
+			if camera_3d:
+				camera_3d.size = orthographic_size
+			print("🔧 Zoom manual activado: %.1f" % orthographic_size)
+	
+	# ✅ NUEVO: También capturar si viene capture_area_size sin manual_zoom_override
+	elif settings.has("capture_area_size"):
+		manual_zoom_active = true
+		manual_orthographic_size = settings.capture_area_size
+		
+		if use_orthographic:
+			orthographic_size = manual_orthographic_size
+			if camera_3d:
+				camera_3d.size = orthographic_size
+			print("🔧 Área de captura aplicada como zoom manual: %.1f" % orthographic_size)
+	
+	# NUEVO: Manejar visibilidad del indicador
+	if settings.has("show_north_indicator"):
+		set_north_indicator_visible(settings.show_north_indicator)
+	
+	update_camera_position()
+	print("✅ Configuración aplicada con indicador sincronizado")
+
+
+
+func setup_for_model(model_bounds: AABB):
+	"""Configurar cámara para encuadrar un modelo específico - RESPETANDO CONFIGURACIÓN MANUAL"""
+	print("--- CONFIGURANDO CÁMARA PARA MODELO ---")
+	print("Bounds del modelo: %s" % str(model_bounds))
+	
+	# Centrar objetivo en el modelo
+	target_position = model_bounds.get_center()
+	print("Target position: %s" % str(target_position))
+	
+	# Calcular distancia apropiada SOLO si no hay override manual
+	var model_size = model_bounds.get_longest_axis_size()
+	
+	# ✅ CRÍTICO: Solo actualizar camera_distance si no hay configuración manual
+	if not manual_zoom_active:
+		camera_distance = max(model_size * 1.5, 3.0)  # Mínimo 3 unidades
+		camera_height = model_size * 0.3  # Altura proporcional
+	
+	print("Model size: %.2f, Distance: %.2f, Height: %.2f" % [model_size, camera_distance, camera_height])
+	
+	# ✅ CORRECCIÓN CRÍTICA: Respetar configuración manual
+	if use_orthographic:
+		if manual_zoom_active:
+			# ✅ USAR CONFIGURACIÓN MANUAL
+			orthographic_size = manual_orthographic_size
+			if camera_3d:
+				camera_3d.size = orthographic_size
+			print("🔧 Usando tamaño ortográfico MANUAL: %.2f" % orthographic_size)
+		else:
+			# ✅ SOLO USAR AUTO SI NO HAY CONFIGURACIÓN MANUAL
+			orthographic_size = max(model_size * 1.8, 8.0)  # 80% padding mínimo + mínimo absoluto
+			if camera_3d:
+				camera_3d.size = orthographic_size
+			print("📏 Tamaño ortográfico AUTO: %.2f (model_size: %.2f)" % [orthographic_size, model_size])
+	
+	# NUEVO: Configurar indicador de norte para el modelo
+	if north_indicator:
+		north_indicator.setup_for_model(model_bounds)
+		north_indicator.set_north_angle(current_north_offset)
+		
+		# Mostrar indicador si está habilitado
+		if show_north_indicator:
+			north_indicator.show_indicator()
+		else:
+			north_indicator.hide_indicator()
+	
+	update_camera_position()
+	print("✅ Cámara e indicador configurados para modelo")
+	emit_signal("camera_ready")
+
+# ========================================================================
+# ✅ FUNCIÓN DE DEBUG: Verificar estado de configuración manual
+# ========================================================================
+
+func debug_manual_zoom_state():
+	"""Debug del estado de configuración manual"""
+	print("\n🔍 === DEBUG CONFIGURACIÓN MANUAL ===")
+	print("manual_zoom_active: %s" % manual_zoom_active)
+	print("manual_orthographic_size: %.2f" % manual_orthographic_size)
+	print("orthographic_size actual: %.2f" % orthographic_size)
+	print("camera_3d.size: %.2f" % (camera_3d.size if camera_3d else 0.0))
+	print("use_orthographic: %s" % use_orthographic)
+	print("=====================================\n")
+
+# ========================================================================
+# ✅ FUNCIÓN AUXILIAR: Forzar aplicación de zoom manual
+# ========================================================================
+
+func force_apply_manual_zoom(size: float):
+	"""Forzar aplicación de zoom manual (para debug/testing)"""
+	print("🔧 Forzando zoom manual: %.2f" % size)
+	
+	manual_zoom_active = true
+	manual_orthographic_size = size
+	orthographic_size = size
+	
+	if camera_3d and use_orthographic:
+		camera_3d.size = size
+	
+	update_camera_position()
+	print("✅ Zoom manual forzado aplicado")
+
+# ========================================================================
+# ✅ FUNCIÓN AUXILIAR: Resetear configuración manual
+# ========================================================================
+
+func reset_manual_zoom():
+	"""Resetear configuración manual y volver al modo automático"""
+	print("🔄 Reseteando configuración manual")
+	
+	manual_zoom_active = false
+	manual_orthographic_size = 15.0
+	
+	# Re-aplicar configuración automática si hay un modelo
+	# (esto requerirá que se llame setup_for_model nuevamente)
+	print("✅ Configuración manual reseteada - modo automático activado")
+
+# ========================================================================
+# ✅ FUNCIONES PÚBLICAS PARA VERIFICACIÓN
+# ========================================================================
+
+func is_manual_zoom_active() -> bool:
+	"""Verificar si el zoom manual está activo"""
+	return manual_zoom_active
+
+func get_manual_zoom_size() -> float:
+	"""Obtener el tamaño de zoom manual actual"""
+	return manual_orthographic_size
+
+func get_current_zoom_info() -> Dictionary:
+	"""Obtener información completa del zoom actual"""
+	return {
+		"manual_active": manual_zoom_active,
+		"manual_size": manual_orthographic_size,
+		"current_orthographic_size": orthographic_size,
+		"camera_size": camera_3d.size if camera_3d else 0.0,
+		"use_orthographic": use_orthographic
+	}
