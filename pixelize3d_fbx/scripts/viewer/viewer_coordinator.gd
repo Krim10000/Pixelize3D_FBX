@@ -1340,30 +1340,93 @@ func get_unified_camera_info() -> Dictionary:
 	return info
 
 
+#func _on_render_settings_changed(settings: Dictionary):
+	#"""Manejar cambios en configuración de renderizado desde UI"""
+	#print("📡 Configuración recibida desde UI:")
+	#print("  Norte: %.0f°" % settings.get("north_offset", 0.0))
+	#
+	## Enviar al camera_controller si existe un modelo
+	#if current_combined_model and is_instance_valid(current_combined_model):
+		## Buscar camera_controller en sprite_renderer
+		#if sprite_renderer:
+			#var camera_controller = sprite_renderer.get_node_or_null("CameraController")
+			#if camera_controller and camera_controller.has_method("set_camera_settings"):
+				#camera_controller.set_camera_settings(settings)
+				#print("✅ Configuración enviada al camera_controller")
+			#else:
+				#print("❌ Camera controller no encontrado en sprite_renderer")
+		#
+		## También enviar al model_preview_panel si existe
+		#if model_preview_panel:
+			#var preview_camera = model_preview_panel.get_node_or_null("ViewportContainer/SubViewport/CameraController")
+			#if preview_camera and preview_camera.has_method("set_camera_settings"):
+				#preview_camera.set_camera_settings(settings)
+				#print("✅ Configuración enviada al preview camera")
+	#else:
+		#print("⚠️ No hay modelo combinado para aplicar configuración")
+#
+	## También actualizar configuración interna
+	#log_panel.add_log("⚙️ Configuración actualizada - Norte: %.0f°" % settings.get("north_offset", 0.0))
+
+
 func _on_render_settings_changed(settings: Dictionary):
-	"""Manejar cambios en configuración de renderizado desde UI"""
+	"""Manejar cambios en configuración de renderizado desde UI - CORREGIDO"""
 	print("📡 Configuración recibida desde UI:")
+	print("  camera_height: %.1f" % settings.get("camera_height", 12.0))
+	print("  camera_angle: %.1f°" % settings.get("camera_angle", 45.0))
 	print("  Norte: %.0f°" % settings.get("north_offset", 0.0))
 	
-	# Enviar al camera_controller si existe un modelo
-	if current_combined_model and is_instance_valid(current_combined_model):
-		# Buscar camera_controller en sprite_renderer
-		if sprite_renderer:
-			var camera_controller = sprite_renderer.get_node_or_null("CameraController")
-			if camera_controller and camera_controller.has_method("set_camera_settings"):
-				camera_controller.set_camera_settings(settings)
-				print("✅ Configuración enviada al camera_controller")
-			else:
-				print("❌ Camera controller no encontrado en sprite_renderer")
-		
-		# También enviar al model_preview_panel si existe
-		if model_preview_panel:
-			var preview_camera = model_preview_panel.get_node_or_null("ViewportContainer/SubViewport/CameraController")
-			if preview_camera and preview_camera.has_method("set_camera_settings"):
-				preview_camera.set_camera_settings(settings)
-				print("✅ Configuración enviada al preview camera")
+	# ✅ CORREGIDO: Enviar DIRECTAMENTE al preview camera
+	if model_preview_panel:
+		var preview_camera = model_preview_panel.get_node_or_null("ViewportContainer/SubViewport/CameraController")
+		if preview_camera and preview_camera.has_method("set_camera_settings"):
+			preview_camera.set_camera_settings(settings)
+			print("✅ Configuración enviada al preview camera")
+			
+			# ✅ NUEVO: Forzar actualización inmediata
+			if preview_camera.has_method("update_camera_position"):
+				preview_camera.update_camera_position()
+				print("🔄 Posición de cámara actualizada inmediatamente")
+		else:
+			print("❌ Preview camera controller no encontrado")
+			# Debug: mostrar path completo del preview panel
+			if model_preview_panel:
+				print("🔍 Preview panel encontrado en: %s" % model_preview_panel.get_path())
+				var viewport_container = model_preview_panel.get_node_or_null("ViewportContainer")
+				if viewport_container:
+					print("🔍 ViewportContainer encontrado")
+					var subviewport = viewport_container.get_node_or_null("SubViewport")
+					if subviewport:
+						print("🔍 SubViewport encontrado")
+						print("🔍 Hijos de SubViewport: %s" % str(subviewport.get_children().map(func(n): return n.name)))
+					else:
+						print("❌ SubViewport NO encontrado")
+				else:
+					print("❌ ViewportContainer NO encontrado")
 	else:
-		print("⚠️ No hay modelo combinado para aplicar configuración")
-
+		print("❌ model_preview_panel no encontrado")
+	
 	# También actualizar configuración interna
-	log_panel.add_log("⚙️ Configuración actualizada - Norte: %.0f°" % settings.get("north_offset", 0.0))
+	log_panel.add_log("⚙️ Configuración actualizada - altura: %.1f" % settings.get("camera_height", 12.0))
+
+
+func debug_preview_camera_path():
+	"""Debug para encontrar la ruta correcta al camera controller"""
+	print("\n🔍 === DEBUG PREVIEW CAMERA PATH ===")
+	
+	if model_preview_panel:
+		print("✅ model_preview_panel encontrado: %s" % model_preview_panel.get_path())
+		
+		# Explorar estructura
+		for child in model_preview_panel.get_children():
+			print("  - %s" % child.name)
+			if child.name == "ViewportContainer":
+				for subchild in child.get_children():
+					print("    - %s" % subchild.name)
+					if subchild.name == "SubViewport":
+						for subsubchild in subchild.get_children():
+							print("      - %s" % subsubchild.name)
+	else:
+		print("❌ model_preview_panel NO encontrado")
+	
+	print("=====================================\n")

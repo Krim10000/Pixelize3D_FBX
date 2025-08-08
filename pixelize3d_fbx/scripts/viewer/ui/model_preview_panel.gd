@@ -34,6 +34,7 @@ var preview_active: bool = false
 # ✅ NUEVO: Estado de animación
 var is_animation_playing: bool = false
 var current_animation_name: String = ""
+var capture_area_indicator: Control
 
 func _ready():
 	print("🎬 ModelPreviewPanel MEJORADO inicializado")
@@ -55,6 +56,7 @@ func _setup_ui():
 		controls_help_label = Label.new()
 		add_child(controls_help_label)
 	
+	_create_capture_area_indicator()
 	status_label.text = "Esperando modelo..."
 	status_label.add_theme_font_size_override("font_size", 10)
 	status_label.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
@@ -65,6 +67,104 @@ func _setup_ui():
 	controls_help_label.add_theme_color_override("font_color", Color(0.6, 0.8, 0.6))
 	controls_help_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	controls_help_label.visible = false
+
+func _create_capture_area_indicator():
+	"""Crear indicador visual del área de captura"""
+	if not viewport_container:
+		return
+	
+	# Crear overlay para el indicador
+	capture_area_indicator = Control.new()
+	capture_area_indicator.name = "CaptureAreaIndicator"
+	capture_area_indicator.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	capture_area_indicator.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	viewport_container.add_child(capture_area_indicator)
+	
+	# Configurar para dibujar el borde
+	capture_area_indicator.draw.connect(_draw_capture_area)
+	
+	print("✅ Indicador de área de captura creado")
+
+func _draw_capture_area():
+	"""Dibujar borde del área de captura"""
+	if not viewport or not capture_area_indicator:
+		return
+	
+	var viewport_size = viewport_container.size
+	var capture_size = min(viewport_size.x, viewport_size.y)
+	
+	# Calcular área cuadrada centrada
+	var offset_x = (viewport_size.x - capture_size) / 2.0
+	var offset_y = (viewport_size.y - capture_size) / 2.0
+	
+	var rect = Rect2(offset_x, offset_y, capture_size, capture_size)
+	
+	# Dibujar borde del área de captura
+	var border_color = Color(1.0, 1.0, 0.0, 0.8)  # Amarillo semi-transparente
+	var border_width = 2.0
+	
+	# Dibujar marco
+	capture_area_indicator.draw_rect(rect, border_color, false, border_width)
+	
+	# Dibujar esquinas más visibles
+	var corner_size = 20.0
+	var corner_color = Color(1.0, 0.5, 0.0, 1.0)  # Naranja
+	
+	# Esquina superior izquierda
+	capture_area_indicator.draw_line(
+		Vector2(rect.position.x, rect.position.y),
+		Vector2(rect.position.x + corner_size, rect.position.y),
+		corner_color, 3.0
+	)
+	capture_area_indicator.draw_line(
+		Vector2(rect.position.x, rect.position.y),
+		Vector2(rect.position.x, rect.position.y + corner_size),
+		corner_color, 3.0
+	)
+	
+	# Esquina superior derecha
+	capture_area_indicator.draw_line(
+		Vector2(rect.position.x + rect.size.x, rect.position.y),
+		Vector2(rect.position.x + rect.size.x - corner_size, rect.position.y),
+		corner_color, 3.0
+	)
+	capture_area_indicator.draw_line(
+		Vector2(rect.position.x + rect.size.x, rect.position.y),
+		Vector2(rect.position.x + rect.size.x, rect.position.y + corner_size),
+		corner_color, 3.0
+	)
+	
+	# Esquina inferior izquierda
+	capture_area_indicator.draw_line(
+		Vector2(rect.position.x, rect.position.y + rect.size.y),
+		Vector2(rect.position.x + corner_size, rect.position.y + rect.size.y),
+		corner_color, 3.0
+	)
+	capture_area_indicator.draw_line(
+		Vector2(rect.position.x, rect.position.y + rect.size.y),
+		Vector2(rect.position.x, rect.position.y + rect.size.y - corner_size),
+		corner_color, 3.0
+	)
+	
+	# Esquina inferior derecha
+	capture_area_indicator.draw_line(
+		Vector2(rect.position.x + rect.size.x, rect.position.y + rect.size.y),
+		Vector2(rect.position.x + rect.size.x - corner_size, rect.position.y + rect.size.y),
+		corner_color, 3.0
+	)
+	capture_area_indicator.draw_line(
+		Vector2(rect.position.x + rect.size.x, rect.position.y + rect.size.y),
+		Vector2(rect.position.x + rect.size.x, rect.position.y + rect.size.y - corner_size),
+		corner_color, 3.0
+	)
+
+func update_capture_area_indicator():
+	"""Actualizar indicador cuando cambie la configuración"""
+	if capture_area_indicator:
+		capture_area_indicator.queue_redraw()
+
+
+
 
 func _connect_signals():
 	"""Conectar señales entre componentes"""
@@ -99,6 +199,11 @@ func set_model(model: Node3D):
 	
 	# Buscar AnimationPlayer
 	animation_player = _find_animation_player(current_model)
+	
+	if capture_area_indicator:
+		capture_area_indicator.visible = true
+		update_capture_area_indicator()
+	
 	
 	if animation_player:
 		print("✅ AnimationPlayer encontrado con %d animaciones" % animation_player.get_animation_list().size())

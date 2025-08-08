@@ -20,6 +20,9 @@ var camera_angle_slider: HSlider
 var camera_angle_label: Label
 var north_offset_slider: HSlider
 var north_offset_label: Label
+# Altura:
+var camera_height_slider: HSlider
+var camera_height_label: Label
 
 # Controles de área de captura
 var capture_area_slider: HSlider
@@ -31,6 +34,7 @@ var current_settings: Dictionary = {
 	"directions": 16,
 	"sprite_size": 512,
 	"fps": 30,
+	"camera_height": 12.0,  
 	"pixelize": true,
 	"camera_angle": 45.0,
 	"north_offset": 0.0,
@@ -167,6 +171,40 @@ func _create_camera_settings():
 	camera_angle_label.custom_minimum_size.x = 40
 	camera_angle_container.add_child(camera_angle_label)
 
+
+	#altura
+	var camera_height_container = HBoxContainer.new()
+	add_child(camera_height_container)
+	
+	var height_label = Label.new()
+	height_label.text = "Altura:"
+	height_label.custom_minimum_size.x = 80
+	camera_height_container.add_child(height_label)
+	
+	camera_height_slider = HSlider.new()
+	camera_height_slider.min_value = 5.0
+	camera_height_slider.max_value = 25.0
+	camera_height_slider.value = 12.0
+	camera_height_slider.step = 0.5
+	camera_height_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	camera_height_slider.value_changed.connect(_on_camera_height_changed)
+	camera_height_container.add_child(camera_height_slider)
+	
+	camera_height_label = Label.new()
+	camera_height_label.text = "12.0"
+	camera_height_label.custom_minimum_size.x = 40
+	camera_height_container.add_child(camera_height_label)
+	
+func _on_camera_height_changed(value: float):
+	"""Manejar cambio en altura de cámara"""
+	current_settings.camera_height = value
+	camera_height_label.text = "%.1f" % value
+	
+	print("📏 Altura de cámara: %.1f" % value)
+	emit_signal("settings_changed", current_settings.duplicate())
+
+	
+	
 func _create_capture_area_settings():
 	"""Crear configuración de área de captura"""
 	var capture_title = Label.new()
@@ -338,6 +376,8 @@ func _apply_current_settings():
 	"""Aplicar valores actuales a controles"""
 	print("🔧 Aplicando configuración actual a controles")
 	
+	#altura
+	
 	# Aplicar valores básicos
 	directions_spinbox.value = current_settings.directions
 	sprite_size_spinbox.value = current_settings.sprite_size
@@ -346,6 +386,7 @@ func _apply_current_settings():
 	
 	# Aplicar valores de cámara
 	camera_angle_slider.value = current_settings.camera_angle
+	camera_height_slider.value = current_settings.camera_height  
 	
 	# Aplicar valores de orientación
 	north_offset_slider.value = current_settings.north_offset
@@ -356,6 +397,7 @@ func _apply_current_settings():
 	
 	# Actualizar labels
 	_on_camera_angle_changed(current_settings.camera_angle)
+	_on_camera_height_changed(current_settings.camera_height)  
 	_on_north_offset_changed(current_settings.north_offset)
 	_on_capture_area_changed(current_settings.capture_area_size)
 
@@ -402,6 +444,19 @@ func _on_capture_area_changed(value: float):
 	print("🖼️ Área de captura: %.1f" % value)
 	emit_signal("settings_changed", current_settings.duplicate())
 
+	_update_capture_area_visual()
+	
+	
+func _update_capture_area_visual():
+	"""Actualizar indicador visual del área de captura"""
+	# Buscar el ModelPreviewPanel y actualizar su indicador
+	var viewer_coordinator = get_node_or_null("/root/ViewerModular")
+	if viewer_coordinator:
+		var preview_panel = viewer_coordinator.get_node_or_null("HSplitContainer/RightPanel/ModelPreviewPanel")
+		if preview_panel and preview_panel.has_method("update_capture_area_indicator"):
+			preview_panel.update_capture_area_indicator()
+			print("🔄 Indicador de área de captura actualizado")
+	
 func _on_size_preset_pressed(size_value: float):
 	"""Manejar preset de tamaño"""
 	capture_area_slider.value = size_value
