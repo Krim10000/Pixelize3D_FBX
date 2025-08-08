@@ -45,6 +45,22 @@ func _ready():
 	else:
 		push_error("❌ No se pudo cargar orientation_analyzer.gd")
 
+func update_render_settings(new_settings: Dictionary):
+	"""Actualizar configuración de renderizado en tiempo real"""
+	print("🔄 Actualizando configuración de sprite renderer...")
+	
+	render_settings = new_settings.duplicate()
+	
+	# Aplicar cambios inmediatamente si hay una cámara configurada
+	if camera_controller and camera_controller.has_method("set_camera_settings"):
+		camera_controller.set_camera_settings(new_settings)
+		print("✅ Configuración aplicada al camera controller del renderer")
+	
+	print("✅ Configuración de renderer actualizada")
+	print("  - directions: %d" % render_settings.get("directions", 16))
+	print("  - sprite_size: %d" % render_settings.get("sprite_size", 512))
+	print("  - camera_height: %.1f" % render_settings.get("camera_height", 12.0))
+
 func _initialize_shared_references():
 	"""Inicializar referencias compartidas con ModelPreviewPanel"""
 	print("🔗 Inicializando referencias compartidas...")

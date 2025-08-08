@@ -268,6 +268,20 @@ func _execute_export_phase() -> bool:
 	print("  - Carpeta: %s" % export_config.get("output_folder", ""))
 	print("  - Metadatos: %s" % export_config.get("generate_metadata", true))
 	
+		# ✅ NUEVO: Debug de límites antes de exportar
+	if export_manager.has_method("debug_layout_calculation"):
+		var sprite_size = Vector2(current_config.get("sprite_size", 256), current_config.get("sprite_size", 256))
+		var directions = current_config.get("directions", 16)
+		
+		# Estimar frames aproximados (rough estimate)
+		var estimated_frames = 30  # Valor por defecto
+		if current_config.has("fps") and current_config.has("animation_length"):
+			estimated_frames = int(current_config.fps * current_config.animation_length)
+		
+		print("🔍 Pre-análisis de división automática:")
+		export_manager.debug_layout_calculation(sprite_size, directions, estimated_frames)
+	
+	
 	# Crear carpeta de salida si no existe
 	var output_folder = export_config.get("output_folder", "res://output/")
 	DirAccess.make_dir_recursive_absolute(ProjectSettings.globalize_path(output_folder))
@@ -281,6 +295,28 @@ func _execute_export_phase() -> bool:
 # ========================================================================
 # RENDERIZADO SECUENCIAL (MIGRADO DESDE VIEWER_COORDINATOR)
 # ========================================================================
+
+func configure_texture_limits(max_size: int = 16384, safety_margin: int = 256):
+	"""Configurar límites de textura para división automática"""
+	if export_manager and export_manager.has_method("set_texture_limits"):
+		export_manager.set_texture_limits(max_size, safety_margin)
+		print("🔧 Límites de textura configurados: %dpx (margen: %dpx)" % [max_size, safety_margin])
+
+func enable_auto_split(enabled: bool = true):
+	"""Habilitar/deshabilitar división automática"""
+	if export_manager and export_manager.has_method("set_auto_split_enabled"):
+		export_manager.set_auto_split_enabled(enabled)
+		print("🔄 División automática: %s" % ("HABILITADA" if enabled else "DESHABILITADA"))
+
+
+
+func get_split_preview(sprite_size: int, directions: int, estimated_frames: int) -> Dictionary:
+	"""Obtener preview de cómo se dividiría una animación"""
+	if export_manager and export_manager.has_method("debug_layout_calculation"):
+		var size_vector = Vector2(sprite_size, sprite_size)
+		return export_manager.debug_layout_calculation(size_vector, directions, estimated_frames)
+	
+	return {"needs_split": false, "error": "Export manager no disponible"}
 
 func _render_all_directions_sequential(combined_model: Node3D) -> bool:
 	"""Renderizar todas las direcciones secuencialmente - MIGRADO desde viewer_coordinator"""
@@ -581,14 +617,31 @@ func _finish_pipeline(success: bool, message: String):
 # ========================================================================
 
 func get_pipeline_status() -> Dictionary:
-	"""Obtener estado actual del pipeline"""
-	return {
+	"""Obtener estado actual del pipeline CON INFO DE DIVISIÓN AUTOMÁTICA"""
+	var base_status = {
 		"is_busy": is_pipeline_busy,
 		"current_animation": current_animation,
 		"current_config": current_config,
 		"elapsed_time": (Time.get_ticks_msec() / 1000.0) - pipeline_start_time if is_pipeline_busy else 0.0,
 		"components_ready": _validate_pipeline_components()
 	}
+	
+	# ✅ AÑADIR INFORMACIÓN DE DIVISIÓN AUTOMÁTICA
+	if export_manager and export_manager.has_method("get_texture_limits_info"):
+		base_status["auto_split_info"] = export_manager.get_texture_limits_info()
+	
+	# ✅ AÑADIR PREVIEW DE DIVISIÓN SI HAY CONFIGURACIÓN ACTUAL
+	if not current_config.is_empty() and current_animation != "":
+		var sprite_size = current_config.get("sprite_size", 256)
+		var directions = current_config.get("directions", 16)
+		var estimated_frames = 30  # Estimación por defecto
+		
+		if current_config.has("fps") and current_config.has("animation_length"):
+			estimated_frames = int(current_config.fps * current_config.animation_length)
+		
+		base_status["division_preview"] = get_split_preview(sprite_size, directions, estimated_frames)
+	
+	return base_status
 
 func debug_pipeline_state():
 	"""Debug del estado del pipeline"""

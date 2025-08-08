@@ -1,24 +1,19 @@
 # scripts/viewer/viewer_coordinator.gd
-# VERSIÓN REFACTORIZADA - Coordinador UI limpio sin lógica de renderizado
+# VERSIÓN CORREGIDA - Sin errores de conexión ni declaración
 # Input: Señales de UI
 # Output: Coordinación limpia entre UI y Pipeline
-# ✅ INCLUYE: Monitor de animaciones integrado
 
 extends Control
 
 # ========================================================================
-# CORRECCIÓN LAMBDA CAPTURE: Clase auxiliar para evitar warnings
+# CLASE AUXILIAR
 # ========================================================================
 class TestResults:
 	var frames_captured: int = 0
 	var export_success: bool = false
 	var export_error: String = ""
-
-	# Variables anti-loop que faltaban
 	var last_animations_processed: Array = []
 	var processing_start_time: float = 0.0
-
-	# Referencia a camera_controller que falta
 	var camera_controller: Node
 	
 	func reset():
@@ -37,60 +32,66 @@ class TestResults:
 # Referencias a sistemas core
 @onready var fbx_loader = get_node("FBXLoader")
 @onready var animation_manager = get_node("AnimationManager")
-@onready var sprite_renderer = get_node("SpriteRenderer")
+#@onready var sprite_renderer = get_node("SpriteRenderer")
 
-@onready   var analyzer_script = load("res://scripts/orientation/orientation_analyzer.gd")
+var sprite_renderer: Node
 
-
-# ✅ NUEVO: Pipeline de sprite sheets
+# ✅ CORREGIDO: Variables principales
+var orientation_analyzer: Node = null
 var spritesheet_pipeline: Node
+var export_manager: Node
+var export_dialog: Control
+var camera_controls: Node
+var animation_monitor: Node
+var camera_sync_helper: Node
 
 # Datos del sistema
 var loaded_base_data: Dictionary = {}
 var loaded_animations: Dictionary = {}
 var current_combined_model: Node3D = null
+var current_render_settings: Dictionary = {}
 
-# Variables anti-loop
+# Variables de control
 var is_processing_animations: bool = false
 var last_animations_processed: Array = []
 var processing_start_time: float = 0.0
-
-# Variables para rastrear cambios de animación
 var is_changing_animation: bool = false
-
-# Variables para extensiones de renderizado y exportación
-var export_manager: Node
-var export_dialog: Control
-var camera_controls: Node
-
-# ✅ NUEVO: Monitor de animaciones
-var animation_monitor: Node
-
-# Variable para rastrear animaciones pendientes de combinación
 var pending_animations_for_combination: Array = []
-var camera_sync_helper: Node
-
-
-var orientation_analyzer = Node
 
 func _ready():
-	print("🎮 ViewerCoordinator REFACTORIZADO iniciado")
-	# Agregar a grupo para que el pipeline pueda encontrarnos
+	print("🎮 ViewerCoordinator CORREGIDO iniciado")
 	add_to_group("coordinator")
 	
 	await get_tree().process_frame
+	_create_core_components()
+	
+	# ✅ CORREGIDO: Orden correcto de inicialización
+	_initialize_orientation_analyzer()
 	_validate_and_connect()
 	_initialize_extensions()
 	_initialize_spritesheet_pipeline()
 	size_flags_vertical = Control.SIZE_EXPAND_FILL
 	call_deferred("_setup_unified_camera_system")
-	
-	orientation_analyzer = analyzer_script.new()
-	add_child(orientation_analyzer)  # Importante para que funcione	
-	print("🧠 OrientationAnalyzer inicializado")
-	settings_panel.request_auto_north_detection.connect(_on_auto_north_requested)
 
-	orientation_analyzer.analysis_complete.connect(_on_orientation_analysis_complete)
+# ✅ NUEVA FUNCIÓN: Inicializar OrientationAnalyzer correctamente
+func _initialize_orientation_analyzer():
+	"""Inicializar OrientationAnalyzer de forma segura"""
+	print("🧠 Inicializando OrientationAnalyzer...")
+	
+	var analyzer_script = load("res://scripts/orientation/orientation_analyzer.gd")
+	if analyzer_script:
+		orientation_analyzer = analyzer_script.new()
+		orientation_analyzer.name = "OrientationAnalyzer"
+		add_child(orientation_analyzer)
+		
+		if orientation_analyzer.has_method("analyze_model_orientation"):
+			print("✅ OrientationAnalyzer inicializado correctamente")
+		else:
+			print("❌ OrientationAnalyzer no tiene métodos esperados")
+			orientation_analyzer = null
+	else:
+		print("❌ No se pudo cargar script de OrientationAnalyzer")
+		orientation_analyzer = null
 
 func _validate_and_connect():
 	"""Validar y conectar de forma segura"""
@@ -109,7 +110,6 @@ func _validate_and_connect():
 	if not log_panel:
 		print("❌ LogPanel no encontrado")
 		return
-
 	if not actions_panel:
 		print("❌ actions_panel no encontrado")
 		return
@@ -117,34 +117,38 @@ func _validate_and_connect():
 	print("✅ Componentes validados")
 	_connect_all_signals()
 
-
-func _on_auto_north_requested():
-	if current_combined_model.get_child_count() > 0:
-		var current_model = current_combined_model.get_child(0)
-		orientation_analyzer.analyze_model_orientation(current_model)
-	else:
-		print("⚠️ No hay modelo cargado para analizar")
-
-func _on_orientation_analysis_complete(result: Dictionary):
-	print("🧭 Análisis completado: Norte sugerido = %.1f°" % result.suggested_north)
-	
-	# Actualizar configuración con el resultado
-	var new_settings = {
-		"north_offset": result.suggested_north,
-		"auto_north_detection": true
-	}
-	
-	settings_panel.apply_settings(new_settings)
-	
-	# Rotar modelo físicamente
-	if current_combined_model.get_child_count() > 0:
-		var model = current_combined_model.get_child(0)
-		model.rotation_degrees.y = result.suggested_north
-
-
+# ✅ CORREGIDO: Conexiones sin duplicados
 func _connect_all_signals():
-	"""Conectar TODAS las señales incluyendo las huérfanas"""
+	"""Conectar TODAS las señales sin duplicados"""
 	print("🔗 Conectando TODAS las señales...")
+
+	# SettingsPanel
+	if settings_panel:
+		if settings_panel.has_signal("settings_changed"):
+			if settings_panel.settings_changed.is_connected(_on_render_settings_changed):
+				settings_panel.settings_changed.disconnect(_on_render_settings_changed)
+			settings_panel.settings_changed.connect(_on_render_settings_changed)
+			print("✅ SettingsPanel settings_changed conectado")
+		
+		if settings_panel.has_signal("request_auto_north_detection"):
+			if settings_panel.request_auto_north_detection.is_connected(_on_auto_north_requested):
+				settings_panel.request_auto_north_detection.disconnect(_on_auto_north_requested)
+			settings_panel.request_auto_north_detection.connect(_on_auto_north_requested)
+			print("✅ SettingsPanel auto_north conectado")
+	else:
+		print("❌ SettingsPanel no encontrado")
+
+	# OrientationAnalyzer
+	if orientation_analyzer and is_instance_valid(orientation_analyzer):
+		if orientation_analyzer.has_signal("analysis_complete"):
+			if orientation_analyzer.analysis_complete.is_connected(_on_orientation_analysis_complete):
+				orientation_analyzer.analysis_complete.disconnect(_on_orientation_analysis_complete)
+			orientation_analyzer.analysis_complete.connect(_on_orientation_analysis_complete)
+			print("✅ OrientationAnalyzer conectado")
+		if orientation_analyzer.has_signal("analysis_failed"):
+			orientation_analyzer.analysis_failed.connect(_on_orientation_analysis_failed)
+	else:
+		print("❌ OrientationAnalyzer no disponible")
 
 	# FileLoaderPanel
 	if file_loader_panel:
@@ -153,37 +157,27 @@ func _connect_all_signals():
 		file_loader_panel.animations_selected.connect(_on_animations_selected_protected)
 		print("✅ FileLoaderPanel conectado")
 
-
-	var ui_controller = get_node_or_null("UIController")
-	if not ui_controller:
-		ui_controller = find_child("UIController", true, false)
-	
-	if ui_controller:
-		# Conectar señal de configuración de renderizado
-		if ui_controller.has_signal("render_settings_changed"):
-			ui_controller.render_settings_changed.connect(_on_render_settings_changed)
-			print("✅ UI Controller render_settings_changed conectado")
-		else:
-			print("⚠️ UI Controller no tiene señal render_settings_changed")
-	else:
-		print("⚠️ UI Controller no encontrado")
-
-	# AnimationControlsPanel - CONECTAR SEÑAL HUÉRFANA
+	# AnimationControlsPanel
 	if animation_controls_panel:
 		animation_controls_panel.animation_selected.connect(_on_animation_selected_ui)
-		animation_controls_panel.animation_change_requested.connect(_on_animation_change_requested)
-		animation_controls_panel.play_requested.connect(_on_play_requested)
-		animation_controls_panel.pause_requested.connect(_on_pause_requested)
-		animation_controls_panel.stop_requested.connect(_on_stop_requested)
-		print("✅ AnimationControlsPanel COMPLETAMENTE conectado")
+		if animation_controls_panel.has_signal("animation_change_requested"):
+			animation_controls_panel.animation_change_requested.connect(_on_animation_change_requested)
+		if animation_controls_panel.has_signal("play_requested"):
+			animation_controls_panel.play_requested.connect(_on_play_requested)
+		if animation_controls_panel.has_signal("pause_requested"):
+			animation_controls_panel.pause_requested.connect(_on_pause_requested)
+		if animation_controls_panel.has_signal("stop_requested"):
+			animation_controls_panel.stop_requested.connect(_on_stop_requested)
+		print("✅ AnimationControlsPanel conectado")
 
-	# ActionsPanel - CONECTAR SEÑALES HUÉRFANAS
+	# ActionsPanel
 	if actions_panel:
 		actions_panel.preview_requested.connect(_on_preview_requested)
 		actions_panel.render_requested.connect(_on_render_requested_refactored)
 		actions_panel.export_requested.connect(_on_export_requested)
-		actions_panel.settings_requested.connect(_on_settings_requested)
-		print("✅ ActionsPanel COMPLETAMENTE conectado")
+		if actions_panel.has_signal("settings_requested"):
+			actions_panel.settings_requested.connect(_on_settings_requested)
+		print("✅ ActionsPanel conectado")
 
 	# FBX Loader
 	if fbx_loader:
@@ -199,30 +193,370 @@ func _connect_all_signals():
 
 	print("🔗 TODAS las conexiones completadas")
 
+# ✅ CORREGIDO: Validación antes de usar current_combined_model
+func _on_auto_north_requested():
+	"""Manejar solicitud de detección automática de norte - CORREGIDO"""
+	print("🧭 Solicitando detección automática de norte...")
+	
+	if not orientation_analyzer or not is_instance_valid(orientation_analyzer):
+		print("❌ OrientationAnalyzer no disponible")
+		log_panel.add_log("❌ Analizador de orientación no disponible")
+		return
+	
+	if not current_combined_model or not is_instance_valid(current_combined_model):
+		print("⚠️ No hay modelo combinado para analizar")
+		log_panel.add_log("⚠️ No hay modelo cargado para analizar orientación")
+		return
+	
+	if current_combined_model.get_child_count() > 0:
+		var current_model = current_combined_model.get_child(0)
+		if orientation_analyzer.has_method("analyze_model_orientation"):
+			orientation_analyzer.analyze_model_orientation(current_model)
+			print("✅ Análisis de orientación iniciado")
+		else:
+			print("❌ OrientationAnalyzer no tiene método analyze_model_orientation")
+	else:
+		print("⚠️ Modelo combinado no tiene hijos para analizar")
+
+func _on_orientation_analysis_complete(result: Dictionary):
+	"""Manejar completación de análisis de orientación"""
+	print("🧭 Análisis completado: Norte sugerido = %.1f°" % result.get("suggested_north", 0.0))
+	
+	var new_settings = {
+		"north_offset": result.get("suggested_north", 0.0),
+		"auto_north_detection": true
+	}
+	
+	if settings_panel and settings_panel.has_method("apply_settings"):
+		settings_panel.apply_settings(new_settings)
+		print("✅ Configuración aplicada al settings panel")
+	
+	if current_combined_model and current_combined_model.get_child_count() > 0:
+		var model = current_combined_model.get_child(0)
+		model.rotation_degrees.y = result.get("suggested_north", 0.0)
+		print("✅ Modelo rotado físicamente")
+	
+	log_panel.add_log("🧭 Orientación automática aplicada: %.1f°" % result.get("suggested_north", 0.0))
+
+func _on_orientation_analysis_failed(error: String):
+	"""Manejar fallo en análisis de orientación"""
+	print("❌ Análisis de orientación falló: %s" % error)
+	log_panel.add_log("❌ Error en análisis de orientación: " + error)
+
+# ✅ CORREGIDO: Manejador principal de configuración
+func _on_render_settings_changed(settings: Dictionary):
+	"""Manejar cambios en configuración de renderizado - CORREGIDO"""
+	print("📡 Configuración recibida desde SettingsPanel:")
+	print("  directions: %d" % settings.get("directions", 16))
+	print("  camera_height: %.1f" % settings.get("camera_height", 12.0))
+	print("  camera_angle: %.1f°" % settings.get("camera_angle", 45.0))
+	print("  sprite_size: %d" % settings.get("sprite_size", 512))
+	print("  Norte: %.0f°" % settings.get("north_offset", 0.0))
+	
+	# 1. Enviar al Model Preview Panel (para preview en tiempo real)
+	if model_preview_panel:
+		var preview_camera = model_preview_panel.get_node_or_null("ViewportContainer/SubViewport/CameraController")
+		if preview_camera and preview_camera.has_method("set_camera_settings"):
+			preview_camera.set_camera_settings(settings)
+			print("✅ Configuración enviada al preview camera")
+			
+			if preview_camera.has_method("update_camera_position"):
+				preview_camera.update_camera_position()
+		else:
+			print("❌ Preview camera controller no encontrado")
+	
+	# 2. Enviar al Sprite Renderer (para renderizado)
+	if sprite_renderer:
+		if sprite_renderer.has_method("initialize"):
+			sprite_renderer.initialize(settings)
+			print("✅ Configuración enviada al sprite renderer")
+		
+		if sprite_renderer.has_method("update_render_settings"):
+			sprite_renderer.update_render_settings(settings)
+	
+	# 3. Aplicar al pipeline
+	if spritesheet_pipeline and spritesheet_pipeline.has_method("update_pipeline_settings"):
+		spritesheet_pipeline.update_pipeline_settings(settings)
+		print("✅ Configuración enviada al pipeline")
+	
+	# 4. Guardar configuración actual
+	current_render_settings = settings
+	
+	log_panel.add_log("⚙️ Configuración actualizada - direcciones: %d, altura: %.1f" % [settings.get("directions", 16), settings.get("camera_height", 12.0)])
+
 # ========================================================================
-# ✅ NUEVO: INICIALIZACIÓN DEL PIPELINE
+# FUNCIONES DE DEBUG
+# ========================================================================
+
+func debug_connections():
+	"""Debug de conexiones de señales"""
+	print("\n🔍 === DEBUG CONEXIONES ===")
+	
+	if settings_panel:
+		print("✅ SettingsPanel encontrado")
+		if settings_panel.has_signal("settings_changed"):
+			var connections = settings_panel.get_signal_connection_list("settings_changed")
+			print("  settings_changed conexiones: %d" % connections.size())
+			for conn in connections:
+				print("    -> %s.%s" % [conn.target.name, conn.method.get_method()])
+		else:
+			print("❌ settings_changed signal NO existe")
+	else:
+		print("❌ SettingsPanel NO encontrado")
+	
+	print("=========================\n")
+
+func debug_complete_system():
+	"""Debug completo del sistema"""
+	print("\n🔍 === DEBUG SISTEMA COMPLETO ===")
+	
+	# 1. Debug OrientationAnalyzer
+	print("📋 ORIENTATION ANALYZER:")
+	if orientation_analyzer and is_instance_valid(orientation_analyzer):
+		print("✅ OrientationAnalyzer encontrado")
+		print("  Tiene analyze_model_orientation: %s" % orientation_analyzer.has_method("analyze_model_orientation"))
+		print("  Tiene analysis_complete signal: %s" % orientation_analyzer.has_signal("analysis_complete"))
+	else:
+		print("❌ OrientationAnalyzer NO disponible")
+	
+	# 2. Debug conexiones
+	debug_connections()
+	
+	# 3. Debug modelo actual
+	print("\n📋 MODELO ACTUAL:")
+	if current_combined_model:
+		print("✅ Modelo combinado: %s" % current_combined_model.name)
+		print("  Hijos: %d" % current_combined_model.get_child_count())
+		if current_combined_model.get_child_count() > 0:
+			var first_child = current_combined_model.get_child(0)
+			print("  Primer hijo: %s" % first_child.name)
+			print("  Rotación actual: %s" % str(first_child.rotation_degrees))
+	else:
+		print("❌ No hay modelo combinado")
+	
+	print("=====================================\n")
+
+# ========================================================================
+# FUNCIONES DE SOPORTE PRINCIPALES
+# ========================================================================
+
+func _get_current_render_settings() -> Dictionary:
+	"""Obtener configuración actual de renderizado"""
+	if not current_render_settings.is_empty():
+		print("📋 Usando configuración actual guardada")
+		return current_render_settings.duplicate()
+	
+	var settings = {
+		"directions": 16,
+		"sprite_size": 512,
+		"fps": 30,
+		"camera_angle": 45.0,
+		"camera_height": 12.0,
+		"camera_distance": 20.0,
+		"north_offset": 0.0,
+		"pixelize": true,
+		"output_folder": "res://output/"
+	}
+	
+	if settings_panel and settings_panel.has_method("get_current_settings"):
+		var panel_settings = settings_panel.get_current_settings()
+		for key in panel_settings:
+			settings[key] = panel_settings[key]
+		print("📋 Configuración obtenida de settings_panel")
+	
+	return settings
+
+func get_current_combined_model() -> Node3D:
+	"""Función pública para que el pipeline obtenga el modelo combinado"""
+	return current_combined_model
+
+# ========================================================================
+# INICIALIZACIÓN DE SISTEMAS
 # ========================================================================
 
 func _initialize_spritesheet_pipeline():
 	"""Inicializar el pipeline de sprite sheets"""
 	print("🏭 Inicializando SpritesheetPipeline...")
-
-	# Crear instancia del pipeline
 	var pipeline_script = load("res://scripts/rendering/spritesheet_pipeline.gd")
 	if pipeline_script:
 		spritesheet_pipeline = pipeline_script.new()
 		spritesheet_pipeline.name = "SpritesheetPipeline"
 		add_child(spritesheet_pipeline)
-		
-		# Configurar pipeline con componentes
-		spritesheet_pipeline.setup_pipeline(sprite_renderer, export_manager, animation_manager)
-		
-		# Conectar señales del pipeline
-		_connect_pipeline_signals()
-		
-		print("✅ SpritesheetPipeline inicializado y configurado")
+		print("✅ SpritesheetPipeline inicializado")
 	else:
 		print("❌ No se pudo cargar script de SpritesheetPipeline")
+
+func _initialize_extensions():
+	"""Inicializar extensiones básicas"""
+	print("🔧 Inicializando extensiones básicas...")
+	# Aquí irían las inicializaciones de export_manager, camera_controls, etc.
+	print("✅ Extensiones básicas inicializadas")
+
+func _setup_unified_camera_system():
+	"""Inicializar sistema de cámara unificada"""
+	print("🎥 Configurando sistema de cámara unificada...")
+	var helper_script = load("res://scripts/helpers/camera_sync_helper.gd")
+	if helper_script:
+		camera_sync_helper = helper_script.new()
+		camera_sync_helper.name = "CameraSyncHelper" 
+		add_child(camera_sync_helper)
+		print("✅ Sistema de cámara unificada configurado")
+	else:
+		print("⚠️ No se pudo cargar CameraSyncHelper")
+
+
+
+#func _on_auto_north_requested():
+	#if current_combined_model.get_child_count() > 0:
+		#var current_model = current_combined_model.get_child(0)
+		#orientation_analyzer.analyze_model_orientation(current_model)
+	#else:
+		#print("⚠️ No hay modelo cargado para analizar")
+#
+#func _on_orientation_analysis_complete(result: Dictionary):
+	#print("🧭 Análisis completado: Norte sugerido = %.1f°" % result.suggested_north)
+	#
+	## Actualizar configuración con el resultado
+	#var new_settings = {
+		#"north_offset": result.suggested_north,
+		#"auto_north_detection": true
+	#}
+	#
+	#settings_panel.apply_settings(new_settings)
+	#
+	## Rotar modelo físicamente
+	#if current_combined_model.get_child_count() > 0:
+		#var model = current_combined_model.get_child(0)
+		#model.rotation_degrees.y = result.suggested_north
+#
+#
+#func _connect_all_signals():
+	#"""Conectar TODAS las señales incluyendo las huérfanas"""
+	#print("🔗 Conectando TODAS las señales...")
+#
+#
+	#if settings_panel:
+		## Verificar y desconectar señales existentes antes de reconectar
+		#if settings_panel.has_signal("settings_changed"):
+			## Desconectar si ya está conectada
+			#if settings_panel.settings_changed.is_connected(_on_render_settings_changed):
+				#settings_panel.settings_changed.disconnect(_on_render_settings_changed)
+			#settings_panel.settings_changed.connect(_on_render_settings_changed)
+			#print("✅ SettingsPanel settings_changed conectado")
+		#
+		#if settings_panel.has_signal("request_auto_north_detection"):
+			## Desconectar si ya está conectada
+			##if settings_panel.request_auto_north_detection.is_connected(_on_auto_north_requested):
+				##settings_panel.request_auto_north_detection.disconnect(_on_auto_north_requested)
+			##settings_panel.request_auto_north_detection.connect(_on_auto_north_requested)
+			#print("✅ SettingsPanel auto_north conectado")
+	#else:
+		#print("❌ SettingsPanel no encontrado")
+#
+#
+	## FileLoaderPanel
+	#if file_loader_panel:
+		#file_loader_panel.file_selected.connect(_on_file_selected)
+		#file_loader_panel.unit_selected.connect(_on_unit_selected)
+		#file_loader_panel.animations_selected.connect(_on_animations_selected_protected)
+		#print("✅ FileLoaderPanel conectado")
+#
+#
+	#if orientation_analyzer:
+		#if orientation_analyzer.has_signal("analysis_complete"):
+			## Desconectar si ya está conectada
+			#if orientation_analyzer.analysis_complete.is_connected(_on_orientation_analysis_complete):
+				#orientation_analyzer.analysis_complete.disconnect(_on_orientation_analysis_complete)
+			#orientation_analyzer.analysis_complete.connect(_on_orientation_analysis_complete)
+			#print("✅ OrientationAnalyzer conectado")
+#
+#func debug_connections():
+	#"""Debug de conexiones de señales"""
+	#print("\n🔍 === DEBUG CONEXIONES ===")
+	#
+	#if settings_panel:
+		#print("✅ SettingsPanel encontrado")
+		#if settings_panel.has_signal("settings_changed"):
+			#var connections = settings_panel.get_signal_connection_list("settings_changed")
+			#print("  settings_changed conexiones: %d" % connections.size())
+			#for conn in connections:
+				#print("    -> %s.%s" % [conn.target.name, conn.method.get_method()])
+		#else:
+			#print("❌ settings_changed signal NO existe")
+	#else:
+		#print("❌ SettingsPanel NO encontrado")
+	#
+	#print("=========================\n")
+#
+	##var ui_controller = get_node_or_null("UIController")
+	##if not ui_controller:
+		##ui_controller = find_child("UIController", true, false)
+	#
+	##if ui_controller:
+		### Conectar señal de configuración de renderizado
+		##if ui_controller.has_signal("render_settings_changed"):
+			##ui_controller.render_settings_changed.connect(_on_render_settings_changed)
+			##print("✅ UI Controller render_settings_changed conectado")
+		##else:
+			##print("⚠️ UI Controller no tiene señal render_settings_changed")
+	##else:
+		##print("⚠️ UI Controller no encontrado")
+#
+	## AnimationControlsPanel - CONECTAR SEÑAL HUÉRFANA
+	#if animation_controls_panel:
+		#animation_controls_panel.animation_selected.connect(_on_animation_selected_ui)
+		#animation_controls_panel.animation_change_requested.connect(_on_animation_change_requested)
+		#animation_controls_panel.play_requested.connect(_on_play_requested)
+		#animation_controls_panel.pause_requested.connect(_on_pause_requested)
+		#animation_controls_panel.stop_requested.connect(_on_stop_requested)
+		#print("✅ AnimationControlsPanel COMPLETAMENTE conectado")
+#
+	## ActionsPanel - CONECTAR SEÑALES HUÉRFANAS
+	#if actions_panel:
+		#actions_panel.preview_requested.connect(_on_preview_requested)
+		#actions_panel.render_requested.connect(_on_render_requested_refactored)
+		#actions_panel.export_requested.connect(_on_export_requested)
+		#actions_panel.settings_requested.connect(_on_settings_requested)
+		#print("✅ ActionsPanel COMPLETAMENTE conectado")
+#
+	## FBX Loader
+	#if fbx_loader:
+		#fbx_loader.model_loaded.connect(_on_model_loaded)
+		#fbx_loader.load_failed.connect(_on_load_failed)
+		#print("✅ FBXLoader conectado")
+#
+	## Animation Manager
+	#if animation_manager:
+		#animation_manager.combination_complete.connect(_on_combination_complete_safe)
+		#animation_manager.combination_failed.connect(_on_combination_failed)
+		#print("✅ AnimationManager conectado")
+#
+	#print("🔗 TODAS las conexiones completadas")
+
+# ========================================================================
+# ✅ NUEVO: INICIALIZACIÓN DEL PIPELINE
+# ========================================================================
+
+#func _initialize_spritesheet_pipeline():
+	#"""Inicializar el pipeline de sprite sheets"""
+	#print("🏭 Inicializando SpritesheetPipeline...")
+#
+	## Crear instancia del pipeline
+	#var pipeline_script = load("res://scripts/rendering/spritesheet_pipeline.gd")
+	#if pipeline_script:
+		#spritesheet_pipeline = pipeline_script.new()
+		#spritesheet_pipeline.name = "SpritesheetPipeline"
+		#add_child(spritesheet_pipeline)
+		#
+		## Configurar pipeline con componentes
+		#spritesheet_pipeline.setup_pipeline(sprite_renderer, export_manager, animation_manager)
+		#
+		## Conectar señales del pipeline
+		#_connect_pipeline_signals()
+		#
+		#print("✅ SpritesheetPipeline inicializado y configurado")
+	#else:
+		#print("❌ No se pudo cargar script de SpritesheetPipeline")
 
 func _connect_pipeline_signals():
 	"""Conectar señales del pipeline"""
@@ -824,26 +1158,26 @@ func _arrays_equal(a: Array, b: Array) -> bool:
 # INICIALIZACIÓN DE EXTENSIONES - ✅ MODIFICADO PARA INCLUIR MONITOR
 # ========================================================================
 
-func _initialize_extensions():
-	"""Inicializar extensiones de renderizado y exportación"""
-	print("🔧 Inicializando extensiones...")
-	
-	# Crear ExportManager si no existe
-	_setup_export_manager()
-	
-	# Crear controles de cámara
-	_setup_camera_controls()
-	
-	# Crear diálogo de exportación
-	_setup_export_dialog()
-	
-	# ✅ NUEVO: Configurar monitor de animaciones
-	_setup_animation_monitor()
-	
-	# Conectar señales adicionales
-	_connect_extension_signals()
-	
-	print("✅ Extensiones inicializadas")
+#func _initialize_extensions():
+	#"""Inicializar extensiones de renderizado y exportación"""
+	#print("🔧 Inicializando extensiones...")
+	#
+	## Crear ExportManager si no existe
+	#_setup_export_manager()
+	#
+	## Crear controles de cámara
+	#_setup_camera_controls()
+	#
+	## Crear diálogo de exportación
+	#_setup_export_dialog()
+	#
+	## ✅ NUEVO: Configurar monitor de animaciones
+	#_setup_animation_monitor()
+	#
+	## Conectar señales adicionales
+	#_connect_extension_signals()
+	#
+	#print("✅ Extensiones inicializadas")
 
 func _setup_export_manager():
 	"""Configurar Export Manager"""
@@ -971,27 +1305,35 @@ func _on_animations_status_changed(active_count: int, total_count: int):
 # FUNCIONES DE SOPORTE (SIMPLIFICADAS)
 # ========================================================================
 
-func _get_current_render_settings() -> Dictionary:
-	"""Obtener configuración actual de renderizado"""
-	var settings = {
-		"directions": 16,
-		"sprite_size": 512,
-		"fps": 30,
-		"camera_angle": 45.0,
-		"camera_height": 12.0,
-		"camera_distance": 20.0,
-		"north_offset": 0.0,
-		"pixelize": true,
-		"output_folder": "res://output/"
-	}
-	
-	# Obtener de settings_panel si existe
-	if settings_panel and settings_panel.has_method("get_current_settings"):
-		var panel_settings = settings_panel.get_current_settings()
-		for key in panel_settings:
-			settings[key] = panel_settings[key]
-	
-	return settings
+#func _get_current_render_settings() -> Dictionary:
+	#"""Obtener configuración actual de renderizado"""
+	#
+	#if not current_render_settings.is_empty():
+		#print("📋 Usando configuración actual guardada")
+		#return current_render_settings.duplicate()
+	#
+	#
+	#
+	#var settings = {
+		#"directions": 16,
+		#"sprite_size": 512,
+		#"fps": 30,
+		#"camera_angle": 45.0,
+		#"camera_height": 12.0,
+		#"camera_distance": 20.0,
+		#"north_offset": 0.0,
+		#"pixelize": true,
+		#"output_folder": "res://output/"
+	#}
+	#
+	## Obtener de settings_panel si existe
+	#if settings_panel and settings_panel.has_method("get_current_settings"):
+		#var panel_settings = settings_panel.get_current_settings()
+		#for key in panel_settings:
+			#settings[key] = panel_settings[key]
+		#print("📋 Configuración obtenida de settings_panel")
+	#
+	#return settings
 
 func _get_current_animation_name() -> String:
 	"""Obtener nombre de la animación actual"""
@@ -1090,9 +1432,9 @@ func _on_model_rotated(new_rotation: Vector3):
 # ✅ NUEVAS FUNCIONES PÚBLICAS PARA EL PIPELINE
 # ========================================================================
 
-func get_current_combined_model() -> Node3D:
-	"""Función pública para que el pipeline obtenga el modelo combinado"""
-	return current_combined_model
+#func get_current_combined_model() -> Node3D:
+	#"""Función pública para que el pipeline obtenga el modelo combinado"""
+	#return current_combined_model
 
 # ========================================================================
 # FUNCIONES PÚBLICAS PARA DEBUG Y CONTROL MANUAL - ✅ MODIFICADAS
@@ -1288,19 +1630,19 @@ func count_active_animations() -> int:
 	else:
 		return -1
 
-func _setup_unified_camera_system():
-	"""Inicializar sistema de cámara unificada"""
-	print("🎥 Configurando sistema de cámara unificada...")
-
-	# Crear helper de sincronización
-	var helper_script = load("res://scripts/helpers/camera_sync_helper.gd")
-	if helper_script:
-		camera_sync_helper = helper_script.new()
-		camera_sync_helper.name = "CameraSyncHelper" 
-		add_child(camera_sync_helper)
-		print("✅ Sistema de cámara unificada configurado")
-	else:
-		print("⚠️ No se pudo cargar CameraSyncHelper")
+#func _setup_unified_camera_system():
+	#"""Inicializar sistema de cámara unificada"""
+	#print("🎥 Configurando sistema de cámara unificada...")
+#
+	## Crear helper de sincronización
+	#var helper_script = load("res://scripts/helpers/camera_sync_helper.gd")
+	#if helper_script:
+		#camera_sync_helper = helper_script.new()
+		#camera_sync_helper.name = "CameraSyncHelper" 
+		#add_child(camera_sync_helper)
+		#print("✅ Sistema de cámara unificada configurado")
+	#else:
+		#print("⚠️ No se pudo cargar CameraSyncHelper")
 
 # ========================================================================
 # FUNCIONES DE DEBUG PARA EL SISTEMA UNIFICADO
@@ -1369,45 +1711,96 @@ func get_unified_camera_info() -> Dictionary:
 	#log_panel.add_log("⚙️ Configuración actualizada - Norte: %.0f°" % settings.get("north_offset", 0.0))
 
 
-func _on_render_settings_changed(settings: Dictionary):
-	"""Manejar cambios en configuración de renderizado desde UI - CORREGIDO"""
-	print("📡 Configuración recibida desde UI:")
-	print("  camera_height: %.1f" % settings.get("camera_height", 12.0))
-	print("  camera_angle: %.1f°" % settings.get("camera_angle", 45.0))
-	print("  Norte: %.0f°" % settings.get("north_offset", 0.0))
-	
-	# ✅ CORREGIDO: Enviar DIRECTAMENTE al preview camera
-	if model_preview_panel:
-		var preview_camera = model_preview_panel.get_node_or_null("ViewportContainer/SubViewport/CameraController")
-		if preview_camera and preview_camera.has_method("set_camera_settings"):
-			preview_camera.set_camera_settings(settings)
-			print("✅ Configuración enviada al preview camera")
-			
-			# ✅ NUEVO: Forzar actualización inmediata
-			if preview_camera.has_method("update_camera_position"):
-				preview_camera.update_camera_position()
-				print("🔄 Posición de cámara actualizada inmediatamente")
-		else:
-			print("❌ Preview camera controller no encontrado")
-			# Debug: mostrar path completo del preview panel
-			if model_preview_panel:
-				print("🔍 Preview panel encontrado en: %s" % model_preview_panel.get_path())
-				var viewport_container = model_preview_panel.get_node_or_null("ViewportContainer")
-				if viewport_container:
-					print("🔍 ViewportContainer encontrado")
-					var subviewport = viewport_container.get_node_or_null("SubViewport")
-					if subviewport:
-						print("🔍 SubViewport encontrado")
-						print("🔍 Hijos de SubViewport: %s" % str(subviewport.get_children().map(func(n): return n.name)))
-					else:
-						print("❌ SubViewport NO encontrado")
-				else:
-					print("❌ ViewportContainer NO encontrado")
-	else:
-		print("❌ model_preview_panel no encontrado")
-	
-	# También actualizar configuración interna
-	log_panel.add_log("⚙️ Configuración actualizada - altura: %.1f" % settings.get("camera_height", 12.0))
+#func _on_render_settings_changed(settings: Dictionary):
+	#"""Manejar cambios en configuración de renderizado desde UI - CORREGIDO"""
+	#print("📡 Configuración recibida desde UI:")
+	#print("  camera_height: %.1f" % settings.get("camera_height", 12.0))
+	#print("  camera_angle: %.1f°" % settings.get("camera_angle", 45.0))
+	#print("  Norte: %.0f°" % settings.get("north_offset", 0.0))
+	#
+	## ✅ CORREGIDO: Enviar DIRECTAMENTE al preview camera
+	#if model_preview_panel:
+		#var preview_camera = model_preview_panel.get_node_or_null("ViewportContainer/SubViewport/CameraController")
+		#if preview_camera and preview_camera.has_method("set_camera_settings"):
+			#preview_camera.set_camera_settings(settings)
+			#print("✅ Configuración enviada al preview camera")
+			#
+			## ✅ NUEVO: Forzar actualización inmediata
+			#if preview_camera.has_method("update_camera_position"):
+				#preview_camera.update_camera_position()
+				#print("🔄 Posición de cámara actualizada inmediatamente")
+		#else:
+			#print("❌ Preview camera controller no encontrado")
+			## Debug: mostrar path completo del preview panel
+			#if model_preview_panel:
+				#print("🔍 Preview panel encontrado en: %s" % model_preview_panel.get_path())
+				#var viewport_container = model_preview_panel.get_node_or_null("ViewportContainer")
+				#if viewport_container:
+					#print("🔍 ViewportContainer encontrado")
+					#var subviewport = viewport_container.get_node_or_null("SubViewport")
+					#if subviewport:
+						#print("🔍 SubViewport encontrado")
+						#print("🔍 Hijos de SubViewport: %s" % str(subviewport.get_children().map(func(n): return n.name)))
+					#else:
+						#print("❌ SubViewport NO encontrado")
+				#else:
+					#print("❌ ViewportContainer NO encontrado")
+	#else:
+		#print("❌ model_preview_panel no encontrado")
+	#
+	## También actualizar configuración interna
+	#log_panel.add_log("⚙️ Configuración actualizada - altura: %.1f" % settings.get("camera_height", 12.0))
+
+
+#func _on_render_settings_changed(settings: Dictionary):
+	#"""Manejar cambios en configuración de renderizado desde UI - ARREGLADO"""
+	#print("📡 Configuración recibida desde SettingsPanel:")
+	#print("  directions: %d" % settings.get("directions", 16))
+	#print("  camera_height: %.1f" % settings.get("camera_height", 12.0))
+	#print("  camera_angle: %.1f°" % settings.get("camera_angle", 45.0))
+	#print("  sprite_size: %d" % settings.get("sprite_size", 512))
+	#print("  Norte: %.0f°" % settings.get("north_offset", 0.0))
+	#
+	## ✅ CRÍTICO: Enviar configuración a TODOS los sistemas
+	#
+	## 1. Enviar al Model Preview Panel (para preview en tiempo real)
+	#if model_preview_panel:
+		#var preview_camera = model_preview_panel.get_node_or_null("ViewportContainer/SubViewport/CameraController")
+		#if preview_camera and preview_camera.has_method("set_camera_settings"):
+			#preview_camera.set_camera_settings(settings)
+			#print("✅ Configuración enviada al preview camera")
+			#
+			## Forzar actualización inmediata
+			#if preview_camera.has_method("update_camera_position"):
+				#preview_camera.update_camera_position()
+		#else:
+			#print("❌ Preview camera controller no encontrado")
+	#
+	## 2. Enviar al Sprite Renderer (para renderizado)
+	#if sprite_renderer:
+		## ✅ NUEVO: Inicializar configuración directamente
+		#if sprite_renderer.has_method("initialize"):
+			#sprite_renderer.initialize(settings)
+			#print("✅ Configuración enviada al sprite renderer")
+		#
+		## ✅ NUEVO: También actualizar configuración interna
+		#if sprite_renderer.has_method("update_render_settings"):
+			#sprite_renderer.update_render_settings(settings)
+	#
+	## 3. ✅ NUEVO: Aplicar configuración al pipeline si existe
+	#if spritesheet_pipeline and spritesheet_pipeline.has_method("update_pipeline_settings"):
+		#spritesheet_pipeline.update_pipeline_settings(settings)
+		#print("✅ Configuración enviada al pipeline")
+	#
+	## ✅ NUEVO: Guardar configuración como configuración actual del sistema
+	#current_render_settings = settings
+	#
+	## Log para confirmación
+	#log_panel.add_log("⚙️ Configuración actualizada - direcciones: %d, altura: %.1f" % [settings.get("directions", 16), settings.get("camera_height", 12.0)])
+#
+## ✅ AGREGAR: Variable para mantener configuración actual
+#var current_render_settings: Dictionary = {}
+#
 
 
 func debug_preview_camera_path():
@@ -1430,3 +1823,53 @@ func debug_preview_camera_path():
 		print("❌ model_preview_panel NO encontrado")
 	
 	print("=====================================\n")
+
+# En viewer_coordinator.gd - REEMPLAZAR CON:
+
+# Y en la función _ready() o crear nueva función:
+#func _create_core_components():
+	#"""Crear componentes core que no existen en la escena"""
+	#print("🔧 Creando componentes core...")
+	#
+	## 1. Crear SpriteRenderer
+	#var sprite_script = load("res://scripts/rendering/sprite_renderer.gd")
+	#if sprite_script:
+		#sprite_renderer = sprite_script.new()
+		#sprite_renderer.name = "SpriteRenderer"
+		#add_child(sprite_renderer)
+		#print("✅ SpriteRenderer creado")
+	#else:
+		#print("❌ No se pudo cargar script de SpriteRenderer")
+	#
+	## 2. Crear ExportManager  
+	#var export_script = load("res://scripts/export/export_manager.gd")
+	#if export_script:
+		#export_manager = export_script.new()
+		#export_manager.name = "ExportManager"
+		#add_child(export_manager)
+		#print("✅ ExportManager creado")
+	#else:
+		#print("❌ No se pudo cargar script de ExportManager")
+	#
+	#print("✅ Componentes core creados")
+
+
+func _create_core_components():
+	"""Crear componentes core que no existen en la escena"""
+	print("🔧 Creando componentes core...")
+	
+	# SpriteRenderer
+	var sprite_script = load("res://scripts/rendering/sprite_renderer.gd")
+	if sprite_script:
+		sprite_renderer = sprite_script.new()
+		sprite_renderer.name = "SpriteRenderer"
+		add_child(sprite_renderer)
+		print("✅ SpriteRenderer creado")
+	
+	# ExportManager  
+	var export_script = load("res://scripts/export/export_manager.gd")
+	if export_script:
+		export_manager = export_script.new()
+		export_manager.name = "ExportManager"
+		add_child(export_manager)
+		print("✅ ExportManager creado")

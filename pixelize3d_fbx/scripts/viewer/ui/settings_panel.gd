@@ -28,7 +28,7 @@ var camera_height_label: Label
 var capture_area_slider: HSlider
 var capture_area_label: Label
 var auto_north_check: CheckBox
-
+var show_orientation_cross_check: CheckBox
 # Configuración interna
 var current_settings: Dictionary = {
 	"directions": 16,
@@ -292,6 +292,14 @@ func _create_orientation_settings():
 	orientation_title.add_theme_font_size_override("font_size", 14)
 	orientation_title.add_theme_color_override("font_color", Color(0.3, 0.7, 1.0))
 	add_child(orientation_title)
+	
+	
+		# ✅ AGREGAR: Checkbox para mostrar cruz
+	show_orientation_cross_check = CheckBox.new()
+	show_orientation_cross_check.text = "Mostrar cruz de orientación"
+	show_orientation_cross_check.button_pressed = true
+	show_orientation_cross_check.toggled.connect(_on_orientation_cross_toggled)
+	add_child(show_orientation_cross_check)
 	
 	# Detección automática de norte
 	auto_north_check = CheckBox.new()
@@ -635,3 +643,20 @@ func validate_settings() -> bool:
 		valid = false
 	
 	return valid
+
+
+func _on_orientation_cross_toggled(enabled: bool):
+	"""Manejar mostrar/ocultar cruz de orientación"""
+	print("🎯 Cruz de orientación: %s" % ("visible" if enabled else "oculta"))
+	
+	# Buscar preview panel y actualizar
+	var viewer_coordinator = get_node_or_null("/root/ViewerModular")
+	if viewer_coordinator:
+		var preview_panel = viewer_coordinator.get_node_or_null("HSplitContainer/RightPanel/ModelPreviewPanel")
+		if preview_panel:
+			if enabled:
+				if preview_panel.has_method("show_orientation_cross"):
+					preview_panel.show_orientation_cross()
+			else:
+				if preview_panel.has_method("hide_orientation_cross"):
+					preview_panel.hide_orientation_cross()

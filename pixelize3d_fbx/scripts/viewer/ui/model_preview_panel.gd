@@ -35,6 +35,9 @@ var preview_active: bool = false
 var is_animation_playing: bool = false
 var current_animation_name: String = ""
 var capture_area_indicator: Control
+var orientation_overlay: Control
+var orientation_cross: Control
+
 
 func _ready():
 	print("🎬 ModelPreviewPanel MEJORADO inicializado")
@@ -56,6 +59,7 @@ func _setup_ui():
 		controls_help_label = Label.new()
 		add_child(controls_help_label)
 	
+	_create_orientation_overlay()
 	_create_capture_area_indicator()
 	status_label.text = "Esperando modelo..."
 	status_label.add_theme_font_size_override("font_size", 10)
@@ -229,6 +233,11 @@ func set_model(model: Node3D):
 	#preview_active = true
 	
 	emit_signal("preview_ready")
+
+	show_orientation_cross()
+	
+	print("✅ Preview configurado completamente con cruz de orientación")
+
 
 # === CONTROL DE ANIMACIONES ===
 
@@ -480,3 +489,118 @@ func debug_state():
 		print("  Actual: %s" % current_animation_name)
 	print("Bounds: %s" % str(current_bounds))
 	print("============================\n")
+
+
+
+func _create_orientation_overlay():
+	"""Crear overlay de orientación con cruz y norte"""
+	if not viewport_container:
+		return
+	
+	# Crear overlay principal
+	orientation_overlay = Control.new()
+	orientation_overlay.name = "OrientationOverlay"
+	orientation_overlay.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	orientation_overlay.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	viewport_container.add_child(orientation_overlay)
+	
+	# Crear cruz de orientación
+	orientation_cross = Control.new()
+	orientation_cross.name = "OrientationCross"
+	orientation_cross.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	orientation_cross.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	orientation_cross.draw.connect(_draw_orientation_cross)
+	orientation_overlay.add_child(orientation_cross)
+	
+	print("✅ Cruz de orientación creada")
+
+func _draw_orientation_cross():
+	"""Dibujar cruz de orientación con indicador de norte"""
+	if not orientation_cross:
+		return
+	
+	var viewport_size = viewport_container.size
+	var center = viewport_size / 2.0
+	
+	# Configuración visual
+	var cross_size = 60.0
+	var line_width = 2.0
+	var cross_color = Color(1.0, 1.0, 1.0, 0.8)  # Blanco semi-transparente
+	var north_color = Color(1.0, 0.2, 0.2, 1.0)  # Rojo para norte
+	
+	# Dibujar cruz principal
+	# Línea horizontal
+	orientation_cross.draw_line(
+		Vector2(center.x - cross_size, center.y),
+		Vector2(center.x + cross_size, center.y),
+		cross_color, line_width
+	)
+	
+	# Línea vertical
+	orientation_cross.draw_line(
+		Vector2(center.x, center.y - cross_size),
+		Vector2(center.x, center.y + cross_size),
+		cross_color, line_width
+	)
+	
+	# Dibujar círculo en el centro
+	orientation_cross.draw_arc(
+		center, 8.0, 0, TAU, 32, cross_color, line_width
+	)
+	
+	# Obtener rotación actual del modelo para orientar la "N"
+	var north_angle = 0.0
+	if current_model and is_instance_valid(current_model):
+		north_angle = deg_to_rad(-current_model.rotation_degrees.y)
+	
+	# Calcular posición del norte
+	var north_distance = cross_size + 20.0
+	var north_pos = Vector2(
+		center.x + cos(north_angle) * north_distance,
+		center.y + sin(north_angle) * north_distance
+	)
+	
+	# Dibujar línea hacia el norte
+	orientation_cross.draw_line(
+		center,
+		Vector2(center.x + cos(north_angle) * cross_size, center.y + sin(north_angle) * cross_size),
+		north_color, line_width + 1.0
+	)
+	
+	# Dibujar "N" para el norte
+	var font = ThemeDB.fallback_font
+	var font_size = 16
+	orientation_cross.draw_string(
+		font, 
+		north_pos - Vector2(8, -8), 
+		"N", 
+		HORIZONTAL_ALIGNMENT_CENTER, 
+		-1, 
+		font_size, 
+		north_color
+	)
+	
+	# Dibujar flecha en el norte
+	var arrow_size = 8.0
+	var arrow_tip = Vector2(center.x + cos(north_angle) * cross_size, center.y + sin(north_angle) * cross_size)
+	var arrow_left = arrow_tip + Vector2(cos(north_angle + 2.5), sin(north_angle + 2.5)) * arrow_size
+	var arrow_right = arrow_tip + Vector2(cos(north_angle - 2.5), sin(north_angle - 2.5)) * arrow_size
+	
+	orientation_cross.draw_line(arrow_tip, arrow_left, north_color, line_width)
+	orientation_cross.draw_line(arrow_tip, arrow_right, north_color, line_width)
+
+func update_orientation_display():
+	"""Actualizar visualización de orientación"""
+	if orientation_cross:
+		orientation_cross.queue_redraw()
+
+func show_orientation_cross():
+	"""Mostrar cruz de orientación"""
+	if orientation_overlay:
+		orientation_overlay.visible = true
+		update_orientation_display()
+
+func hide_orientation_cross():
+	"""Ocultar cruz de orientación"""
+	if orientation_overlay:
+		orientation_overlay.visible = false
