@@ -285,8 +285,7 @@ func _on_orientation_analysis_failed(error: String):
 	#print("  directions: %d" % settings.get("directions", 16))
 	#print("  camera_height: %.1f" % settings.get("camera_height", 12.0))
 	#print("  camera_angle: %.1f°" % settings.get("camera_angle", 45.0))
-	#print("  sprite_size: %d" % settings.get("sprite_size", 512))
-	#print("  Norte: %.0f°" % settings.get("north_offset", 0.0))
+
 	#
 	## 1. Enviar al Model Preview Panel (para preview en tiempo real)
 	#if model_preview_panel:
@@ -383,7 +382,7 @@ func _get_current_render_settings() -> Dictionary:
 	
 	var settings = {
 		"directions": 16,
-		"sprite_size": 512,
+		"sprite_size": 128,
 		"fps": 30,
 		"camera_angle": 45.0,
 		"camera_height": 12.0,
@@ -1328,32 +1327,7 @@ func _on_animations_status_changed(active_count: int, total_count: int):
 	#
 	#
 	#
-	#var settings = {
-		#"directions": 16,
-		#"sprite_size": 512,
-		#"fps": 30,
-		#"camera_angle": 45.0,
-		#"camera_height": 12.0,
-		#"camera_distance": 20.0,
-		#"north_offset": 0.0,
-		#"pixelize": true,
-		#"output_folder": "res://output/"
-	#}
-	#
-	## Obtener de settings_panel si existe
-	#if settings_panel and settings_panel.has_method("get_current_settings"):
-		#var panel_settings = settings_panel.get_current_settings()
-		#for key in panel_settings:
-			#settings[key] = panel_settings[key]
-		#print("📋 Configuración obtenida de settings_panel")
-	#
-	#return settings
-
-#func _get_current_animation_name() -> String:
-	#"""Obtener nombre de la animación actual"""
-	#if animation_controls_panel and animation_controls_panel.has_method("get_selected_animation"):
-		#return animation_controls_panel.get_selected_animation()
-	#
+	
 	## Fallback: usar la primera animación disponible
 	#if current_combined_model and is_instance_valid(current_combined_model):
 		#var anim_player = _find_animation_player(current_combined_model)
@@ -2271,7 +2245,7 @@ func _get_current_render_settings_with_capture_area() -> Dictionary:
 	var settings = _get_current_render_settings()
 	
 	print("🔍 Debug configuración original:")
-	print("  sprite_size: %d" % settings.get("sprite_size", 512))
+	print("  sprite_size: %d" % settings.get("sprite_size", 128))
 	print("  capture_area_size: %s" % str(settings.get("capture_area_size", "NO ENCONTRADO")))
 	
 	# ✅ CORRECCIÓN: La configuración ya viene con capture_area_size del settings_panel
@@ -2305,7 +2279,7 @@ func _get_current_render_settings_with_capture_area() -> Dictionary:
 	
 	# ✅ DEBUG: Mostrar configuración final
 	print("📋 Configuración final para renderizado:")
-	print("  sprite_size: %d" % settings.get("sprite_size", 512))
+	print("  sprite_size: %d" % settings.get("sprite_size", 128))
 	print("  capture_area_size: %.1f" % settings.get("capture_area_size", 8.0))
 	print("  camera_distance: %.1f" % settings.get("camera_distance", 16.0))
 	print("  orthographic_size: %.1f" % settings.get("orthographic_size", 8.0))
@@ -2322,7 +2296,7 @@ func _on_render_settings_changed(settings: Dictionary):
 	print("  directions: %d" % settings.get("directions", 16))
 	print("  camera_height: %.1f" % settings.get("camera_height", 12.0))
 	print("  camera_angle: %.1f°" % settings.get("camera_angle", 45.0))
-	print("  sprite_size: %d" % settings.get("sprite_size", 512))
+	print("  sprite_size: %d" % settings.get("sprite_size", 128))
 	print("  capture_area_size: %.1f" % settings.get("capture_area_size", 8.0))
 	print("  north_offset: %.0f°" % settings.get("north_offset", 0.0))
 	print("====================================================")
@@ -2420,7 +2394,7 @@ func _on_render_requested_with_capture_fix():
 	# ✅ DEBUG EXTENDIDO: Mostrar configuración completa
 	print("📋 Configuración final para pipeline:")
 	print("  animation: %s" % current_anim)
-	print("  sprite_size: %d" % config.get("sprite_size", 512))
+	print("  sprite_size: %d" % config.get("sprite_size", 128))
 	print("  capture_area_size: %.1f" % config.get("capture_area_size", 8.0))
 	print("  camera_distance: %.1f" % config.get("camera_distance", 16.0))
 	print("  orthographic_size: %.1f" % config.get("orthographic_size", 8.0))

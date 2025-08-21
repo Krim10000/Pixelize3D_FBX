@@ -35,7 +35,7 @@ var sync_validation_tolerance_ms: float = 0.1      # Ultra-estricto para sincron
 var rendering_viewport: SubViewport = null
 var camera_controller: Node = null
 var current_render_settings: Dictionary = {}
-var viewport_size: Vector2i = Vector2i(512, 512)
+var viewport_size: Vector2i = Vector2i(128, 128)
 var render_quality_target: Dictionary = {}
 
 # Estado del renderizado ultra-preciso
@@ -970,7 +970,7 @@ func _configure_viewport_for_ultra_capture(quality_target: Dictionary):
 	rendering_viewport.screen_space_aa = Viewport.SCREEN_SPACE_AA_FXAA if quality_target.get("enable_fxaa", true) else Viewport.SCREEN_SPACE_AA_DISABLED
 	
 	# Configurar tamaño específico
-	var target_size = quality_target.get("render_size", Vector2i(512, 512))
+	var target_size = quality_target.get("render_size", Vector2i(128, 128))
 	rendering_viewport.size = target_size
 
 func _wait_for_ultra_render_stabilization(quality_target: Dictionary):
@@ -1129,7 +1129,7 @@ func _sample_render_quality() -> float:
 	
 	# Bonus por tamaño de viewport adecuado
 	var viewport_area = rendering_viewport.size.x * rendering_viewport.size.y
-	if viewport_area >= 512 * 512:
+	if viewport_area >= 128 * 128:
 		quality_score += 5.0
 	
 	return min(100.0, quality_score)
@@ -1316,7 +1316,7 @@ func _validate_captured_image_quality(image: Image, quality_target: Dictionary) 
 		return metrics
 	
 	# Validar resolución
-	var expected_size = quality_target.get("expected_size", Vector2i(512, 512))
+	var expected_size = quality_target.get("expected_size", Vector2i(128, 128))
 	metrics.resolution_valid = (image.get_size() == expected_size)
 	
 	# Validar formato

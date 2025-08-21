@@ -128,8 +128,8 @@ func generate_web_metadata(animation_data: Dictionary, output_path: String) -> v
 			"image": animation_data.get("animation_name", "sprite") + "_spritesheet.png",
 			"format": "RGBA8888",
 			"size": {
-				"w": animation_data.get("spritesheet_size", {}).get("width", 512),
-				"h": animation_data.get("spritesheet_size", {}).get("height", 512)
+				"w": animation_data.get("spritesheet_size", {}).get("width", 128),
+				"h": animation_data.get("spritesheet_size", {}).get("height", 128)
 			},
 			"scale": "1"
 		},

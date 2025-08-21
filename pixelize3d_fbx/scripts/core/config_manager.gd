@@ -18,7 +18,7 @@ var presets: Dictionary = {}
 var default_config = {
 	"render": {
 		"directions": 16,
-		"sprite_size": 512,  # ← CAMBIADO: 256 → 512
+		"sprite_size": 128,  # ← CAMBIADO: 256 → 512
 		"fps": 30,  # ← CAMBIADO: 12 → 30
 		"background_color": Color(0, 0, 0, 0),
 		"pixelize": true,
@@ -78,7 +78,7 @@ var default_presets = {
 		"config": {
 			"render": {
 				"directions": 16,
-				"sprite_size": 512,  
+				"sprite_size": 128,  
 				"fps": 30,  
 				"pixelize": true,
 				"pixel_scale": 2
@@ -100,7 +100,7 @@ var default_presets = {
 		"config": {
 			"render": {
 				"directions": 32,
-				"sprite_size": 512,
+				"sprite_size": 128,
 				"fps": 30,  
 				"pixelize": false,
 				"shadows": true
@@ -175,7 +175,7 @@ var default_presets = {
 		"config": {
 			"render": {
 				"directions": 16,
-				"sprite_size": 512,
+				"sprite_size": 128,
 				"fps": 30,
 				"pixelize": false,
 				"shadows": true,
@@ -198,7 +198,7 @@ var default_presets = {
 		"config": {
 			"render": {
 				"directions": 8,  # ← Menos direcciones para debug rápido
-				"sprite_size": 512,
+				"sprite_size": 128,
 				"fps": 15,  # ← FPS más bajo para debug
 				"pixelize": false,
 				"shadows": true

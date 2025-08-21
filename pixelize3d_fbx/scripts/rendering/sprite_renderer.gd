@@ -58,7 +58,7 @@ func update_render_settings(new_settings: Dictionary):
 	
 	print("✅ Configuración de renderer actualizada")
 	print("  - directions: %d" % render_settings.get("directions", 16))
-	print("  - sprite_size: %d" % render_settings.get("sprite_size", 512))
+	print("  - sprite_size: %d" % render_settings.get("sprite_size", 128))
 	print("  - camera_height: %.1f" % render_settings.get("camera_height", 12.0))
 
 func _initialize_shared_references():
@@ -184,7 +184,7 @@ func _prepare_viewport_for_rendering(settings: Dictionary):
 	original_viewport_mode = viewport.render_target_update_mode
 	
 	# Configurar tamaño para renderizado
-	var sprite_size = settings.get("sprite_size", 256)
+	var sprite_size = settings.get("sprite_size", 128)
 	
 	# ✅ CRÍTICO: Respetar el tamaño del preview pero preparar para captura
 	print("🔧 Preparando viewport para renderizado:")
@@ -204,14 +204,7 @@ func _prepare_viewport_for_rendering(settings: Dictionary):
 	#
 	#print("📸 Configurando cámara compartida para renderizado...")
 	#
-	## La cámara ya está configurada por el preview, solo aplicamos settings específicos de renderizado
-	#if camera_controller.has_method("set_camera_settings"):
-		#var camera_settings = {
-			#"camera_angle": settings.get("camera_angle", 45.0),
-			#"camera_height": settings.get("camera_height", 12.0),
-			#"camera_distance": settings.get("camera_distance", 20.0),
-			#"north_offset": settings.get("north_offset", 0.0)
-		#}
+
 		#camera_controller.set_camera_settings(camera_settings)
 		#print("✅ Configuración de cámara aplicada para renderizado")
 
@@ -230,7 +223,7 @@ func _configure_camera_for_rendering(settings: Dictionary):
 		# 2. Obtener orientación sugerida
 		var suggested_north = orientation_analyzer.analyze_model_quick(current_model)
 		
-		var adjusted_north = suggested_north + 270.0
+		var adjusted_north = suggested_north 
 
 		# Normalizar
 		while adjusted_north >= 360.0:
@@ -244,7 +237,7 @@ func _configure_camera_for_rendering(settings: Dictionary):
 		
 		
 		# 4. Actualizar settings con el nuevo norte
-		final_settings["north_offset"] = camera_offset
+		final_settings["north_offset"] = camera_offset +270
 		print("   Norte automático aplicado: %.1f° (original: %.1f°, ajustado: %.1f°)" % [camera_offset, suggested_north, adjusted_north])	
 	
 	
@@ -254,7 +247,7 @@ func _configure_camera_for_rendering(settings: Dictionary):
 			"camera_angle": final_settings.get("camera_angle", 45.0),
 			"camera_height": final_settings.get("camera_height", 12.0),
 			"camera_distance": final_settings.get("camera_distance", 20.0),
-			"north_offset": final_settings.get("north_offset", 0.0)
+			"north_offset": final_settings.get("north_offset" , 270.0)
 		}
 		camera_controller.set_camera_settings(camera_settings)
 		print("✅ Configuración de cámara aplicada para renderizado")
@@ -296,7 +289,7 @@ func render_animation(model: Node3D, animation_name: String, angle: float, direc
 	var anim_player = current_model.get_node_or_null("AnimationPlayer")
 	if anim_player and anim_player.has_animation(animation_name):
 		var anim = anim_player.get_animation(animation_name)
-		var fps = render_settings.get("fps", 12)
+		var fps = render_settings.get("fps", 30)
 		total_frames = int(anim.length * fps)
 		
 		print("📊 Animación: %s, %.1fs, %d frames a %d FPS" % [animation_name, anim.length, total_frames, fps])

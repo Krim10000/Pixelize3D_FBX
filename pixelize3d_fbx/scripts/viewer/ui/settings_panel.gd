@@ -32,7 +32,7 @@ var show_orientation_cross_check: CheckBox
 # Configuración interna
 var current_settings: Dictionary = {
 	"directions": 16,
-	"sprite_size": 512,
+	"sprite_size": 128,
 	"fps": 30,
 	"camera_height": 12.0,  
 	"pixelize": true,
@@ -113,7 +113,7 @@ func _create_basic_settings():
 	sprite_size_spinbox.min_value = 64
 	sprite_size_spinbox.max_value = 512
 	sprite_size_spinbox.step = 64
-	sprite_size_spinbox.value = 512
+	sprite_size_spinbox.value = 128
 	sprite_size_spinbox.value_changed.connect(_on_setting_changed)
 	sprite_size_container.add_child(sprite_size_spinbox)
 	
@@ -173,32 +173,32 @@ func _create_camera_settings():
 
 
 	#altura
-	var camera_height_container = HBoxContainer.new()
-	add_child(camera_height_container)
-	
-	var height_label = Label.new()
-	height_label.text = "Altura:"
-	height_label.custom_minimum_size.x = 80
-	camera_height_container.add_child(height_label)
-	
-	camera_height_slider = HSlider.new()
-	camera_height_slider.min_value = 5.0
-	camera_height_slider.max_value = 25.0
-	camera_height_slider.value = 12.0
-	camera_height_slider.step = 0.5
-	camera_height_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	camera_height_slider.value_changed.connect(_on_camera_height_changed)
-	camera_height_container.add_child(camera_height_slider)
-	
-	camera_height_label = Label.new()
-	camera_height_label.text = "12.0"
-	camera_height_label.custom_minimum_size.x = 40
-	camera_height_container.add_child(camera_height_label)
-	
+	#var camera_height_container = HBoxContainer.new()
+	#add_child(camera_height_container)
+	#
+	#var height_label = Label.new()
+	#height_label.text = "Altura:"
+	#height_label.custom_minimum_size.x = 80
+	#camera_height_container.add_child(height_label)
+	#
+	#camera_height_slider = HSlider.new()
+	#camera_height_slider.min_value = 5.0
+	#camera_height_slider.max_value = 25.0
+	#camera_height_slider.value = 12.0
+	#camera_height_slider.step = 0.5
+	#camera_height_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	#camera_height_slider.value_changed.connect(_on_camera_height_changed)
+	#camera_height_container.add_child(camera_height_slider)
+	#
+	#camera_height_label = Label.new()
+	#camera_height_label.text = "12.0"
+	#camera_height_label.custom_minimum_size.x = 40
+	#camera_height_container.add_child(camera_height_label)
+	#
 func _on_camera_height_changed(value: float):
 	"""Manejar cambio en altura de cámara"""
 	current_settings.camera_height = value
-	camera_height_label.text = "%.1f" % value
+	#camera_height_label.text = "%.1f" % value
 	
 	print("📏 Altura de cámara: %.1f" % value)
 	emit_signal("settings_changed", current_settings.duplicate())
@@ -231,7 +231,7 @@ func _create_capture_area_settings():
 	capture_container.add_child(capture_label)
 	
 	capture_area_slider = HSlider.new()
-	capture_area_slider.min_value = 3.0    # Modelo MUY grande (área pequeña)
+	capture_area_slider.min_value = 0.5    # Modelo MUY grande (área pequeña)
 	capture_area_slider.max_value = 20.0   # Modelo pequeño (área grande)
 	capture_area_slider.value = 4.5        # Tamaño normal
 	capture_area_slider.step = 0.5
@@ -394,7 +394,7 @@ func _apply_current_settings():
 	
 	# Aplicar valores de cámara
 	camera_angle_slider.value = current_settings.camera_angle
-	camera_height_slider.value = current_settings.camera_height  
+	#camera_height_slider.value = current_settings.camera_height  
 	
 	# Aplicar valores de orientación
 	north_offset_slider.value = current_settings.north_offset
@@ -509,7 +509,7 @@ func reset_to_defaults():
 	
 	current_settings = {
 		"directions": 16,
-		"sprite_size": 512,
+		"sprite_size": 128,
 		"fps": 30,
 		"pixelize": true,
 		"camera_angle": 45.0,
@@ -528,13 +528,13 @@ func apply_preset(preset_name: String):
 	match preset_name:
 		"rts_standard":
 			current_settings.directions = 16
-			current_settings.sprite_size = 512
+			current_settings.sprite_size = 128
 			current_settings.camera_angle = 45.0
 			current_settings.capture_area_size = 8.0
 			current_settings.auto_north_detection = true
 		
 		"high_quality":
-			current_settings.sprite_size = 512
+			current_settings.sprite_size = 128
 			current_settings.fps = 30
 			current_settings.capture_area_size = 6.0  # Modelo más grande
 			current_settings.auto_north_detection = true
@@ -547,7 +547,7 @@ func apply_preset(preset_name: String):
 			current_settings.auto_north_detection = true
 		
 		"model_showcase":
-			current_settings.sprite_size = 512
+			current_settings.sprite_size = 128
 			current_settings.fps = 30
 			current_settings.capture_area_size = 4.0  # Modelo muy grande
 			current_settings.auto_north_detection = true
@@ -561,7 +561,7 @@ func apply_preset(preset_name: String):
 			current_settings.directions = 8
 		
 		"debug_large":
-			current_settings.sprite_size = 512
+			current_settings.sprite_size = 128
 			current_settings.fps = 15
 			current_settings.capture_area_size = 3.0  # Modelo gigante para debug
 			current_settings.directions = 4  # Solo 4 direcciones para debug rápido
