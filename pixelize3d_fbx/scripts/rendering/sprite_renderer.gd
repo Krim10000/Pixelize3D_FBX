@@ -165,7 +165,7 @@ func initialize(settings: Dictionary):
 	
 	print("🎨 Inicializando renderizado con viewport compartido...")
 	print("  Viewport path: %s" % viewport.get_path())
-	print("  Tamaño solicitado: %dx%d" % [settings.get("sprite_size", 256), settings.get("sprite_size", 256)])
+	print("  Tamaño solicitado: %dx%d" % [settings.get("sprite_size", 128), settings.get("sprite_size", 128)])
 	
 	# ✅ NUEVO: Configurar viewport para renderizado sin afectar preview
 	_prepare_viewport_for_rendering(settings)
@@ -189,6 +189,7 @@ func _prepare_viewport_for_rendering(settings: Dictionary):
 	# ✅ CRÍTICO: Respetar el tamaño del preview pero preparar para captura
 	print("🔧 Preparando viewport para renderizado:")
 	print("  Tamaño actual: %s" % str(viewport.size))
+	
 	print("  Modo actual: %d" % viewport.render_target_update_mode)
 	
 	# Configurar para renderizado óptimo
@@ -196,17 +197,6 @@ func _prepare_viewport_for_rendering(settings: Dictionary):
 	
 	# No cambiar el tamaño para mantener consistencia con preview
 	# El tamaño se mantendrá igual al preview para garantizar WYSIWYG
-
-#func _configure_camera_for_rendering(settings: Dictionary):
-	#"""Configurar cámara compartida para renderizado"""
-	#if not camera or not camera_controller:
-		#return
-	#
-	#print("📸 Configurando cámara compartida para renderizado...")
-	#
-
-		#camera_controller.set_camera_settings(camera_settings)
-		#print("✅ Configuración de cámara aplicada para renderizado")
 
 func _configure_camera_for_rendering(settings: Dictionary):
 	"""Configurar cámara compartida para renderizado"""
@@ -237,7 +227,7 @@ func _configure_camera_for_rendering(settings: Dictionary):
 		
 		
 		# 4. Actualizar settings con el nuevo norte
-		final_settings["north_offset"] = camera_offset +270
+		final_settings["north_offset"] = camera_offset
 		print("   Norte automático aplicado: %.1f° (original: %.1f°, ajustado: %.1f°)" % [camera_offset, suggested_north, adjusted_north])	
 	
 	

@@ -91,7 +91,7 @@ layout_mode = 2
 text = "Label_ActionsPanel"
 
 [node name="RightPanel" type="VBoxContainer" parent="HSplitContainer"]
-custom_minimum_size = Vector2(512, 648)
+custom_minimum_size = Vector2(128, 128)
 layout_mode = 2
 size_flags_horizontal = 3
 size_flags_vertical = 0
@@ -99,16 +99,14 @@ localize_numeral_system = false
 
 [node name="ModelPreviewPanel" type="VBoxContainer" parent="HSplitContainer/RightPanel"]
 clip_contents = true
-custom_minimum_size = Vector2(128, 128)
 layout_mode = 2
-size_flags_horizontal = 4
+size_flags_horizontal = 0
 size_flags_vertical = 4
 localize_numeral_system = false
 alignment = 1
 script = ExtResource("8_6t80q")
 
 [node name="ViewportContainer" type="SubViewportContainer" parent="HSplitContainer/RightPanel/ModelPreviewPanel"]
-custom_minimum_size = Vector2(128, 128)
 layout_mode = 2
 
 [node name="SubViewport" type="SubViewport" parent="HSplitContainer/RightPanel/ModelPreviewPanel/ViewportContainer"]

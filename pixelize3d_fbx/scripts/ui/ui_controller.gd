@@ -351,13 +351,13 @@ func _create_preview_panel() -> Control:
 	
 	var viewport_container = SubViewportContainer.new()
 	viewport_container.name = "ViewportContainer"
-	viewport_container.stretch = true
-	viewport_container.custom_minimum_size = Vector2(400, 400)
+	viewport_container.stretch = false
+	viewport_container.custom_minimum_size = Vector2(128, 128)
 	vbox.add_child(viewport_container)
 	
 	preview_viewport = SubViewport.new()
 	preview_viewport.name = "SubViewport"
-	preview_viewport.size = Vector2i(400, 400)
+	preview_viewport.size = Vector2i(128,128)
 	preview_viewport.transparent_bg = true
 	viewport_container.add_child(preview_viewport)
 	

@@ -99,9 +99,17 @@ func _draw_capture_area():
 	
 	# Calcular área cuadrada centrada
 	var offset_x = (viewport_size.x - capture_size) / 2.0
+	print("viewport_size.x ")
+	print(viewport_size.x )
+	print("capture_size")
+	print(capture_size)
+	print("offset_x")
+	print(offset_x)
 	var offset_y = (viewport_size.y - capture_size) / 2.0
-	
-	var rect = Rect2(offset_x, offset_y, capture_size, capture_size)
+	print("offset_y")
+	print(offset_y)
+#	var rect = Rect2(offset_x, offset_y, capture_size, capture_size)
+	var rect = Rect2(0, offset_y, capture_size, capture_size)
 	
 	# Dibujar borde del área de captura
 	var border_color = Color(1.0, 1.0, 0.0, 0.8)  # Amarillo semi-transparente
