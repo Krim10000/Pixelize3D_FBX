@@ -17,9 +17,9 @@ signal render_optimization_applied(optimization: Dictionary)
 
 # Configuración para MÁXIMA CALIDAD de renderizado
 var ultra_quality_mode: bool = true
-var enable_exhaustive_sync_validation: bool = true
-var enable_multi_pass_rendering: bool = true
-var enable_quality_enhancement: bool = true
+var enable_exhaustive_sync_validation: bool = false
+var enable_multi_pass_rendering: bool = false
+var enable_quality_enhancement: bool = false
 var enable_advanced_skeleton_sync: bool = true
 var enable_material_refresh_optimization: bool = true
 var enable_sub_pixel_accuracy: bool = true
@@ -28,7 +28,7 @@ var enable_sub_pixel_accuracy: bool = true
 var skeleton_force_update_iterations: int = 3      # Múltiples iteraciones para máxima precisión
 var mesh_surface_refresh_cycles: int = 2           # Ciclos de refresh para calidad superior
 var material_validation_depth: String = "exhaustive"  # "basic", "comprehensive", "exhaustive"
-var render_stabilization_frames: int = 4           # Frames de estabilización para calidad máxima
+var render_stabilization_frames: int = 1           # Frames de estabilización para calidad máxima
 var sync_validation_tolerance_ms: float = 0.1      # Ultra-estricto para sincronización
 
 # Configuración de viewport ultra-avanzada
@@ -977,11 +977,12 @@ func _wait_for_ultra_render_stabilization(quality_target: Dictionary):
 	"""Esperar estabilización ultra-precisa del renderizado"""
 	var stabilization_frames = quality_target.get("stabilization_frames", render_stabilization_frames)
 	
-	for i in range(stabilization_frames):
-		if rendering_viewport:
-			rendering_viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
-			await RenderingServer.frame_post_draw
-		await get_tree().process_frame
+	await get_tree().process_frame
+	#for i in range(stabilization_frames):
+		#if rendering_viewport:
+			#rendering_viewport.render_target_update_mode = SubViewport.UPDATE_ONCE
+			#await RenderingServer.frame_post_draw
+		#await get_tree().process_frame
 
 func _capture_ultra_quality_image(_quality_target: Dictionary) -> Dictionary:
 	"""Capturar imagen con ultra-calidad"""

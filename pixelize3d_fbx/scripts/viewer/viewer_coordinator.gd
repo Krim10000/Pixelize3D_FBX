@@ -384,6 +384,9 @@ func _get_current_render_settings() -> Dictionary:
 		"directions": 16,
 		"sprite_size": 128,
 		"fps": 30,
+		"frame_delay": 0.033333,      # NUEVO
+		"fps_equivalent": 30.0,       # NUEVO
+		"auto_delay_recommendation": true,  # NUEVO
 		"camera_angle": 45.0,
 		"camera_height": 12.0,
 		"camera_distance": 20.0,

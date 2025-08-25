@@ -513,19 +513,21 @@ func _apply_interpolated_timing_ultra_precise(timing_info: Dictionary, result: D
 	current_animation_player.seek(target_time, true)
 	current_animation_player.advance(0.0)
 	
-	# ✅ ESTABILIZACIÓN MEJORADA para interpolación
-	match interpolation_quality:
-		"maximum", "cinematic":
-			await get_tree().process_frame
-			await get_tree().process_frame
-			await get_tree().process_frame
-		"high":
-			await get_tree().process_frame
-			await get_tree().process_frame
-		_:
-			await get_tree().process_frame
-	
-	await RenderingServer.frame_post_draw
+	## ✅ ESTABILIZACIÓN MEJORADA para interpolación
+	#match interpolation_quality:
+		#"maximum", "cinematic":
+			#await get_tree().process_frame
+			#await get_tree().process_frame
+			#await get_tree().process_frame
+		#"high":
+			#await get_tree().process_frame
+			#await get_tree().process_frame
+		#_:
+			#await get_tree().process_frame
+	#
+	#await RenderingServer.frame_post_draw
+	#
+	await get_tree().process_frame
 	
 	var actual_time = current_animation_player.current_animation_position
 	var drift_ms = abs(actual_time - target_time) * 1000.0
@@ -607,9 +609,9 @@ func _apply_cinematic_timing_ultra_precise(timing_info: Dictionary, result: Dict
 	
 	# ✅ ESTABILIZACIÓN CINEMATOGRÁFICA (más frames para calidad superior)
 	await get_tree().process_frame
-	await get_tree().process_frame
-	await get_tree().process_frame  # Triple frame para grado cinematográfico
-	await RenderingServer.frame_post_draw
+	#await get_tree().process_frame
+	#await get_tree().process_frame  # Triple frame para grado cinematográfico
+	#await RenderingServer.frame_post_draw
 	
 	var actual_time = current_animation_player.current_animation_position
 	var drift_ms = abs(actual_time - cinematic_adjusted_time) * 1000.0

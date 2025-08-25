@@ -247,49 +247,93 @@ func _configure_camera_for_rendering(settings: Dictionary):
 # RENDERIZADO DE ANIMACIONES - MODIFICADO PARA USAR CÁMARA COMPARTIDA
 # ========================================================================
 
+#func render_animation(model: Node3D, animation_name: String, angle: float, direction_index: int):
+	#"""Renderizar animación usando la cámara compartida del preview"""
+	#
+	## Validaciones
+	#if not _validate_shared_render_prerequisites():
+		#emit_signal("animation_complete", animation_name)
+		#return
+		#
+	#if not is_instance_valid(model):
+		#push_error("❌ Modelo no es válido para renderizado")
+		#emit_signal("animation_complete", animation_name)
+		#return
+	#
+	#if is_rendering:
+		#print("⚠️ Ya hay un renderizado en proceso")
+		#emit_signal("animation_complete", animation_name)
+		#return
+	#
+	#print("🎬 Renderizando con cámara compartida: %s, dirección %d, ángulo %.1f°" % [animation_name, direction_index, angle])
+	#
+	#is_rendering = true
+	#current_animation = animation_name
+	#current_direction = direction_index
+	#current_frame = 0
+	#
+	## ✅ CRÍTICO: Preparar viewport compartido para renderizado
+	#_switch_to_render_mode(model, angle)
+	#
+	## Obtener información de la animación
+	#var anim_player = current_model.get_node_or_null("AnimationPlayer")
+	#if anim_player and anim_player.has_animation(animation_name):
+		#var anim = anim_player.get_animation(animation_name)
+		#var fps = render_settings.get("fps", 30)
+		#total_frames = int(anim.length * fps)
+		#
+		#print("📊 Animación: %s, %.1fs, %d frames a %d FPS" % [animation_name, anim.length, total_frames, fps])
+		#
+		## Iniciar renderizado de frames
+		#_render_next_frame()
+	#else:
+		## Si no hay animación, renderizar un solo frame
+		#total_frames = 1
+		#_render_static_frame()
+
+
+
+# ✅ REEMPLAZAR TODA LA FUNCIÓN CON:
 func render_animation(model: Node3D, animation_name: String, angle: float, direction_index: int):
-	"""Renderizar animación usando la cámara compartida del preview"""
+	"""Renderizar animación usando delay system en lugar de FPS"""
 	
-	# Validaciones
 	if not _validate_shared_render_prerequisites():
-		emit_signal("animation_complete", animation_name)
+		animation_complete.emit(animation_name)  # ✅ Godot 4.4
 		return
 		
 	if not is_instance_valid(model):
-		push_error("❌ Modelo no es válido para renderizado")
-		emit_signal("animation_complete", animation_name)
+		push_error("❌ Modelo no es válido")
+		animation_complete.emit(animation_name)  # ✅ Godot 4.4
 		return
 	
 	if is_rendering:
-		print("⚠️ Ya hay un renderizado en proceso")
-		emit_signal("animation_complete", animation_name)
+		print("⚠️ Ya renderizando")
+		animation_complete.emit(animation_name)  # ✅ Godot 4.4
 		return
 	
-	print("🎬 Renderizando con cámara compartida: %s, dirección %d, ángulo %.1f°" % [animation_name, direction_index, angle])
+	print("⏱️ Renderizando con DELAY SYSTEM: %s" % animation_name)
 	
 	is_rendering = true
 	current_animation = animation_name
 	current_direction = direction_index
 	current_frame = 0
 	
-	# ✅ CRÍTICO: Preparar viewport compartido para renderizado
 	_switch_to_render_mode(model, angle)
 	
-	# Obtener información de la animación
 	var anim_player = current_model.get_node_or_null("AnimationPlayer")
 	if anim_player and anim_player.has_animation(animation_name):
 		var anim = anim_player.get_animation(animation_name)
-		var fps = render_settings.get("fps", 30)
-		total_frames = int(anim.length * fps)
 		
-		print("📊 Animación: %s, %.1fs, %d frames a %d FPS" % [animation_name, anim.length, total_frames, fps])
+		# ✅ USAR DELAY EN LUGAR DE FPS
+		var frame_delay = render_settings.get("frame_delay", 0.033333)
+		total_frames = int(anim.length / frame_delay)
 		
-		# Iniciar renderizado de frames
-		_render_next_frame()
+		print("📊 Delay: %.4fs, Frames: %d" % [frame_delay, total_frames])
+		_render_next_frame_with_delay()
 	else:
-		# Si no hay animación, renderizar un solo frame
 		total_frames = 1
 		_render_static_frame()
+
 
 func _validate_shared_render_prerequisites() -> bool:
 	"""Validar que todos los componentes compartidos estén listos"""
@@ -390,14 +434,14 @@ func _render_next_frame():
 	_prepare_model_for_frame()
 
 	# Esperar frames para garantizar render limpio
-	await get_tree().process_frame
-	await RenderingServer.frame_post_draw
+	#await get_tree().process_frame
+	#await RenderingServer.frame_post_draw
 	await get_tree().process_frame
 	
 	# Configurar viewport para captura
 	viewport.render_target_clear_mode = SubViewport.CLEAR_MODE_ALWAYS
 	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	await RenderingServer.frame_post_draw
+	#await RenderingServer.frame_post_draw
 	
 	# ✅ Captura del frame usando viewport compartido
 	var image := viewport.get_texture().get_image().duplicate()
@@ -413,8 +457,13 @@ func _render_next_frame():
 		"image": image
 	}
 
-	emit_signal("frame_rendered", frame_data)
-	emit_signal("rendering_progress", current_frame + 1, total_frames)
+	#emit_signal("frame_rendered", frame_data)
+	frame_rendered.emit(frame_data)
+	#emit_signal("rendering_progress", current_frame + 1, total_frames)
+	rendering_progress.emit(current_frame+1, total_frames)
+	
+	
+	
 
 	current_frame += 1
 	call_deferred("_render_next_frame")
@@ -432,7 +481,8 @@ func _finish_rendering():
 	"""Finalizar renderizado y restaurar estado"""
 	is_rendering = false
 	_restore_preview_mode()
-	emit_signal("animation_complete", current_animation)
+	#emit_signal("animation_complete", current_animation)
+	animation_complete.emit(current_animation)
 	print("✅ Renderizado completado y preview restaurado")
 
 func _render_static_frame():
@@ -625,3 +675,59 @@ func debug_shared_state():
 		print("Viewport size: %s" % str(viewport.size))
 		print("Viewport mode: %d" % viewport.render_target_update_mode)
 	print("==========================================\n")
+
+
+
+# NUEVO - AGREGAR DESPUÉS DE _render_next_frame():
+func _render_next_frame_with_delay():
+	"""Renderizar frame usando timing de delay preciso"""
+	if current_frame >= total_frames:
+		_finish_rendering()
+		return
+	
+	if not current_model or not is_instance_valid(current_model):
+		_finish_rendering()
+		return
+	
+	# Calcular tiempo preciso usando delay
+	var frame_delay = render_settings.get("frame_delay", 0.033333)
+	var target_time = current_frame * frame_delay
+	
+	print("⏰ Frame %d/%d en tiempo %.4fs" % [current_frame + 1, total_frames, target_time])
+	
+	# Aplicar timing preciso
+	var anim_player = current_model.get_node_or_null("AnimationPlayer")
+	if anim_player:
+		anim_player.seek(target_time, true)
+		anim_player.advance(0.0)
+	
+	await get_tree().process_frame
+	await RenderingServer.frame_post_draw
+	
+	viewport.render_target_clear_mode = SubViewport.CLEAR_MODE_ALWAYS
+	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	await RenderingServer.frame_post_draw
+	
+	var image = viewport.get_texture().get_image().duplicate()
+	
+	if render_settings.get("pixelize", true):
+		image = _apply_pixelization(image)
+	
+	var frame_data = {
+		"animation": current_animation,
+		"direction": current_direction,
+		"frame": current_frame,
+		"angle": _get_current_camera_angle(),
+		"image": image,
+		"timing_data": {
+			"target_time": target_time,
+			"frame_delay": frame_delay,
+			"fps_equivalent": 1.0 / frame_delay
+		}
+	}
+	
+	frame_rendered.emit(frame_data)  # ✅ Godot 4.4
+	rendering_progress.emit(current_frame + 1, total_frames)  # ✅ Godot 4.4
+	
+	current_frame += 1
+	call_deferred("_render_next_frame_with_delay")
