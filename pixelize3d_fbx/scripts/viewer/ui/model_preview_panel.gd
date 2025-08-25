@@ -340,7 +340,7 @@ func _on_animation_finished(anim_name: String):
 
 func _on_camera_ready():
 	"""Callback cuando la cámara está lista - CORREGIDO"""
-	print("📷 Cámara lista")
+	#print("📷 Cámara lista")
 	# NO llamar a ninguna función de configuración de cámara aquí
 	# Eso causaría recursión infinita
 	
@@ -354,7 +354,7 @@ func _on_camera_ready():
 		
 func _on_north_changed(new_north: float):
 	"""Callback cuando cambia la orientación norte"""
-	print("🧭 Norte actualizado: %.1f°" % new_north)
+	#print("🧭 Norte actualizado: %.1f°" % new_north)
 
 # === UTILIDADES ===
 
@@ -383,7 +383,7 @@ func _setup_animation_loops():
 				var animation = anim_lib.get_animation(anim_name)
 				animation.loop_mode = Animation.LOOP_LINEAR
 	
-	print("🔄 Loops configurados para %d animaciones" % anim_list.size())
+	#print("🔄 Loops configurados para %d animaciones" % anim_list.size())
 
 func _clear_current_model_safe():
 	"""Limpiar modelo actual de forma segura"""

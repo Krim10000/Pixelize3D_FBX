@@ -41,17 +41,17 @@ var recommend_button: Button
 var current_settings: Dictionary = {
 	"directions": 16,
 	"sprite_size": 128,
-	"fps": 30,
-	"frame_delay": 0.033333,  # 30 FPS equivalent
-	"fps_equivalent": 30.0,   # Para mostrar equivalencia
+	"fps": 40,
+	"frame_delay": 0.025,  # 30 FPS equivalent
+	"fps_equivalent": 40.0,   # Para mostrar equivalencia
 	"camera_height": 12.0,  
 	"pixelize": true,
 	"camera_angle": 45.0,
 	"north_offset": 0.0,
 	"capture_area_size": 8.0,
 	"auto_north_detection": true,
-	"auto_delay_recommendation": true,  # NUEVO
-	"show_debug_frame_numbers": false,  # NUEVO
+	#"auto_delay_recommendation": true,  # NUEVO
+	#"show_debug_frame_numbers": false,  # NUEVO
 	"timing_validation": true  # NUEVO
 }
 
@@ -191,6 +191,8 @@ func _create_delay_settings():
 	delay_spinbox.value = current_settings.frame_delay
 	delay_spinbox.value_changed.connect(_on_delay_changed)
 	delay_container.add_child(delay_spinbox)
+	#current_settings.frame_delay = delay_spinbox.value
+	
 	
 	var seconds_label = Label.new()
 	seconds_label.text = "s"
@@ -203,11 +205,11 @@ func _create_delay_settings():
 	delay_container.add_child(fps_equiv_label)
 	
 	# Auto delay recommendation
-	auto_delay_check = CheckBox.new()
-	auto_delay_check.text = "Auto-recomendacion de delay optimo"
-	auto_delay_check.button_pressed = current_settings.auto_delay_recommendation
-	auto_delay_check.toggled.connect(_on_auto_delay_toggled)
-	add_child(auto_delay_check)
+	#auto_delay_check = CheckBox.new()
+	#auto_delay_check.text = "Auto-recomendacion de delay optimo"
+	#auto_delay_check.button_pressed = current_settings.auto_delay_recommendation
+	#auto_delay_check.toggled.connect(_on_auto_delay_toggled)
+	#add_child(auto_delay_check)
 	
 	# Informacion de delay
 	delay_info_label = Label.new()
@@ -225,10 +227,10 @@ func _create_delay_settings():
 	recommend_spacer.custom_minimum_size.x = 100
 	recommend_container.add_child(recommend_spacer)
 	
-	recommend_button = Button.new()
-	recommend_button.text = "Obtener Recomendacion"
-	recommend_button.pressed.connect(_on_recommend_delay_pressed)
-	recommend_container.add_child(recommend_button)
+	#recommend_button = Button.new()
+	#recommend_button.text = "Obtener Recomendacion"
+	#recommend_button.pressed.connect(_on_recommend_delay_pressed)
+	#recommend_container.add_child(recommend_button)
 	
 	# Presets de delay comunes
 	var delay_presets_container = HBoxContainer.new()
@@ -516,7 +518,7 @@ func _apply_current_settings():
 	
 	# Aplicar valores de delay system
 	delay_spinbox.value = current_settings.frame_delay
-	auto_delay_check.button_pressed = current_settings.auto_delay_recommendation
+	#auto_delay_check.button_pressed = current_settings.auto_delay_recommendation
 	
 	# Aplicar valores de camara
 	camera_angle_slider.value = current_settings.camera_angle
@@ -588,32 +590,32 @@ func _on_delay_changed(new_delay: float):
 	settings_changed.emit(current_settings.duplicate())
 
 # NUEVO: Manejador para auto-recomendacion de delay
-func _on_auto_delay_toggled(enabled: bool):
-	"""Manejar toggle de auto-recomendacion"""
-	current_settings.auto_delay_recommendation = enabled
-	recommend_button.disabled = not enabled
-	
-	print("🎯 Auto-recomendacion de delay: %s" % ("ON" if enabled else "OFF"))
-	settings_changed.emit(current_settings.duplicate())
+#func _on_auto_delay_toggled(enabled: bool):
+	#"""Manejar toggle de auto-recomendacion"""
+	#current_settings.auto_delay_recommendation = enabled
+	#recommend_button.disabled = not enabled
+	#
+	#print("🎯 Auto-recomendacion de delay: %s" % ("ON" if enabled else "OFF"))
+	#settings_changed.emit(current_settings.duplicate())
 
 # NUEVO: Manejador para solicitar recomendacion manual
-func _on_recommend_delay_pressed():
-	"""Solicitar recomendacion manual de delay"""
-	print("🔍 Solicitando recomendacion manual de delay...")
-	recommend_button.text = "Analizando..."
-	recommend_button.disabled = true
-	
-	# Emitir señal para que el coordinador maneje la recomendacion
-	# TODO: Implementar conexion con delay analyzer
-	
-	# Restaurar boton despues de un tiempo (simulado)
-	var timer = get_tree().create_timer(2.0)
-	timer.timeout.connect(_on_recommendation_timeout)
+#func _on_recommend_delay_pressed():
+	#"""Solicitar recomendacion manual de delay"""
+	#print("🔍 Solicitando recomendacion manual de delay...")
+	#recommend_button.text = "Analizando..."
+	#recommend_button.disabled = true
+	#
+	## Emitir señal para que el coordinador maneje la recomendacion
+	## TODO: Implementar conexion con delay analyzer
+	#
+	## Restaurar boton despues de un tiempo (simulado)
+	#var timer = get_tree().create_timer(2.0)
+	#timer.timeout.connect(_on_recommendation_timeout)
 
-func _on_recommendation_timeout():
-	"""Restaurar boton de recomendacion"""
-	recommend_button.text = "Obtener Recomendacion"
-	recommend_button.disabled = auto_delay_check.button_pressed
+#func _on_recommendation_timeout():
+	#"""Restaurar boton de recomendacion"""
+	#recommend_button.text = "Obtener Recomendacion"
+	#recommend_button.disabled = auto_delay_check.button_pressed
 
 # NUEVO: Manejador para presets de delay
 func _on_delay_preset_pressed(delay_value: float):

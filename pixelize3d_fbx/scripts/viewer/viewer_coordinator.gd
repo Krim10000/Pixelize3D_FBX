@@ -203,12 +203,12 @@ func _on_auto_north_requested():
 	
 	if not orientation_analyzer or not is_instance_valid(orientation_analyzer):
 		print("❌ OrientationAnalyzer no disponible")
-		log_panel.add_log("❌ Analizador de orientación no disponible")
+		#log_panel.add_log("❌ Analizador de orientación no disponible")
 		return
 	
 	if not current_combined_model or not is_instance_valid(current_combined_model):
 		print("⚠️ No hay modelo combinado para analizar")
-		log_panel.add_log("⚠️ No hay modelo cargado para analizar orientación")
+		#log_panel.add_log("⚠️ No hay modelo cargado para analizar orientación")
 		return
 	
 	if current_combined_model.get_child_count() > 0:
@@ -269,14 +269,14 @@ func _on_orientation_analysis_complete(result: Dictionary):
 		var model = current_combined_model.get_child(0)
 		model.rotation_degrees.y = adjusted_north  # ✅ USAR VALOR AJUSTADO
 	
-	if log_panel:
-		log_panel.add_log("🧭 Orientación automática aplicada: %.1f°" % adjusted_north)
+	#if log_panel:
+		#log_panel.add_log("🧭 Orientación automática aplicada: %.1f°" % adjusted_north)
 
 
 func _on_orientation_analysis_failed(error: String):
 	"""Manejar fallo en análisis de orientación"""
 	print("❌ Análisis de orientación falló: %s" % error)
-	log_panel.add_log("❌ Error en análisis de orientación: " + error)
+	#log_panel.add_log("❌ Error en análisis de orientación: " + error)
 
 # ✅ CORREGIDO: Manejador principal de configuración
 #func _on_render_settings_changed(settings: Dictionary):
@@ -383,9 +383,9 @@ func _get_current_render_settings() -> Dictionary:
 	var settings = {
 		"directions": 16,
 		"sprite_size": 128,
-		"fps": 30,
-		"frame_delay": 0.033333,      # NUEVO
-		"fps_equivalent": 30.0,       # NUEVO
+		"fps": 40,
+		"frame_delay": 0.025,      # NUEVO
+		"fps_equivalent": 40.0,       # NUEVO
 		"auto_delay_recommendation": true,  # NUEVO
 		"camera_angle": 45.0,
 		"camera_height": 12.0,
@@ -600,16 +600,16 @@ func _setup_unified_camera_system():
 func _on_preview_requested():
 	"""Manejar solicitud de preview con sistema unificado"""
 	print("🎬 Preview solicitado - sistema unificado")
-	log_panel.add_log("🎬 Activando preview unificado...")
+	#log_panel.add_log("🎬 Activando preview unificado...")
 
 	if not current_combined_model or not is_instance_valid(current_combined_model):
-		log_panel.add_log("❌ No hay modelo válido para preview")
+		#log_panel.add_log("❌ No hay modelo válido para preview")
 		return
 
 	# Usar ModelPreviewPanel directamente - SpriteRenderer se sincronizará automáticamente
 	if model_preview_panel and model_preview_panel.has_method("set_model"):
 		model_preview_panel.set_model(current_combined_model)
-		log_panel.add_log("✅ Preview unificado configurado")
+		#log_panel.add_log("✅ Preview unificado configurado")
 
 	# Verificar sincronización si está disponible
 	if camera_sync_helper and camera_sync_helper.has_method("_validate_sync_setup"):
@@ -618,23 +618,23 @@ func _on_preview_requested():
 func _on_render_requested_refactored():
 	"""✅ REFACTORIZADO: Manejar solicitud de renderizado usando pipeline"""
 	print("🎨 Renderizado solicitado - USANDO PIPELINE")
-	log_panel.add_log("🎨 Iniciando renderizado con pipeline...")
+	#log_panel.add_log("🎨 Iniciando renderizado con pipeline...")
 
 	# Validar prerrequisitos
 	if not current_combined_model or not is_instance_valid(current_combined_model):
-		log_panel.add_log("❌ No hay modelo válido para renderizar")
+		#log_panel.add_log("❌ No hay modelo válido para renderizar")
 		if actions_panel:
 			actions_panel.show_error("No hay modelo cargado")
 		return
 
 	if not spritesheet_pipeline:
-		log_panel.add_log("❌ Pipeline no disponible")
+		#log_panel.add_log("❌ Pipeline no disponible")
 		if actions_panel:
 			actions_panel.show_error("Pipeline no inicializado")
 		return
 
 	if spritesheet_pipeline.is_busy():
-		log_panel.add_log("⚠️ Pipeline ocupado")
+		#log_panel.add_log("⚠️ Pipeline ocupado")
 		if actions_panel:
 			actions_panel.show_error("Pipeline ocupado, espera a que termine")
 		return
@@ -642,7 +642,7 @@ func _on_render_requested_refactored():
 	# Obtener animación actual
 	var current_anim = _get_current_animation_name()
 	if current_anim == "":
-		log_panel.add_log("❌ No hay animación seleccionada")
+		#log_panel.add_log("❌ No hay animación seleccionada")
 		if actions_panel:
 			actions_panel.show_error("Selecciona una animación")
 		return
@@ -654,14 +654,14 @@ func _on_render_requested_refactored():
 	var success = spritesheet_pipeline.generate_spritesheet(current_anim, config)
 
 	if not success:
-		log_panel.add_log("❌ No se pudo iniciar pipeline")
+		#log_panel.add_log("❌ No se pudo iniciar pipeline")
 		if actions_panel:
 			actions_panel.show_error("Error iniciando pipeline")
 
 func _on_export_requested():
 	"""Manejar solicitud de exportación - VERSIÓN CORREGIDA"""
 	print("💾 Exportación solicitada - VERSIÓN CORREGIDA")
-	log_panel.add_log("💾 Abriendo diálogo de exportación...")
+	#log_panel.add_log("💾 Abriendo diálogo de exportación...")
 
 	if not current_combined_model or not is_instance_valid(current_combined_model):
 		if actions_panel:
@@ -678,7 +678,8 @@ func _on_export_requested():
 		
 		export_dialog.popup_centered()
 	else:
-		log_panel.add_log("❌ Diálogo de exportación no disponible")
+		pass
+		#log_panel.add_log("❌ Diálogo de exportación no disponible")
 
 func _on_settings_requested():
 	"""Manejar solicitud de configuración"""
@@ -687,7 +688,7 @@ func _on_settings_requested():
 	# Mostrar/ocultar panel de configuración
 	if settings_panel:
 		settings_panel.visible = not settings_panel.visible
-		log_panel.add_log("⚙️ Panel de configuración: " + ("visible" if settings_panel.visible else "oculto"))
+		#log_panel.add_log("⚙️ Panel de configuración: " + ("visible" if settings_panel.visible else "oculto"))
 
 # ========================================================================
 # ✅ NUEVOS: MANEJADORES DE SEÑALES DEL PIPELINE
@@ -696,7 +697,7 @@ func _on_settings_requested():
 func _on_pipeline_started(animation_name: String):
 	"""Manejar inicio del pipeline"""
 	print("🚀 Pipeline iniciado: %s" % animation_name)
-	log_panel.add_log("🚀 Pipeline iniciado: " + animation_name)
+	#log_panel.add_log("🚀 Pipeline iniciado: " + animation_name)
 
 	if actions_panel:
 		actions_panel.start_processing("Iniciando pipeline...")
@@ -704,16 +705,16 @@ func _on_pipeline_started(animation_name: String):
 func _on_pipeline_progress(current_step: int, total_steps: int, message: String):
 	"""Manejar progreso del pipeline"""
 	var progress = float(current_step) / float(total_steps)
-	log_panel.add_log("📊 %s (%d/%d)" % [message, current_step, total_steps])
+	#log_panel.add_log("📊 %s (%d/%d)" % [message, current_step, total_steps])
 
 	if actions_panel:
 		actions_panel.update_progress(progress, message)
 
 func _on_pipeline_complete(animation_name: String, output_path: String):
 	"""Manejar completación exitosa del pipeline"""
-	print("✅ Pipeline completado: %s → %s" % [animation_name, output_path])
-	log_panel.add_log("✅ Sprite sheet generado: " + animation_name)
-	log_panel.add_log("📁 Ubicación: " + output_path)
+	#print("✅ Pipeline completado: %s → %s" % [animation_name, output_path])
+	#log_panel.add_log("✅ Sprite sheet generado: " + animation_name)
+	#log_panel.add_log("📁 Ubicación: " + output_path)
 
 	if actions_panel:
 		actions_panel.finish_processing(true, "Sprite sheet generado exitosamente")
@@ -721,26 +722,26 @@ func _on_pipeline_complete(animation_name: String, output_path: String):
 func _on_pipeline_failed(animation_name: String, error: String):
 	"""Manejar fallo del pipeline"""
 	print("❌ Pipeline falló: %s - %s" % [animation_name, error])
-	log_panel.add_log("❌ Error en pipeline: " + error)
+	#log_panel.add_log("❌ Error en pipeline: " + error)
 
 	if actions_panel:
 		actions_panel.finish_processing(false, "Error: " + error)
 
 func _on_rendering_phase_started(animation_name: String):
 	"""Manejar inicio de fase de renderizado"""
-	log_panel.add_log("🎬 Iniciando renderizado: " + animation_name)
+	#log_panel.add_log("🎬 Iniciando renderizado: " + animation_name)
 
 func _on_rendering_phase_complete(animation_name: String):
 	"""Manejar completación de fase de renderizado"""
-	log_panel.add_log("✅ Renderizado completado: " + animation_name)
+	#log_panel.add_log("✅ Renderizado completado: " + animation_name)
 
 func _on_export_phase_started(animation_name: String):
 	"""Manejar inicio de fase de exportación"""
-	log_panel.add_log("📤 Iniciando exportación: " + animation_name)
+	#log_panel.add_log("📤 Iniciando exportación: " + animation_name)
 
 func _on_export_phase_complete(animation_name: String, file_path: String):
 	"""Manejar completación de fase de exportación"""
-	log_panel.add_log("✅ Exportación completada: " + animation_name +" en " + file_path)
+	#log_panel.add_log("✅ Exportación completada: " + animation_name +" en " + file_path)
 
 # ========================================================================
 # MANEJADORES DE CONTROLES DE ANIMACIÓN (SIN CAMBIOS)
@@ -785,7 +786,7 @@ func _on_animation_change_requested(animation_name: String):
 		return
 
 	is_changing_animation = true
-	log_panel.add_log("🔄 Cambiando a: " + animation_name)
+	#log_panel.add_log("🔄 Cambiando a: " + animation_name)
 
 	# ✅ CRÍTICO: Validar modelo antes de usar
 	if not current_combined_model or not is_instance_valid(current_combined_model):
@@ -868,7 +869,7 @@ func _on_animation_change_requested(animation_name: String):
 	if model_preview_panel and model_preview_panel.has_method("play_animation"):
 		model_preview_panel.play_animation(found_animation)
 	
-	log_panel.add_log("✅ Animación cambiada: " + found_animation)
+	#log_panel.add_log("✅ Animación cambiada: " + found_animation)
 	_finish_animation_change(true, found_animation)
 	
 	print("=== FIN CAMBIO DE ANIMACIÓN ===\n")
@@ -878,7 +879,7 @@ func _finish_animation_change(success: bool, animation_name: String):
 	is_changing_animation = false
 	
 	if not success:
-		log_panel.add_log("❌ Error al cambiar animación: " + animation_name)
+		#log_panel.add_log("❌ Error al cambiar animación: " + animation_name)
 		
 		# Notificar error al panel
 		if animation_controls_panel and animation_controls_panel.has_method("_reset_ui_on_error"):
@@ -891,7 +892,7 @@ func _finish_animation_change(success: bool, animation_name: String):
 func _on_file_selected(file_path: String):
 	"""Manejar selección de archivo"""
 	print("📁 Archivo seleccionado: %s" % file_path.get_file())
-	log_panel.add_log("📁 Cargando: " + file_path.get_file())
+	#log_panel.add_log("📁 Cargando: " + file_path.get_file())
 	
 	var is_base = "base" in file_path.get_file().to_lower()
 	
@@ -905,7 +906,7 @@ func _on_file_selected(file_path: String):
 func _on_unit_selected(unit_data: Dictionary):
 	"""Manejar selección de unidad"""
 	print("📦 Unidad seleccionada: %s" % unit_data.get("name", "Unknown"))
-	log_panel.add_log("📦 Unidad: " + str(unit_data.get("name", "Unknown")))
+	#log_panel.add_log("📦 Unidad: " + str(unit_data.get("name", "Unknown")))
 	
 	if file_loader_panel and file_loader_panel.has_method("populate_unit_files"):
 		file_loader_panel.populate_unit_files(unit_data)
@@ -948,7 +949,7 @@ func _on_animations_selected_protected(animation_files: Array):
 	last_animations_processed = animation_files.duplicate()
 
 	print("🔒 PROCESANDO ANIMACIONES - BLOQUEADO por 10 segundos")
-	log_panel.add_log("🎬 Cargando %d animaciones..." % animation_files.size())
+	#log_panel.add_log("🎬 Cargando %d animaciones..." % animation_files.size())
 
 	# ✅ CRÍTICO: Limpiar modelo anterior antes de cargar nuevas animaciones
 	_safe_cleanup_current_model()
@@ -963,7 +964,7 @@ func _on_animations_selected_protected(animation_files: Array):
 		var full_path = unit_data.path + "/" + anim_file
 
 		print("📥 [%d/%d] Cargando: %s" % [i+1, animation_files.size(), anim_file])
-		log_panel.add_log("📥 [%d/%d] %s" % [i+1, animation_files.size(), anim_file])
+		#log_panel.add_log("📥 [%d/%d] %s" % [i+1, animation_files.size(), anim_file])
 
 		fbx_loader.load_animation_fbx(full_path)
 
@@ -1056,7 +1057,7 @@ func _on_model_loaded(model_data: Dictionary):
 	
 	if model_data.type == "base":
 		loaded_base_data = model_data
-		log_panel.add_log("✅ Base: " + str(model_data.get("name", "Unknown")))
+		#log_panel.add_log("✅ Base: " + str(model_data.get("name", "Unknown")))
 		
 		if actions_panel:
 			actions_panel.set_status("Base cargada - selecciona animaciones")
@@ -1065,14 +1066,14 @@ func _on_model_loaded(model_data: Dictionary):
 	else:
 		var anim_name = model_data.get("name", "Unknown")
 		loaded_animations[anim_name] = model_data
-		log_panel.add_log("✅ Animación: " + anim_name)
+		#log_panel.add_log("✅ Animación: " + anim_name)
 		
 		_try_auto_combine()
 
 func _on_load_failed(error_message: String):
 	"""Manejar error de carga"""
 	print("❌ Error de carga: %s" % error_message)
-	log_panel.add_log("❌ Error: " + error_message)
+	#log_panel.add_log("❌ Error: " + error_message)
 	
 	is_processing_animations = false
 
@@ -1085,7 +1086,7 @@ func _try_auto_combine():
 		return
 	
 	print("🔄 Auto-combinando modelo...")
-	log_panel.add_log("🔄 Combinando modelo...")
+	#log_panel.add_log("🔄 Combinando modelo...")
 	
 	var first_anim_name = loaded_animations.keys()[0]
 	var first_anim_data = loaded_animations[first_anim_name]
@@ -1101,7 +1102,7 @@ func _on_combination_complete_safe(combined_model: Node3D):
 		return
 	
 	print("✅ Combinación exitosa: %s" % combined_model.name)
-	log_panel.add_log("✅ Modelo combinado listo")
+	#log_panel.add_log("✅ Modelo combinado listo")
 	
 	current_combined_model = combined_model
 	
@@ -1133,14 +1134,14 @@ func _safe_populate_animation_controls():
 		return
 	
 	print("🎮 Poblando controles de animación")
-	log_panel.add_log("🎮 Controles de animación listos")
+	#log_panel.add_log("🎮 Controles de animación listos")
 	animation_controls_panel.populate_animations(current_combined_model)
 	print("✅ Animation controls poblados exitosamente")
 
 func _on_combination_failed(error: String):
 	"""Manejar error de combinación"""
 	print("❌ Error combinación: %s" % error)
-	log_panel.add_log("❌ Error combinación: " + error)
+	#log_panel.add_log("❌ Error combinación: " + error)
 
 # ========================================================================
 # FUNCIONES AUXILIARES (SIN CAMBIOS)
@@ -1312,7 +1313,7 @@ func _on_animations_status_changed(active_count: int, total_count: int):
 	# Log solo si hay múltiples animaciones activas (posible problema)
 	if active_count > 1:
 		print("⚠️ MÚLTIPLES ANIMACIONES DETECTADAS: %d/%d activas" % [active_count, total_count])
-		log_panel.add_log("⚠️ Múltiples animaciones detectadas: %d activas" % active_count)
+		#log_panel.add_log("⚠️ Múltiples animaciones detectadas: %d activas" % active_count)
 	elif active_count == 0 and total_count > 0:
 		# Esto podría indicar que las animaciones se detuvieron inesperadamente
 		print("🔍 Todas las animaciones se detuvieron (%d disponibles)" % total_count)
@@ -1371,7 +1372,8 @@ func _on_export_dialog_started(config: Dictionary):
 	if export_manager and export_manager.has_method("export_sprite_sheets"):
 		export_manager.export_sprite_sheets(config)
 	else:
-		log_panel.add_log("❌ ExportManager no disponible")
+		#log_panel.add_log("❌ ExportManager no disponible")
+		pass
 
 func _on_export_dialog_cancelled():
 	"""Manejar cancelación de exportación"""
@@ -1389,7 +1391,7 @@ func _on_export_complete(output_folder: String):
 	if export_dialog and export_dialog.has_method("export_completed"):
 		export_dialog.export_completed(true, "Exportación completada exitosamente")
 	
-	log_panel.add_log("✅ Sprites exportados a: %s" % output_folder)
+	#log_panel.add_log("✅ Sprites exportados a: %s" % output_folder)
 
 func _on_export_failed(error: String):
 	"""Manejar fallo en exportación"""
@@ -1398,7 +1400,7 @@ func _on_export_failed(error: String):
 	if export_dialog and export_dialog.has_method("export_completed"):
 		export_dialog.export_completed(false, error)
 	
-	log_panel.add_log("❌ Error en exportación: %s" % error)
+	#log_panel.add_log("❌ Error en exportación: %s" % error)
 
 # ========================================================================
 # MANEJADORES DE CONTROLES DE CÁMARA (SIN CAMBIOS)
@@ -2350,10 +2352,10 @@ func _on_render_settings_changed(settings: Dictionary):
 	# 4. Guardar configuración actual - CON MEJORAS
 	current_render_settings = enhanced_settings
 	
-	log_panel.add_log("⚙️ Configuración actualizada - área: %.1f, distancia: %.1f" % [
-		enhanced_settings.get("capture_area_size", 8.0), 
-		enhanced_settings.get("camera_distance", 16.0)
-	])
+	#log_panel.add_log("⚙️ Configuración actualizada - área: %.1f, distancia: %.1f" % [
+		#enhanced_settings.get("capture_area_size", 8.0), 
+		#enhanced_settings.get("camera_distance", 16.0)
+	#])
 
 # ========================================================================
 # ✅ FUNCIÓN CORREGIDA: RENDERIZADO CON CONFIGURACIÓN MEJORADA
@@ -2361,24 +2363,24 @@ func _on_render_settings_changed(settings: Dictionary):
 
 func _on_render_requested_with_capture_fix():
 	"""✅ VERSIÓN CORREGIDA: Manejar renderizado con parámetros de área de captura MEJORADOS"""
-	print("\n🎨 === RENDERIZADO CON ÁREA DE CAPTURA CORREGIDA ===")
-	log_panel.add_log("🎨 Iniciando renderizado con área de captura corregida...")
+	#print("\n🎨 === RENDERIZADO CON ÁREA DE CAPTURA CORREGIDA ===")
+	#log_panel.add_log("🎨 Iniciando renderizado con área de captura corregida...")
 
 	# Validar prerrequisitos
 	if not current_combined_model or not is_instance_valid(current_combined_model):
-		log_panel.add_log("❌ No hay modelo válido para renderizar")
+		#log_panel.add_log("❌ No hay modelo válido para renderizar")
 		if actions_panel:
 			actions_panel.show_error("No hay modelo cargado")
 		return
 
 	if not spritesheet_pipeline:
-		log_panel.add_log("❌ Pipeline no disponible")
+		#log_panel.add_log("❌ Pipeline no disponible")
 		if actions_panel:
 			actions_panel.show_error("Pipeline no inicializado")
 		return
 
 	if spritesheet_pipeline.is_busy():
-		log_panel.add_log("⚠️ Pipeline ocupado")
+		#log_panel.add_log("⚠️ Pipeline ocupado")
 		if actions_panel:
 			actions_panel.show_error("Pipeline ocupado, espera a que termine")
 		return
@@ -2386,7 +2388,7 @@ func _on_render_requested_with_capture_fix():
 	# Obtener animación actual
 	var current_anim = _get_current_animation_name()
 	if current_anim == "":
-		log_panel.add_log("❌ No hay animación seleccionada")
+		#log_panel.add_log("❌ No hay animación seleccionada")
 		if actions_panel:
 			actions_panel.show_error("Selecciona una animación")
 		return
@@ -2409,14 +2411,15 @@ func _on_render_requested_with_capture_fix():
 	var success = spritesheet_pipeline.generate_spritesheet(current_anim, config)
 
 	if not success:
-		log_panel.add_log("❌ No se pudo iniciar pipeline")
+		#log_panel.add_log("❌ No se pudo iniciar pipeline")
 		if actions_panel:
 			actions_panel.show_error("Error iniciando pipeline")
 	else:
-		log_panel.add_log("✅ Pipeline iniciado con área: %.1f → distancia: %.1f" % [
-			config.get("capture_area_size", 8.0), 
-			config.get("camera_distance", 16.0)
-		])
+		pass
+		#log_panel.add_log("✅ Pipeline iniciado con área: %.1f → distancia: %.1f" % [
+			#config.get("capture_area_size", 8.0), 
+			#config.get("camera_distance", 16.0)
+		#])
 
 # ========================================================================
 # ✅ FUNCIÓN DE DEBUG: VERIFICAR CADENA DE PARÁMETROS

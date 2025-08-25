@@ -178,14 +178,14 @@ func generate_spritesheet(animation_name: String, config: Dictionary = {}) -> bo
 	pipeline_start_time = Time.get_ticks_msec() / 1000.0
 	frame_perfect_count = 0
 	
-	print("📋 Configuracion de delay consolidada:")
-	print("  - Direcciones: %d" % current_config.get("directions", 16))
-	print("  - Tamaño sprite: %d" % current_config.get("sprite_size", 256))
-	print("  - Frame delay: %.4fs" % current_config.get("frame_delay", 0.083333))
-	print("  - FPS equivalente: %.1f" % current_config.get("fps_equivalent", 12.0))
-	print("  - Auto-recomendacion: %s" % ("ON" if current_config.get("auto_delay_recommendation", true) else "OFF"))
-	print("  - Debug frames: %s" % ("ON" if current_config.get("show_debug_frame_numbers", false) else "OFF"))
-	print("  - Carpeta salida: %s" % current_config.get("output_folder", "res://output/"))
+	#print("📋 Configuracion de delay consolidada:")
+	#print("  - Direcciones: %d" % current_config.get("directions", 16))
+	#print("  - Tamaño sprite: %d" % current_config.get("sprite_size", 256))
+	#print("  - Frame delay: %.4fs" % current_config.get("frame_delay", 0.083333))
+	#print("  - FPS equivalente: %.1f" % current_config.get("fps_equivalent", 12.0))
+	#print("  - Auto-recomendacion: %s" % ("ON" if current_config.get("auto_delay_recommendation", true) else "OFF"))
+	#print("  - Debug frames: %s" % ("ON" if current_config.get("show_debug_frame_numbers", false) else "OFF"))
+	#print("  - Carpeta salida: %s" % current_config.get("output_folder", "res://output/"))
 	
 	pipeline_started.emit(animation_name)
 	
@@ -360,7 +360,7 @@ func _render_animation_with_delay() -> bool:
 		var north_offset: float = current_config.get("north_offset", 0.0)
 		angle += north_offset
 		
-		print("  🧭 Renderizando direccion %d/%d: %.1f°" % [direction + 1, total_directions, angle])
+		#print("  🧭 Renderizando direccion %d/%d: %.1f°" % [direction + 1, total_directions, angle])
 		
 		# Emitir progreso de la fase de renderizado
 		var progress: float = float(direction) / float(total_directions)
@@ -438,11 +438,11 @@ func _export_with_delay_metadata() -> bool:
 	enhanced_export_config.current_animation = current_animation
 	enhanced_export_config.animation_mode = "current"
 	
-	print("📋 Configuracion de exportacion con delay:")
-	print("  - Frame delay: %.4fs" % enhanced_export_config.delay_metadata.frame_delay)
-	print("  - FPS equivalente: %.1f" % enhanced_export_config.delay_metadata.fps_equivalent)
-	print("  - Frame perfect: %s" % enhanced_export_config.delay_metadata.frame_perfect_achieved)
-	
+	#print("📋 Configuracion de exportacion con delay:")
+	#print("  - Frame delay: %.4fs" % enhanced_export_config.delay_metadata.frame_delay)
+	#print("  - FPS equivalente: %.1f" % enhanced_export_config.delay_metadata.fps_equivalent)
+	#print("  - Frame perfect: %s" % enhanced_export_config.delay_metadata.frame_perfect_achieved)
+	#
 	# Iniciar exportacion
 	export_manager.export_sprite_sheets(enhanced_export_config)
 	
@@ -625,7 +625,7 @@ func _generate_multiple_spritesheets_with_delay(animations: Array, config: Dicti
 	
 	for i in range(animations.size()):
 		var anim_name: String = animations[i]
-		print("\n--- Procesando animacion %d/%d con delay: %s ---" % [i + 1, total_animations, anim_name])
+		#print("\n--- Procesando animacion %d/%d con delay: %s ---" % [i + 1, total_animations, anim_name])
 		
 		# Configurar para esta animacion
 		current_animation = anim_name

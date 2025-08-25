@@ -174,7 +174,7 @@ func _start_pipeline_process():
 		return
 	
 	# Fase 2: Renderizado
-	emit_signal("pipeline_progress", 2, 4, "Iniciando renderizado...")
+	#emit_signal("pipeline_progress", 2, 4, "Iniciando renderizado...")
 	emit_signal("rendering_phase_started", current_animation)
 	
 	if not await _execute_rendering_phase():
@@ -343,11 +343,13 @@ func _render_all_directions_sequential(combined_model: Node3D) -> bool:
 		var north_offset = current_config.get("north_offset", 0.0)
 		angle += north_offset
 		
-		print("  📐 Renderizando dirección %d/%d: %.1f°" % [direction + 1, total_directions, angle])
+		#print("  📐 Renderizando dirección %d/%d: %.1f°" % [direction + 1, total_directions, angle])
 		
 		# Emitir progreso de la fase de renderizado
 		var progress = float(direction) / float(total_directions)
-		var message = "Renderizando dirección %d/%d" % [direction + 1, total_directions]
+		#var message = "Renderizando dirección %d/%d" % [direction + 1, total_directions]
+		var message = "En progreso"
+
 		emit_signal("pipeline_progress", 2, 4, message)  # Phase 2 de 4
 		
 		# Renderizar esta dirección

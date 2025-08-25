@@ -130,7 +130,7 @@ func _monitor_animations():
 	emit_signal("animations_status_changed", active_count, total_count)
 	
 	# Log opcional (puedes comentar si no quieres spam)
-	print("🔍 Monitor: %d/%d animaciones activas" % [active_count, total_count])
+	#print("🔍 Monitor: %d/%d animaciones activas" % [active_count, total_count])
 
 # ========================================================================
 # FUNCIONES AUXILIARES

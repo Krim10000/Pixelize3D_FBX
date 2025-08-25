@@ -293,7 +293,6 @@ func _configure_camera_for_rendering(settings: Dictionary):
 
 
 
-# ✅ REEMPLAZAR TODA LA FUNCIÓN CON:
 func render_animation(model: Node3D, animation_name: String, angle: float, direction_index: int):
 	"""Renderizar animación usando delay system en lugar de FPS"""
 	
@@ -311,7 +310,7 @@ func render_animation(model: Node3D, animation_name: String, angle: float, direc
 		animation_complete.emit(animation_name)  # ✅ Godot 4.4
 		return
 	
-	print("⏱️ Renderizando con DELAY SYSTEM: %s" % animation_name)
+	#print("⏱️ Renderizando con DELAY SYSTEM: %s" % animation_name)
 	
 	is_rendering = true
 	current_animation = animation_name
@@ -325,7 +324,8 @@ func render_animation(model: Node3D, animation_name: String, angle: float, direc
 		var anim = anim_player.get_animation(animation_name)
 		
 		# ✅ USAR DELAY EN LUGAR DE FPS
-		var frame_delay = render_settings.get("frame_delay", 0.033333)
+		#var frame_delay = render_settings.get("frame_delay", 0.033333)
+		var frame_delay = _get_current_user_delay()
 		total_frames = int(anim.length / frame_delay)
 		
 		print("📊 Delay: %.4fs, Frames: %d" % [frame_delay, total_frames])
@@ -353,13 +353,13 @@ func _validate_shared_render_prerequisites() -> bool:
 
 func _switch_to_render_mode(model: Node3D, angle: float):
 	"""Cambiar viewport compartido a modo renderizado"""
-	print("🔄 Cambiando a modo renderizado...")
+	#print("🔄 Cambiando a modo renderizado...")
 	
-	# ✅ NUEVO: Backup del modelo actual del preview
-	if model_container and model_container.get_child_count() > 0:
-		render_backup_model = model_container.get_child(0)
-		print("💾 Backup del modelo del preview realizado")
-	
+	## ✅ NUEVO: Backup del modelo actual del preview
+	#if model_container and model_container.get_child_count() > 0:
+		#render_backup_model = model_container.get_child(0)
+		##print("💾 Backup del modelo del preview realizado")
+	#
 	# Limpiar container y añadir modelo para renderizado
 	_safe_switch_model_in_container(model)
 	
@@ -373,12 +373,12 @@ func _switch_to_render_mode(model: Node3D, angle: float):
 		# Aplicar ángulo específico para esta dirección
 		if camera_controller.has_method("set_rotation_angle"):
 			camera_controller.set_rotation_angle(angle)
-			print("🧭 Ángulo de cámara establecido: %.1f°" % angle)
+			#print("🧭 Ángulo de cámara establecido: %.1f°" % angle)
 	
 	# Configurar viewport para captura
 	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	
-	print("✅ Modo renderizado activado")
+	#print("✅ Modo renderizado activado")
 
 func _safe_switch_model_in_container(new_model: Node3D):
 	"""Cambiar modelo en container de forma segura"""
@@ -395,17 +395,17 @@ func _safe_switch_model_in_container(new_model: Node3D):
 	current_model = new_model
 	model_container.add_child(current_model)
 	
-	print("🔄 Modelo cambiado en container: %s" % current_model.name)
+	#print("🔄 Modelo cambiado en container: %s" % current_model.name)
 
 func _restore_preview_mode():
 	"""Restaurar modo preview después del renderizado"""
-	print("🔄 Restaurando modo preview...")
+	#print("🔄 Restaurando modo preview...")
 	
 	# Restaurar modelo original del preview si existe
 	if render_backup_model and is_instance_valid(render_backup_model):
 		_safe_switch_model_in_container(render_backup_model)
 		render_backup_model = null
-		print("✅ Modelo del preview restaurado")
+		#print("✅ Modelo del preview restaurado")
 	
 	# Restaurar configuración original del viewport
 	if original_viewport_mode >= 0:
@@ -414,7 +414,7 @@ func _restore_preview_mode():
 	# Limpiar referencias del renderizado
 	current_model = null
 	
-	print("✅ Modo preview restaurado")
+	#print("✅ Modo preview restaurado")
 
 # ========================================================================
 # RENDERIZADO DE FRAMES - MANTIENE LÓGICA EXISTENTE
@@ -483,7 +483,7 @@ func _finish_rendering():
 	_restore_preview_mode()
 	#emit_signal("animation_complete", current_animation)
 	animation_complete.emit(current_animation)
-	print("✅ Renderizado completado y preview restaurado")
+	#print("✅ Renderizado completado y preview restaurado")
 
 func _render_static_frame():
 	"""Renderizar frame estático para modelos sin animación"""
@@ -549,7 +549,7 @@ func _prepare_model_fallback():
 
 func setup_preview(model: Node3D, settings: Dictionary = {}):
 	"""Configurar preview usando el sistema compartido"""
-	print("🎬 Configurando preview usando cámara compartida...")
+	#print("🎬 Configurando preview usando cámara compartida...")
 	
 	if not preview_panel:
 		push_error("❌ No hay ModelPreviewPanel disponible")
@@ -558,7 +558,7 @@ func setup_preview(model: Node3D, settings: Dictionary = {}):
 	# Delegar al ModelPreviewPanel para mantener consistencia
 	if preview_panel.has_method("set_model"):
 		preview_panel.set_model(model)
-		print("✅ Preview configurado a través de ModelPreviewPanel")
+		#print("✅ Preview configurado a través de ModelPreviewPanel")
 	
 	# Aplicar configuración de cámara si se proporciona
 	if not settings.is_empty() and camera_controller:
@@ -663,19 +663,20 @@ func get_shared_viewport() -> SubViewport:
 
 func debug_shared_state():
 	"""Debug del estado compartido"""
-	print("\n🎬 === SPRITE RENDERER SHARED DEBUG ===")
-	print("Preview Panel: %s" % ("✅" if preview_panel else "❌"))
-	print("Viewport compartido: %s" % ("✅" if viewport else "❌"))
-	print("Cámara compartida: %s" % ("✅" if camera else "❌"))
-	print("CameraController: %s" % ("✅" if camera_controller else "❌"))
-	print("ModelContainer: %s" % ("✅" if model_container else "❌"))
-	print("Estado renderizado: %s" % ("🔄 Activo" if is_rendering else "⏸️ Inactivo"))
-	if viewport:
-		print("Viewport path: %s" % viewport.get_path())
-		print("Viewport size: %s" % str(viewport.size))
-		print("Viewport mode: %d" % viewport.render_target_update_mode)
-	print("==========================================\n")
-
+	pass
+	##print("\n🎬 === SPRITE RENDERER SHARED DEBUG ===")
+	##print("Preview Panel: %s" % ("✅" if preview_panel else "❌"))
+	##print("Viewport compartido: %s" % ("✅" if viewport else "❌"))
+	##print("Cámara compartida: %s" % ("✅" if camera else "❌"))
+	##print("CameraController: %s" % ("✅" if camera_controller else "❌"))
+	##print("ModelContainer: %s" % ("✅" if model_container else "❌"))
+	##print("Estado renderizado: %s" % ("🔄 Activo" if is_rendering else "⏸️ Inactivo"))
+	#if viewport:
+		#print("Viewport path: %s" % viewport.get_path())
+		#print("Viewport size: %s" % str(viewport.size))
+		#print("Viewport mode: %d" % viewport.render_target_update_mode)
+	#print("==========================================\n")
+#
 
 
 # NUEVO - AGREGAR DESPUÉS DE _render_next_frame():
@@ -690,10 +691,11 @@ func _render_next_frame_with_delay():
 		return
 	
 	# Calcular tiempo preciso usando delay
-	var frame_delay = render_settings.get("frame_delay", 0.033333)
+	#var frame_delay = render_settings.get("frame_delay", 0.033333)
+	var frame_delay = _get_current_user_delay()
 	var target_time = current_frame * frame_delay
 	
-	print("⏰ Frame %d/%d en tiempo %.4fs" % [current_frame + 1, total_frames, target_time])
+	#print("⏰ Frame %d/%d en tiempo %.4fs" % [current_frame + 1, total_frames, target_time])
 	
 	# Aplicar timing preciso
 	var anim_player = current_model.get_node_or_null("AnimationPlayer")
@@ -731,3 +733,40 @@ func _render_next_frame_with_delay():
 	
 	current_frame += 1
 	call_deferred("_render_next_frame_with_delay")
+
+
+
+func _get_current_user_delay() -> float:
+	"""Obtener el delay que configuró el usuario en el SettingsPanel"""
+	
+	# Buscar SettingsPanel en la escena
+	var settings_panel = get_tree().current_scene.find_child("SettingsPanel", true, false)
+	if not settings_panel:
+		settings_panel = get_tree().current_scene.find_child("UpdatedSettingsPanel", true, false)
+	
+	if not settings_panel:
+		print("⚠️ SettingsPanel no encontrado, usando delay default")
+		return 0.033333
+	
+	# Método 1: Desde delay_spinbox directamente
+	if settings_panel.get("delay_spinbox") and settings_panel.delay_spinbox:
+		var spinbox_value = settings_panel.delay_spinbox.value
+	#	print("✅ Delay obtenido del SpinBox: %.4fs" % spinbox_value)
+		return spinbox_value
+	
+	# Método 2: Desde get_current_settings()
+	if settings_panel.has_method("get_current_settings"):
+		var settings = settings_panel.get_current_settings()
+		if settings.get("frame_delay"):
+	#		print("✅ Delay obtenido de current_settings: %.4fs" % settings.frame_delay)
+			return settings.frame_delay
+	
+	# Método 3: Desde current_settings directamente
+	if settings_panel.get("current_settings"):
+		var current_settings = settings_panel.current_settings
+		if current_settings.get("frame_delay"):
+			print("✅ Delay obtenido de current_settings directo: %.4fs" % current_settings.frame_delay)
+			return current_settings.frame_delay
+	
+	#print("⚠️ No se pudo obtener delay del usuario, usando default: 0.033333")
+	return 0.0321

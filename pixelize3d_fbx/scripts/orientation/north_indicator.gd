@@ -27,7 +27,7 @@ const ARROW_LENGTH = 2.0
 const RING_RADIUS = 1.5
 
 func _ready():
-	print("🧭 NorthIndicator inicializado")
+	#print("🧭 NorthIndicator inicializado")
 	#_create_visual_components()
 	set_visible(false)
 
@@ -36,7 +36,7 @@ func _create_visual_components():
 	_create_arrow()
 	_create_compass_ring()
 	_create_north_label()
-	print("✅ Componentes visuales del indicador creados")
+	#print("✅ Componentes visuales del indicador creados")
 
 func _create_arrow():
 	"""Crear la flecha que apunta al norte"""
@@ -55,7 +55,7 @@ func _create_arrow():
 	material.no_depth_test = true  # Siempre visible
 	arrow_mesh.set_surface_override_material(0, material)
 	
-	print("🔴 Flecha norte creada")
+	#print("🔴 Flecha norte creada")
 
 func _create_compass_ring():
 	"""Crear anillo de brújula sutil"""
@@ -74,7 +74,7 @@ func _create_compass_ring():
 	material.no_depth_test = true
 	compass_ring.set_surface_override_material(0, material)
 	
-	print("⭕ Anillo de brújula creado")
+	#print("⭕ Anillo de brújula creado")
 
 func _create_north_label():
 	"""Crear etiqueta 'N' para el norte"""
@@ -86,7 +86,7 @@ func _create_north_label():
 	north_label.billboard = BaseMaterial3D.BILLBOARD_ENABLED
 	add_child(north_label)
 	
-	print("📝 Etiqueta norte creada")
+	#print("📝 Etiqueta norte creada")
 
 func _create_arrow_mesh() -> ArrayMesh:
 	"""Crear mesh personalizado de flecha"""
@@ -187,7 +187,7 @@ func setup_for_model(bounds: AABB):
 	scale_factor = max(model_size * 0.3, 0.5)  # Mínimo 0.5, máximo proporcional
 	scale = Vector3.ONE * scale_factor
 	
-	print("🧭 Indicador configurado - Centro: %s, Escala: %.2f" % [str(center), scale_factor])
+	#print("🧭 Indicador configurado - Centro: %s, Escala: %.2f" % [str(center), scale_factor])
 
 func set_north_angle(angle_degrees: float):
 	"""Establecer la orientación norte"""
@@ -206,19 +206,19 @@ func set_north_angle(angle_degrees: float):
 			cos(rad_angle) * label_distance
 		)
 	
-	print("🧭 Norte actualizado: %.1f°" % angle_degrees)
+	#print("🧭 Norte actualizado: %.1f°" % angle_degrees)
 
 func show_indicator():
 	"""Mostrar el indicador"""
 	set_visible(true)
 	is_indicator_visible = true
-	print("👁️ Indicador norte mostrado")
+	#print("👁️ Indicador norte mostrado")
 
 func hide_indicator():
 	"""Ocultar el indicador"""
 	set_visible(false)
 	is_indicator_visible = false
-	print("🙈 Indicador norte oculto")
+	#print("🙈 Indicador norte oculto")
 
 func toggle_indicator():
 	"""Alternar visibilidad del indicador"""
@@ -238,7 +238,7 @@ func _input(event):
 		# Aquí podrías implementar arrastrar para rotar
 		# Por ahora solo emitir señal de clic
 		emit_signal("indicator_clicked")
-		print("🖱️ Indicador clickeado")
+		#print("🖱️ Indicador clickeado")
 
 # === UTILIDADES ===
 
@@ -254,11 +254,11 @@ func get_visual_info() -> Dictionary:
 
 func debug_indicator_state():
 	"""Debug del estado del indicador"""
-	print("\n=== NORTH INDICATOR DEBUG ===")
+	#print("\n=== NORTH INDICATOR DEBUG ===")
 	var info = get_visual_info()
-	for key in info:
-		print("  %s: %s" % [key, str(info[key])])
-	print("==============================\n")
+	#for key in info:
+		#print("  %s: %s" % [key, str(info[key])])
+	#print("==============================\n")
 
 # === FUNCIONES DE CONFIGURACIÓN ===
 
@@ -273,4 +273,4 @@ func set_indicator_size(size_multiplier: float):
 	"""Ajustar tamaño del indicador"""
 	scale_factor = size_multiplier
 	scale = Vector3.ONE * scale_factor
-	print("📏 Tamaño del indicador ajustado: %.2f" % size_multiplier)
+	#print("📏 Tamaño del indicador ajustado: %.2f" % size_multiplier)
