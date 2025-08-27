@@ -129,6 +129,102 @@ func combine_base_with_animation(base_data: Dictionary, animation_data: Dictiona
 	emit_signal("combination_complete", combined_root)
 	return combined_root
 
+
+
+
+func combine_base_with_animation_for_transition(base_data: Dictionary, animation_data: Dictionary) -> Node3D:
+	print("\n=== INICIANDO COMBINACIÓN CON METADATOS ===")
+	print("Base: %s (%d huesos)" % [base_data.skeleton.name, base_data.get("bone_count", 0)])
+	print("Anim: %s (%d huesos)" % [animation_data.skeleton.name, animation_data.get("bone_count", 0)])
+	
+	# Crear un nuevo nodo raíz para el modelo combinado
+	var combined_root = Node3D.new()
+	combined_root.name = animation_data.get("display_name", animation_data.name)
+	
+	# ✅ CRÍTICO: Almacenar metadatos en el modelo combinado
+	_store_metadata_in_combined_model(combined_root, base_data, animation_data)
+	
+	# Duplicar el skeleton del modelo base
+	var new_skeleton = _duplicate_skeleton(base_data.skeleton)
+	if not new_skeleton:
+		print("❌ Error al duplicar skeleton")
+		emit_signal("combination_failed", "Error al duplicar skeleton")
+		combined_root.queue_free()
+		return null
+	
+	# IMPORTANTE: Dar nombre específico al nuevo skeleton para retargeting
+	new_skeleton.name = "Skeleton3D_combined"
+	combined_root.add_child(new_skeleton)
+	print("✅ Skeleton duplicado: %s con %d huesos" % [new_skeleton.name, new_skeleton.get_bone_count()])
+	
+	# Añadir los meshes del modelo base al nuevo skeleton
+	var meshes_to_use = base_meshes_cache if base_meshes_cache.size() > 0 else base_data.meshes
+	print("DEBUG: Usando %s mesh data (%d meshes)" % [
+		"cached mejorado" if meshes_to_use == base_meshes_cache else "original fbx_loader", 
+		meshes_to_use.size()
+	])
+	
+	_attach_meshes_to_skeleton(meshes_to_use, new_skeleton)
+	print("✅ Meshes anexados: %d" % meshes_to_use.size())
+	
+	# Copiar el AnimationPlayer de la animación
+	var new_anim_player = _setup_animation_player_for_transition(animation_data.animation_player, animation_data.skeleton, new_skeleton)
+	if not new_anim_player:
+		print("❌ Error al configurar AnimationPlayer")
+		emit_signal("combination_failed", "Error al configurar AnimationPlayer")
+		combined_root.queue_free()
+		return null
+	
+	combined_root.add_child(new_anim_player)
+	print("✅ AnimationPlayer configurado: %d animaciones" % new_anim_player.get_animation_list().size())
+	
+	# CORRECCIÓN CRÍTICA: Usar el nuevo sistema de retargeting
+	var retargeting_success = _retarget_animations_fixed(new_anim_player, animation_data.skeleton, new_skeleton)
+	if not retargeting_success:
+		print("❌ Error crítico en retargeting de animaciones")
+		emit_signal("combination_failed", "Error en retargeting de animaciones")
+		combined_root.queue_free()
+		return null
+	
+	print("✅ Animaciones retargeteadas correctamente")
+	
+	# NUEVO: Configurar loops infinitos en todas las animaciones
+	loop_manager.setup_infinite_loops(new_anim_player)
+	print("🔄 Loops infinitos configurados")
+	
+	##########################################################
+	##########################################################
+	##########################################################
+	
+	
+# Aplicar la pose inicial de la NUEVA animación
+	# Aplicar la pose inicial de la ÚLTIMA animación disponible
+	var animation_list = new_anim_player.get_animation_list()
+	if animation_list.size() > 0:
+		var last_index = animation_list.size() - 1
+		var target_anim_name = animation_list[last_index]
+
+		print("✅ Aplicando pose inicial (última animación): %s" % target_anim_name)
+
+		# Configurar loop y aplicar pose inicial de forma segura
+		var anim_lib = new_anim_player.get_animation_library("")
+		var animation = anim_lib.get_animation(target_anim_name)
+		if animation:
+			animation.loop_mode = Animation.LOOP_LINEAR
+
+		# Como el AnimationPlayer ya está en el modelo combinado, puede usar play directamente
+		new_anim_player.play(target_anim_name)
+
+
+	
+	print("✅ Combinación completada exitosamente con metadatos")
+	emit_signal("combination_complete", combined_root)
+	return combined_root
+
+
+
+
+
 # ✅ FUNCIÓN NUEVA: Almacenar metadatos en el modelo combinado
 func _store_metadata_in_combined_model(combined_root: Node3D, base_data: Dictionary, animation_data: Dictionary) -> void:
 	print("📝 ALMACENANDO METADATOS EN MODELO COMBINADO")
@@ -182,7 +278,7 @@ func _store_metadata_in_combined_model(combined_root: Node3D, base_data: Diction
 	print("  - Total animaciones en cache: %d" % all_animations_metadata.size())
 	for anim_name in all_animations_metadata.keys():
 		var anim_meta = all_animations_metadata[anim_name]
-		print("    • %s -> %s" % [anim_name, anim_meta.get("display_name", "Sin nombre")])
+		#print("    • %s -> %s" % [anim_name, anim_meta.get("display_name", "Sin nombre")])
 
 
 
@@ -336,7 +432,7 @@ func _duplicate_skeleton(original_skeleton: Skeleton3D) -> Skeleton3D:
 		if bone_name.contains("Hips") or bone_name.contains("Spine") or bone_name.contains("Head"):
 			print("  ✅ Hueso crítico preservado: %s" % bone_name)
 		
-		print("  Hueso copiado: %s (índice %d)" % [bone_name, i])
+		#print("  Hueso copiado: %s (índice %d)" % [bone_name, i])
 	
 	print("Skeleton duplicado: %d huesos reales" % new_skeleton.get_bone_count())
 	return new_skeleton
@@ -411,7 +507,7 @@ func _retarget_skin_to_skeleton(original_skin: Skin, target_skeleton: Skeleton3D
 			new_skin.add_bind(bone_index, bind_pose)
 			new_skin.set_bind_name(new_skin.get_bind_count() - 1, bind_name)
 			successful_binds += 1
-			print("        ✅ Bind mapeado: %s -> índice %d" % [bind_name, bone_index])
+			#print("        ✅ Bind mapeado: %s -> índice %d" % [bind_name, bone_index])
 		else:
 			print("        ❌ Hueso no encontrado: %s" % bind_name)
 	
@@ -604,6 +700,55 @@ func _setup_animation_player(original_player: AnimationPlayer, _original_skeleto
 	print("📤 Retornando AnimationPlayer (padre removido si era necesario)")
 	
 	return target_player
+
+
+
+func _setup_animation_player_for_transition(original_player: AnimationPlayer, _original_skeleton: Skeleton3D, _new_skeleton: Skeleton3D) -> AnimationPlayer:
+	print("--- CONFIGURANDO ANIMATION PLAYER (_setup_animation_player_for_transition) ---")
+	if not original_player:
+		print("❌ No hay AnimationPlayer original")
+		return null
+	
+	var target_player: AnimationPlayer
+	var anim_library: AnimationLibrary
+	
+	# PASO 1: Determinar si usar AnimationPlayer existente o crear nuevo
+	
+	print(" creando AnimationPlayer nuevo")
+	target_player = AnimationPlayer.new()
+	target_player.name = "AnimationPlayer"
+	
+	# Crear biblioteca de animaciones vacía
+	anim_library = AnimationLibrary.new()
+	target_player.add_animation_library("", anim_library)
+	
+	# Configurar root_node relativo al modelo combinado
+	target_player.root_node = NodePath("..")
+	
+	# Almacenar referencia para futuras llamadas
+	current_building_animation_player = target_player
+	print("✅ AnimationPlayer creado y almacenado")
+	
+	# PASO 2: Agregar todas las animaciones del original_player al target_player
+	var added_count = 0
+	for anim_name in original_player.get_animation_list():
+		var original_anim = original_player.get_animation(anim_name)
+		if original_anim:
+			# Verificar si la animación ya existe
+			if anim_library.has_animation(anim_name):
+				print("  ⚠️  Animación '%s' ya existe, sobrescribiendo..." % anim_name)
+			
+			# Duplicar y agregar la animación
+			var new_anim = original_anim.duplicate(true)
+			anim_library.add_animation(anim_name, new_anim)
+			added_count += 1
+			print("  ✅ Animación agregada: %s (%.2fs)" % [anim_name, new_anim.length])
+	
+	print("📊 Resumen: %d animaciones agregadas, total actual: %d" % [added_count, target_player.get_animation_list().size()])
+
+	return target_player
+
+
 
 # FUNCIÓN NUEVA: Limpiar el AnimationPlayer en construcción (LLAMAR CUANDO USUARIO REINICIE)
 func _reset_building_animation_player() -> void:

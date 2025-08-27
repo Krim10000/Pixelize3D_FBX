@@ -438,7 +438,7 @@ func on_validation_result(is_valid: bool, message: String):
 		status_label.text = "❌ " + message
 
 func on_transition_progress(current: int, total: int):
-	"""Callback de progreso"""
+	"""Callback de progreso - acepta solo 2 parámetros para compatibilidad"""
 	var percentage = float(current) / float(total) * 100.0
 	progress_bar.value = percentage
 	status_label.text = "🎬 Generando... %d/%d (%.0f%%)" % [current, total, percentage]

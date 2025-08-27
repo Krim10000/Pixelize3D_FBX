@@ -20,6 +20,9 @@ var preview_section: Control
 var preview_enabled: bool = false
 var preview_panel: Control
 
+# Control de diálogos
+var error_dialog_open: bool = false
+
 func _ready():
 	print("🚀 TransitionGeneratorMain inicializando...")
 	_setup_ui()
@@ -488,8 +491,9 @@ func _on_validation_complete(is_valid: bool, message: String):
 	print("🔍 Validación: %s - %s" % [("✅" if is_valid else "❌"), message])
 	transition_panel.on_validation_result(is_valid, message)
 
-func _on_transition_progress(current: int, total: int):
+func _on_transition_progress(current: int, total: int, stage: String):
 	"""Manejar progreso de transición"""
+	print("📊 Progreso: %d/%d (%s)" % [current, total, stage])
 	transition_panel.on_transition_progress(current, total)
 
 func _on_transition_complete(output_name: String):
@@ -596,15 +600,29 @@ func _show_success_dialog(output_name: String):
 	success_dialog.popup_centered(Vector2i(400, 200))
 	success_dialog.confirmed.connect(func(): success_dialog.queue_free())
 
+#var error_dialog_open: bool = false
+
 func _show_error_dialog(error_message: String):
 	"""Mostrar diálogo de error"""
+	# Prevenir múltiples diálogos abiertos
+	if error_dialog_open:
+		print("⚠️ Diálogo de error ya abierto, ignorando: %s" % error_message)
+		return
+	
+	error_dialog_open = true
+	
 	var error_dialog = AcceptDialog.new()
 	error_dialog.title = "❌ Error"
 	error_dialog.dialog_text = "Error generando la transición:\n\n" + error_message + "\n\nRevisa la configuración y archivos cargados."
 	
 	add_child(error_dialog)
 	error_dialog.popup_centered(Vector2i(450, 200))
-	error_dialog.confirmed.connect(func(): error_dialog.queue_free())
+	
+	# Limpiar flag cuando se cierre
+	error_dialog.confirmed.connect(func(): 
+		error_dialog_open = false
+		error_dialog.queue_free()
+	)
 
 func _create_title_style() -> StyleBox:
 	"""Crear estilo para la barra de título"""

@@ -292,6 +292,10 @@ func _execute_transition_generation() -> bool:
 	var combined_a = await _create_combined_model(base_data, animation_a_data)
 	var combined_b = await _create_combined_model(base_data, animation_b_data)
 	
+	print("=== VERIFICACIÓN DE MODELOS COMBINADOS ===")
+	print("Combined A tiene AnimationPlayer:", combined_a.has_node("AnimationPlayer"))
+	print("Combined B tiene AnimationPlayer:", combined_b.has_node("AnimationPlayer"))
+	
 	if not combined_a or not combined_b:
 		_emit_error("Error creando modelos combinados")
 		return false
@@ -299,9 +303,16 @@ func _execute_transition_generation() -> bool:
 	current_stage = "extracting_poses"
 	emit_signal("transition_progress", 30, 100, current_stage)
 	
-	# 2. Extraer poses de inicio y final
-	var pose_a_final = _extract_final_pose(combined_a, animation_a_data.get("name", ""))
+	
 	var pose_b_initial = _extract_initial_pose(combined_b, animation_b_data.get("name", ""))
+	#print("pose_b_initial") funciona
+	#print(pose_b_initial) funciona
+	
+	
+	var pose_a_final = _extract_final_pose(combined_a, animation_a_data.get("name", ""))
+	print("pose_a_final")
+	print(pose_a_final) #error
+	
 	
 	if pose_a_final.is_empty() or pose_b_initial.is_empty():
 		_emit_error("Error extrayendo poses de transición")
@@ -342,25 +353,65 @@ func _create_combined_model(base: Dictionary, animation: Dictionary) -> Node3D:
 		return null
 	
 	if animation_manager.has_method("combine_base_with_animation"):
-		var combined = animation_manager.combine_base_with_animation(base, animation)
+		var combined = animation_manager.combine_base_with_animation_for_transition(base, animation)
+		print("                                       func _create_combined_model")
+		print("OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO Combined  tiene AnimationPlayer:", combined.has_node("AnimationPlayer"))
 		
 		if not combined or not is_instance_valid(combined):
 			_emit_error("Error en combinación base + animación")
+			print("============================= ERROR ")
+			print("Error en combinación base + animación")			
 			return null
 		
+		
+		print("============================= EXITO ")
 		return combined
 	else:
 		_emit_error("AnimationManager no tiene método combine_base_with_animation")
+		
+		print("============================= ERROR ")
+		print("AnimationManager no tiene método combine_base_with_animation")
 		return null
+#func _extract_final_pose(model: Node3D, animation_name: String) -> Dictionary:
+	#"""Extraer pose final de una animación"""
+	#var anim_player_2 = model.get_node_or_null("AnimationPlayer")
+	#print("anim_player")
+	#print(anim_player_2)
+	##if not anim_player or not anim_player.has_animation(animation_name):
+	##
+		##print("_extract_final_pose return {}")
+		##return {}
+	#print( animation_a_data.get("name", ""))
+	#var animation = anim_player_2.get_animation( animation_a_data.get("name", ""))
+	#
+	#print("animation")
+	#print(animation)
+	#var final_time = animation.length
+	#print("final_time")
+	#print(final_time)
+	## Establecer pose al final de la animación
+	#anim_player_2.play(animation_name)
+	#anim_player_2.seek(final_time, true)
+	#anim_player_2.advance(0.0)
+	#
+	#return skeleton_interpolator.extract_skeleton_pose(model)
 
 func _extract_final_pose(model: Node3D, animation_name: String) -> Dictionary:
 	"""Extraer pose final de una animación"""
 	var anim_player = model.get_node_or_null("AnimationPlayer")
+	print("anim_player: ", anim_player)
+	
+	# Verificar existencia del AnimationPlayer y la animación (CRUCIAL)
 	if not anim_player or not anim_player.has_animation(animation_name):
+		print("_extract_final_pose: AnimationPlayer o animación no encontrados")
 		return {}
 	
+	# Usar el parámetro animation_name en lugar de animation_a_data
 	var animation = anim_player.get_animation(animation_name)
+	print("animation: ", animation)
+	
 	var final_time = animation.length
+	print("final_time: ", final_time)
 	
 	# Establecer pose al final de la animación
 	anim_player.play(animation_name)
@@ -372,7 +423,10 @@ func _extract_final_pose(model: Node3D, animation_name: String) -> Dictionary:
 func _extract_initial_pose(model: Node3D, animation_name: String) -> Dictionary:
 	"""Extraer pose inicial de una animación"""
 	var anim_player = model.get_node_or_null("AnimationPlayer")
+	print("var anim_player = model.get_node_or_null(AnimationPlayer)")
+	print(anim_player)
 	if not anim_player or not anim_player.has_animation(animation_name):
+		print("_extract_initial_pose, return {}")
 		return {}
 	
 	# Establecer pose al inicio de la animación
