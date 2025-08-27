@@ -28,12 +28,15 @@ script = ExtResource("1_gl66s")
 metadata/_edit_use_anchors_ = true
 
 [node name="FBXLoader" type="Node" parent="."]
+unique_name_in_owner = true
 script = ExtResource("2_yh1ys")
 
 [node name="AnimationManager" type="Node" parent="."]
+unique_name_in_owner = true
 script = ExtResource("3_xctl6")
 
 [node name="SpriteRenderer" type="Node3D" parent="."]
+unique_name_in_owner = true
 script = ExtResource("4_yifrl")
 
 [node name="HSplitContainer" type="HSplitContainer" parent="."]

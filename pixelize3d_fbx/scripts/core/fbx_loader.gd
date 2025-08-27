@@ -146,6 +146,68 @@ func _handle_external_fbx(external_path: String) -> String:
 	
 	return temp_path
 
+#func _analyze_fbx_simple(root: Node3D, type: String, anim_name: String, original_path: String) -> Dictionary:
+	#"""Análisis simplificado sin loops"""
+	#print("🔍 Analizando estructura FBX...")
+	#
+	## ✅ CRÍTICO: Para animaciones, usar SIEMPRE el basename del archivo
+	#var final_name = anim_name
+	#if type == "animation":
+		#final_name = original_path.get_file().get_basename()
+		#print("🎯 Nombre final para animación: '%s'" % final_name)
+	#
+	#var data = {
+		#"type": type,
+	   ##"name": final_name if final_name != "" else root.name,
+		#"name": StringName(final_name) if final_name != "" else root.name,
+		#"skeleton": null,
+		#"meshes": [],
+		#"animations": [],
+		#"animation_player": null,
+		#"bone_count": 0,
+		#"bounds": AABB(),
+		## Metadatos básicos
+		#"original_filename": original_path.get_file(),
+		#"display_name": _generate_display_name(original_path.get_file().get_basename()),
+		#"file_metadata": {
+			#"filename": original_path.get_file(),
+			#"basename": original_path.get_file().get_basename(),
+			#"full_path": original_path,
+			#"display_name": _generate_display_name(original_path.get_file().get_basename())
+		#}
+	#}
+	#
+	## Buscar skeleton
+	#var skeleton = _find_skeleton(root)
+	#if not skeleton:
+		#print("❌ No se encontró Skeleton3D")
+		#return {}
+	#
+	#data.skeleton = skeleton
+	#data.bone_count = skeleton.get_bone_count()
+	#print("✅ Skeleton encontrado: %d huesos" % data.bone_count)
+	#
+	## Buscar AnimationPlayer
+	#var anim_player = _find_animation_player(root)
+	#if anim_player:
+		#data.animation_player = anim_player
+		#data.animations = anim_player.get_animation_list()
+		#print("✅ AnimationPlayer: %d animaciones" % data.animations.size())
+		#
+		## ✅ CRÍTICO: SOLO para animaciones específicas, renombrar la primera animación
+		#if type == "animation" and final_name != "" and data.animations.size() > 0:
+			#_rename_first_animation_only(anim_player, final_name)
+	#else:
+		#print("⚠️ No se encontró AnimationPlayer")
+	#
+	## Extraer meshes solo para modelos base
+	#if type == "base":
+		#data.meshes = _extract_meshes_simple(skeleton)
+		#print("✅ Meshes extraídos: %d" % data.meshes.size())
+	#
+	#return data
+
+
 func _analyze_fbx_simple(root: Node3D, type: String, anim_name: String, original_path: String) -> Dictionary:
 	"""Análisis simplificado sin loops"""
 	print("🔍 Analizando estructura FBX...")
@@ -158,7 +220,6 @@ func _analyze_fbx_simple(root: Node3D, type: String, anim_name: String, original
 	
 	var data = {
 		"type": type,
-	   #"name": final_name if final_name != "" else root.name,
 		"name": StringName(final_name) if final_name != "" else root.name,
 		"skeleton": null,
 		"meshes": [],
@@ -204,8 +265,14 @@ func _analyze_fbx_simple(root: Node3D, type: String, anim_name: String, original
 	if type == "base":
 		data.meshes = _extract_meshes_simple(skeleton)
 		print("✅ Meshes extraídos: %d" % data.meshes.size())
+		
+		# ✅ CORRECCIÓN CRÍTICA: Para el modelo base, restar meshes del conteo de huesos
+		var original_bone_count = data.bone_count
+		data.bone_count = data.bone_count - data.meshes.size()
+		print("🔧 Corrección bone_count: %d - %d = %d huesos reales" % [original_bone_count, data.meshes.size(), data.bone_count])
 	
 	return data
+
 
 func _rename_first_animation_only(anim_player: AnimationPlayer, target_name: String):
 	"""Renombrar SOLO la primera animación, evitando loops"""

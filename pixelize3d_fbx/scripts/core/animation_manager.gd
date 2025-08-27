@@ -184,61 +184,6 @@ func _store_metadata_in_combined_model(combined_root: Node3D, base_data: Diction
 		var anim_meta = all_animations_metadata[anim_name]
 		print("    • %s -> %s" % [anim_name, anim_meta.get("display_name", "Sin nombre")])
 
-# ✅ NUEVA FUNCIÓN: Combinar con múltiples animaciones
-#func combine_base_with_multiple_animations(base_data: Dictionary, animations_data: Dictionary) -> Node3D:
-	#"""Función mejorada para combinar base con múltiples animaciones preservando metadatos"""
-	#print("\n=== COMBINACIÓN CON MÚLTIPLES ANIMACIONES ===")
-	#print("Base: %s" % base_data.get("display_name", base_data.get("name", "Unknown")))
-	#print("Animaciones a combinar: %d" % animations_data.size())
-	#
-	## Registrar metadatos de todas las animaciones
-	#register_multiple_animations_metadata(animations_data)
-	#
-	## Usar la primera animación como base para la combinación
-	#var first_anim_name = animations_data.keys()[0]
-	#var first_anim_data = animations_data[first_anim_name]
-	#
-	## Realizar combinación base
-	#var combined_model = combine_base_with_animation(base_data, first_anim_data)
-	#
-	#if not combined_model:
-		#return null
-	#
-	## Agregar las demás animaciones al AnimationPlayer
-	#var anim_player = combined_model.get_node_or_null("AnimationPlayer")
-	#if anim_player:
-		#var added_animations = 0
-		#var anim_lib = anim_player.get_animation_library("")
-		#
-		#for anim_name in animations_data.keys():
-			#if anim_name == first_anim_name:
-				#continue  # Ya está incluida
-			#
-			#var anim_data = animations_data[anim_name]
-			#if anim_data.has("animation_player") and anim_data.animation_player:
-				## Copiar animaciones adicionales
-				#for extra_anim_name in anim_data.animation_player.get_animation_list():
-					#var extra_animation = anim_data.animation_player.get_animation(extra_anim_name)
-					#if extra_animation:
-						#var new_anim = extra_animation.duplicate(true)
-						#anim_lib.add_animation(anim_name, new_anim)  # Usar el nombre del archivo, no el nombre técnico
-						#added_animations += 1
-						#print("  ✅ Agregada animación: %s" % anim_name)
-		#
-		#print("✅ Total animaciones en modelo combinado: %d" % (anim_player.get_animation_list().size()))
-		#
-		## Actualizar metadatos con información de animaciones múltiples
-		#var combination_info = combined_model.get_meta("combination_info", {})
-		#combination_info["animations_count"] = anim_player.get_animation_list().size()
-		#combined_model.set_meta("combination_info", combination_info)
-	#
-	#return combined_model
-	## ✅ FORZAR POSE INICIAL DE LA ÚLTIMA ANIMACIÓN
-	#if anim_player and anim_player.get_animation_list().size() > 0:
-		#var anims = anim_player.get_animation_list()
-		#var last_anim = anims[anims.size() - 1]
-		#print("✅ Reproduciendo animación final agregada: %s" % last_anim)
-		#anim_player.play(last_anim)
 
 
 func combine_base_with_multiple_animations(base_data: Dictionary, animations_data: Dictionary) -> Node3D:
@@ -396,38 +341,8 @@ func _duplicate_skeleton(original_skeleton: Skeleton3D) -> Skeleton3D:
 	print("Skeleton duplicado: %d huesos reales" % new_skeleton.get_bone_count())
 	return new_skeleton
 
-# FUNCIÓN EXISTENTE: Setup de AnimationPlayer (sin cambios significativos)
-#func _setup_animation_player(original_player: AnimationPlayer, _original_skeleton: Skeleton3D, _new_skeleton: Skeleton3D) -> AnimationPlayer:
-	#print("--- CONFIGURANDO ANIMATION PLAYER ---")
-	#if not original_player:
-		#print("❌ No hay AnimationPlayer original")
-		#return null
-	#
-	#var new_player = AnimationPlayer.new()
-	#new_player.name = "AnimationPlayer"
-	#
-	## Crear biblioteca de animaciones
-	#var anim_library = AnimationLibrary.new()
-	#new_player.add_animation_library("", anim_library)
-	#
-	## Copiar todas las animaciones
-	#for anim_name in original_player.get_animation_list():
-		#var original_anim = original_player.get_animation(anim_name)
-		#if original_anim:
-			#var new_anim = original_anim.duplicate(true)
-			#anim_library.add_animation(anim_name, new_anim)
-			#print("  Animación copiada: %s (%.2fs)" % [anim_name, new_anim.length])
-	#
-	## IMPORTANTE: Configurar root_node relativo al modelo combinado
-	#new_player.root_node = NodePath("..")
-	#
-	#return new_player
 
 
-
-
-
-# FUNCIÓN EXISTENTE: Anexar meshes al skeleton (con mejoras menores)
 func _attach_meshes_to_skeleton(mesh_data_array: Array, skeleton: Skeleton3D) -> void:
 	print("--- ANEXANDO MESHES ---")
 	
@@ -509,7 +424,6 @@ func _retarget_skin_to_skeleton(original_skin: Skin, target_skeleton: Skeleton3D
 		print("      ❌ Muy pocos binds exitosos para un skin funcional")
 		return null
 
-# FUNCIÓN EXISTENTE: Extraer meshes del skeleton (sin cambios significativos)
 func _extract_meshes_from_skeleton(skeleton: Skeleton3D) -> Array:
 	var meshes = []
 	
@@ -636,16 +550,6 @@ func add_animation_to_base_model(animation_player: AnimationPlayer, animation: A
 	animation_player.add_animation(anim_id, animation)
 	print("✅ Animación '%s' agregada al modelo base" % anim_id)
 
-
-
-# scripts/core/animation_manager.gd
-# REEMPLAZO DE _setup_animation_player
-# Input: original_player (AnimationPlayer de la nueva animación), _original_skeleton, _new_skeleton
-# Output: AnimationPlayer único con todas las animaciones agregadas
-
-# Variable de instancia para rastrear el AnimationPlayer en construcción
-
-# FUNCIÓN REEMPLAZADA: Setup de AnimationPlayer (LÓGICA COMPATIBLE SIN MODIFICAR combine_base_with_animation)
 func _setup_animation_player(original_player: AnimationPlayer, _original_skeleton: Skeleton3D, _new_skeleton: Skeleton3D) -> AnimationPlayer:
 	print("--- CONFIGURANDO ANIMATION PLAYER (NUEVO) ---")
 	if not original_player:
