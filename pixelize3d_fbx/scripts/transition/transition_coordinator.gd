@@ -447,6 +447,8 @@ func _render_transition_animation(transition_frames: Array) -> bool:
 	var transition_model = await _create_transition_model(transition_frames)
 	
 	if not transition_model:
+		print("transition_model")
+		print(transition_model)
 		_emit_error("Error creando modelo de transición")
 		return false
 	
