@@ -243,54 +243,6 @@ func _configure_camera_for_rendering(settings: Dictionary):
 		print("✅ Configuración de cámara aplicada para renderizado")
 
 
-# ========================================================================
-# RENDERIZADO DE ANIMACIONES - MODIFICADO PARA USAR CÁMARA COMPARTIDA
-# ========================================================================
-
-#func render_animation(model: Node3D, animation_name: String, angle: float, direction_index: int):
-	#"""Renderizar animación usando la cámara compartida del preview"""
-	#
-	## Validaciones
-	#if not _validate_shared_render_prerequisites():
-		#emit_signal("animation_complete", animation_name)
-		#return
-		#
-	#if not is_instance_valid(model):
-		#push_error("❌ Modelo no es válido para renderizado")
-		#emit_signal("animation_complete", animation_name)
-		#return
-	#
-	#if is_rendering:
-		#print("⚠️ Ya hay un renderizado en proceso")
-		#emit_signal("animation_complete", animation_name)
-		#return
-	#
-	#print("🎬 Renderizando con cámara compartida: %s, dirección %d, ángulo %.1f°" % [animation_name, direction_index, angle])
-	#
-	#is_rendering = true
-	#current_animation = animation_name
-	#current_direction = direction_index
-	#current_frame = 0
-	#
-	## ✅ CRÍTICO: Preparar viewport compartido para renderizado
-	#_switch_to_render_mode(model, angle)
-	#
-	## Obtener información de la animación
-	#var anim_player = current_model.get_node_or_null("AnimationPlayer")
-	#if anim_player and anim_player.has_animation(animation_name):
-		#var anim = anim_player.get_animation(animation_name)
-		#var fps = render_settings.get("fps", 30)
-		#total_frames = int(anim.length * fps)
-		#
-		#print("📊 Animación: %s, %.1fs, %d frames a %d FPS" % [animation_name, anim.length, total_frames, fps])
-		#
-		## Iniciar renderizado de frames
-		#_render_next_frame()
-	#else:
-		## Si no hay animación, renderizar un solo frame
-		#total_frames = 1
-		#_render_static_frame()
-
 
 
 func render_animation(model: Node3D, animation_name: String, angle: float, direction_index: int):
@@ -355,11 +307,6 @@ func _switch_to_render_mode(model: Node3D, angle: float):
 	"""Cambiar viewport compartido a modo renderizado"""
 	#print("🔄 Cambiando a modo renderizado...")
 	
-	## ✅ NUEVO: Backup del modelo actual del preview
-	#if model_container and model_container.get_child_count() > 0:
-		#render_backup_model = model_container.get_child(0)
-		##print("💾 Backup del modelo del preview realizado")
-	#
 	# Limpiar container y añadir modelo para renderizado
 	_safe_switch_model_in_container(model)
 	

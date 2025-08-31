@@ -36,7 +36,7 @@ func _setup_ui():
 	
 	# Título de la aplicación
 	var title_bar = _create_title_bar()
-	add_child(title_bar)
+	#add_child(title_bar)
 	print("✅ Título creado")
 	
 	# Container principal con 3 columnas horizontales
@@ -77,7 +77,7 @@ func _create_title_bar() -> Control:
 	title_container.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	
 	var title = Label.new()
-	title.text = "🔄 Generador de Transiciones - Pixelize3D"
+	title.text = "Generador de Transiciones - Pixelize3D"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	title.add_theme_font_size_override("font_size", 18)
 	title.add_theme_stylebox_override("normal", _create_title_style())
@@ -92,14 +92,14 @@ func _create_files_column() -> Control:
 	
 	# Título
 	var title = Label.new()
-	title.text = "📁 Carga"
+	title.text = "Carga"
 	title.add_theme_font_size_override("font_size", 16)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(title)
 	
 	# Botón de selección
 	var browse_button = Button.new()
-	browse_button.text = "📂 Seleccionar Carpeta..."
+	browse_button.text = "Seleccionar Carpeta..."
 	browse_button.custom_minimum_size.y = 40
 	column.add_child(browse_button)
 	
@@ -124,7 +124,7 @@ func _create_config_column() -> Control:
 	
 	# Título
 	var title = Label.new()
-	title.text = "⚙️ Configuración"
+	title.text = "Configuración"
 	title.add_theme_font_size_override("font_size", 16)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(title)
@@ -143,7 +143,7 @@ func _create_preview_column() -> Control:
 	
 	# Título
 	var title = Label.new()
-	title.text = "👁️ Vista Previa"
+	title.text = "Vista Previa"
 	title.add_theme_font_size_override("font_size", 16)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	column.add_child(title)
@@ -540,7 +540,7 @@ func _show_help():
 📋 PASOS PARA USAR (AUTOMÁTICO):
 
 1️⃣ Seleccionar Carpeta:
-   • Click "📂 Seleccionar Carpeta..."
+   • Click "Seleccionar Carpeta..."
    • Navega a una carpeta con archivos FBX
    • El sistema detectará automáticamente:
 	 ✅ Base: archivo con 'base' en el nombre

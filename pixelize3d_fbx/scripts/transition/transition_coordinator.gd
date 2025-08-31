@@ -1,565 +1,634 @@
-# pixelize3d_fbx/scripts/transition/transition_coordinator.gd
-# Coordinador principal para el sistema de transiciones de animaciones
-# Input: Base FBX + dos animaciones FBX, parámetros de transición
-# Output: Sprite sheet de transición suave entre animaciones
-
-extends Node
-class_name TransitionCoordinator
-
-# Señales
-signal transition_started(anim_from: String, anim_to: String)
-signal transition_progress(current_frame: int, total_frames: int, stage: String)
-signal transition_complete(output_path: String)
-signal transition_failed(error: String)
-signal validation_complete(is_valid: bool, message: String)
-signal resource_loaded(loaded_type: String, success: bool)
-
-# Referencias a sistemas existentes
-var fbx_loader: Node
-var animation_manager: Node
-var sprite_renderer: Node
-
-# Configuración de transición
-var transition_config: Dictionary = {
-	"duration": 0.5,
-	"transition_frames": 20,
-	"interpolation_curve": "ease_in_out",
-	"fps": 20,
-	"output_path": "user://transitions/",
-	"sprite_size": 128
-}
-
-# Datos de entrada
-var base_data: Dictionary = {}
-var animation_a_data: Dictionary = {}
-var animation_b_data: Dictionary = {}
-
-# Estado interno
-var is_generating_transition: bool = false
-var current_transition_model: Node3D
-var loaded_resources: Dictionary = {}
-var current_stage: String = ""
-
-# Interpolador de esqueletos
-var skeleton_interpolator: TransitionInterpolator
-
-func _ready():
-	print("📄 TransitionCoordinator inicializado")
-	_initialize_components()
-
-func _initialize_components():
-	"""Inicializar componentes del sistema"""
-	
-	# Crear interpolador de esqueletos
-	if not skeleton_interpolator:
-		skeleton_interpolator = TransitionInterpolator.new()
-		add_child(skeleton_interpolator)
-	
-	# Cargar e instanciar scripts existentes del sistema
-	_load_system_scripts()
-	
-	print("✅ Componentes de transición inicializados")
-
-func _load_system_scripts():
-	"""Cargar e instanciar los scripts existentes del sistema"""
-	print("📚 Cargando scripts existentes del sistema...")
-	
-	# Cargar FBXLoader
-	var fbx_loader_script = load("res://scripts/core/fbx_loader.gd")
-	if fbx_loader_script:
-		fbx_loader = fbx_loader_script.new()
-		fbx_loader.name = "FBXLoader"
-		add_child(fbx_loader)
-		
-		# Conectar señales si es necesario
-		if fbx_loader.has_signal("model_loaded"):
-			if not fbx_loader.model_loaded.is_connected(_on_model_loaded):
-				fbx_loader.model_loaded.connect(_on_model_loaded)
-		
-		print("✅ FBXLoader instanciado desde script existente")
-	else:
-		push_error("❌ No se pudo cargar scripts/core/fbx_loader.gd")
-	
-	# Cargar AnimationManager
-	var animation_manager_script = load("res://scripts/core/animation_manager.gd")
-	if animation_manager_script:
-		animation_manager = animation_manager_script.new()
-		animation_manager.name = "AnimationManager"
-		add_child(animation_manager)
-		
-		print("✅ AnimationManager instanciado desde script existente")
-	else:
-		push_error("❌ No se pudo cargar scripts/core/animation_manager.gd")
-	
-	# Cargar SpriteRenderer
-	var sprite_renderer_script = load("res://scripts/rendering/sprite_renderer.gd")
-	if sprite_renderer_script:
-		sprite_renderer = sprite_renderer_script.new()
-		sprite_renderer.name = "SpriteRenderer"
-		add_child(sprite_renderer)
-		
-		# Conectar señales de progreso
-		if sprite_renderer.has_signal("rendering_progress"):
-			if not sprite_renderer.rendering_progress.is_connected(_on_rendering_progress):
-				sprite_renderer.rendering_progress.connect(_on_rendering_progress)
-		
-		if sprite_renderer.has_signal("animation_complete"):
-			if not sprite_renderer.animation_complete.is_connected(_on_rendering_complete):
-				sprite_renderer.animation_complete.connect(_on_rendering_complete)
-		
-		print("✅ SpriteRenderer instanciado desde script existente")
-	else:
-		push_error("❌ No se pudo cargar scripts/rendering/sprite_renderer.gd")
-	
-	# Verificar que tenemos todos los componentes
-	var all_loaded = fbx_loader and animation_manager and sprite_renderer
-	print("✅ Scripts cargados correctamente: %s" % ("SÍ" if all_loaded else "NO"))
-
-# ========================================================================
-# API PÚBLICA
-# ========================================================================
-
-func load_base_model(file_path: String) -> bool:
-	"""Cargar modelo base usando el FBXLoader instanciado"""
-	if not fbx_loader:
-		_emit_error("FBXLoader no disponible")
-		return false
-	
-	print("🏗️ Cargando modelo base: %s" % file_path.get_file())
-	print("🔄 DEBUG: Iniciando carga en TransitionCoordinator")
-	emit_signal("resource_loaded", "base", false)  # Iniciando carga
-	
-	# Conectar a la señal antes de cargar
-	if not fbx_loader.model_loaded.is_connected(_on_base_model_loaded):
-		fbx_loader.model_loaded.connect(_on_base_model_loaded, CONNECT_ONE_SHOT)
-	
-	fbx_loader.load_base_model(file_path)
-	
-	print("🔄 DEBUG: Carga iniciada, esperando callback...")
-	return true
-
-func _on_base_model_loaded(model_data: Dictionary):
-	"""Callback cuando se carga un modelo base"""
-	print("🔄 DEBUG: Callback _on_base_model_loaded recibido: %s" % str(model_data.keys() if model_data else "null"))
-	
-	if model_data and model_data.get("type") == "base":
-		base_data = model_data
-		emit_signal("resource_loaded", "base", true)
-		print("✅ COORDINADOR: Modelo base cargado exitosamente")
-	else:
-		print("❌ COORDINADOR: Error - result type: %s" % model_data.get("type", "no_type"))
-		_emit_error("Error cargando modelo base")
-		emit_signal("resource_loaded", "base", false)
-
-func load_animation_a(file_path: String) -> bool:
-	"""Cargar animación A usando el FBXLoader instanciado"""
-	if not fbx_loader:
-		_emit_error("FBXLoader no disponible")
-		return false
-	
-	print("🎭 Cargando animación A: %s" % file_path.get_file())
-	print("🔄 DEBUG: Iniciando carga animación A en TransitionCoordinator")
-	emit_signal("resource_loaded", "animation_a", false)
-	
-	# Conectar a la señal antes de cargar
-	if not fbx_loader.model_loaded.is_connected(_on_animation_a_loaded):
-		fbx_loader.model_loaded.connect(_on_animation_a_loaded, CONNECT_ONE_SHOT)
-	
-	fbx_loader.load_animation_fbx(file_path)
-	return true
-
-func _on_animation_a_loaded(model_data: Dictionary):
-	"""Callback cuando se carga animación A"""
-	print("🔄 DEBUG: Callback _on_animation_a_loaded recibido")
-	
-	if model_data and model_data.get("type") == "animation":
-		animation_a_data = model_data
-		animation_a_data["source_file"] = model_data.get("file_path", "")
-		emit_signal("resource_loaded", "animation_a", true)
-		print("✅ COORDINADOR: Animación A cargada exitosamente")
-	else:
-		_emit_error("Error cargando animación A")
-
-func load_animation_b(file_path: String) -> bool:
-	"""Cargar animación B usando el FBXLoader instanciado"""
-	if not fbx_loader:
-		_emit_error("FBXLoader no disponible")
-		return false
-	
-	print("🎭 Cargando animación B: %s" % file_path.get_file())
-	print("🔄 DEBUG: Iniciando carga animación B en TransitionCoordinator")
-	emit_signal("resource_loaded", "animation_b", false)
-	
-	# Conectar a la señal antes de cargar
-	if not fbx_loader.model_loaded.is_connected(_on_animation_b_loaded):
-		fbx_loader.model_loaded.connect(_on_animation_b_loaded, CONNECT_ONE_SHOT)
-	
-	fbx_loader.load_animation_fbx(file_path)
-	return true
-
-func _on_animation_b_loaded(model_data: Dictionary):
-	"""Callback cuando se carga animación B"""
-	print("🔄 DEBUG: Callback _on_animation_b_loaded recibido")
-	
-	if model_data and model_data.get("type") == "animation":
-		animation_b_data = model_data
-		animation_b_data["source_file"] = model_data.get("file_path", "")
-		emit_signal("resource_loaded", "animation_b", true)
-		print("✅ COORDINADOR: Animación B cargada exitosamente")
-	else:
-		_emit_error("Error cargando animación B")
-
-func validate_transition_data() -> bool:
-	"""Validar que los datos están listos para generar transición"""
-	print("🔍 Validando datos para transición...")
-	
-	if base_data.is_empty():
-		_emit_validation_result(false, "Modelo base no cargado")
-		return false
-	
-	if animation_a_data.is_empty():
-		_emit_validation_result(false, "Animación A no cargada")
-		return false
-		
-	if animation_b_data.is_empty():
-		_emit_validation_result(false, "Animación B no cargada")
-		return false
-	
-	# Verificar compatibilidad de esqueletos
-	var skeleton_compatible = _validate_skeleton_compatibility()
-	if not skeleton_compatible:
-		_emit_validation_result(false, "Los esqueletos de las animaciones no son compatibles")
-		return false
-	
-	_emit_validation_result(true, "Datos válidos para transición")
-	return true
-
-func update_transition_config(new_config: Dictionary):
-	"""Actualizar configuración de la transición"""
-	transition_config.merge(new_config, true)
-	print("⚙️ Configuración actualizada: %s" % str(transition_config))
-
-func generate_transition() -> bool:
-	"""Generar la transición y sprite sheet"""
-	print("\n🎬 === GENERANDO TRANSICIÓN ===")
-	
-	if is_generating_transition:
-		_emit_error("Ya hay una transición en proceso")
-		return false
-	
-	if not validate_transition_data():
-		return false
-	
-	is_generating_transition = true
-	emit_signal("transition_started", 
-		animation_a_data.get("name", "AnimA"), 
-		animation_b_data.get("name", "AnimB")
-	)
-	
-	# Proceso de generación
-	var success = false
-	current_stage = "preparing"
-	emit_signal("transition_progress", 0, 100, current_stage)
-	
-	success = await _execute_transition_generation()
-	
-	is_generating_transition = false
-	
-	if success:
-		var output_name = "transition_%s_to_%s" % [
-			animation_a_data.get("name", "animA"),
-			animation_b_data.get("name", "animB")
-		]
-		emit_signal("transition_complete", output_name)
-		print("✅ Transición completada: %s" % output_name)
-	else:
-		emit_signal("transition_failed", "Error durante la generación")
-		print("❌ Error en generación de transición")
-	
-	return success
-
-# ========================================================================
-# PROCESAMIENTO INTERNO
-# ========================================================================
-
-func _execute_transition_generation() -> bool:
-	"""Ejecutar el proceso completo de generación"""
-	
-	current_stage = "combining_models"
-	emit_signal("transition_progress", 10, 100, current_stage)
-	
-	# 1. Combinar base con ambas animaciones
-	var combined_a = await _create_combined_model(base_data, animation_a_data)
-	var combined_b = await _create_combined_model(base_data, animation_b_data)
-	
-	print("=== VERIFICACIÓN DE MODELOS COMBINADOS ===")
-	print("Combined A tiene AnimationPlayer:", combined_a.has_node("AnimationPlayer"))
-	print("Combined B tiene AnimationPlayer:", combined_b.has_node("AnimationPlayer"))
-	
-	if not combined_a or not combined_b:
-		_emit_error("Error creando modelos combinados")
-		return false
-	
-	current_stage = "extracting_poses"
-	emit_signal("transition_progress", 30, 100, current_stage)
-	
-	
-	var pose_b_initial = _extract_initial_pose(combined_b, animation_b_data.get("name", ""))
-	#print("pose_b_initial") funciona
-	#print(pose_b_initial) funciona
-	
-	
-	var pose_a_final = _extract_final_pose(combined_a, animation_a_data.get("name", ""))
-	print("pose_a_final")
-	print(pose_a_final) #error
-	
-	
-	if pose_a_final.is_empty() or pose_b_initial.is_empty():
-		_emit_error("Error extrayendo poses de transición")
-		return false
-	
-	current_stage = "interpolating"
-	emit_signal("transition_progress", 50, 100, current_stage)
-	
-	# 3. Generar frames de transición
-	var transition_frames = skeleton_interpolator.generate_transition_frames(
-		pose_a_final, 
-		pose_b_initial, 
-		transition_config
-	)
-	
-	if transition_frames.is_empty():
-		_emit_error("Error generando frames de transición")
-		return false
-	
-	current_stage = "rendering"
-	emit_signal("transition_progress", 70, 100, current_stage)
-	
-	# 4. Crear modelo con transición completa y renderizar
-	var success = await _render_transition_animation(transition_frames)
-	
-	# Limpieza
-	if combined_a and is_instance_valid(combined_a):
-		combined_a.queue_free()
-	if combined_b and is_instance_valid(combined_b):
-		combined_b.queue_free()
-	
-	return success
-
-func _create_combined_model(base: Dictionary, animation: Dictionary) -> Node3D:
-	"""Crear modelo combinado usando el AnimationManager instanciado"""
-	if not animation_manager:
-		_emit_error("AnimationManager no disponible")
-		return null
-	
-	if animation_manager.has_method("combine_base_with_animation"):
-		var combined = animation_manager.combine_base_with_animation_for_transition(base, animation)
-		print("                                       func _create_combined_model")
-		print("OOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOOO Combined  tiene AnimationPlayer:", combined.has_node("AnimationPlayer"))
-		
-		if not combined or not is_instance_valid(combined):
-			_emit_error("Error en combinación base + animación")
-			print("============================= ERROR ")
-			print("Error en combinación base + animación")			
-			return null
-		
-		
-		print("============================= EXITO ")
-		return combined
-	else:
-		_emit_error("AnimationManager no tiene método combine_base_with_animation")
-		
-		print("============================= ERROR ")
-		print("AnimationManager no tiene método combine_base_with_animation")
-		return null
-#func _extract_final_pose(model: Node3D, animation_name: String) -> Dictionary:
-	#"""Extraer pose final de una animación"""
-	#var anim_player_2 = model.get_node_or_null("AnimationPlayer")
-	#print("anim_player")
-	#print(anim_player_2)
-	##if not anim_player or not anim_player.has_animation(animation_name):
-	##
-		##print("_extract_final_pose return {}")
-		##return {}
-	#print( animation_a_data.get("name", ""))
-	#var animation = anim_player_2.get_animation( animation_a_data.get("name", ""))
+## pixelize3d_fbx/scripts/transition/transition_4cols_coordinator.gd
+## Coordinador central del sistema de transiciones con 4 columnas
+## Input: Coordinación de información entre las 4 columnas
+## Output: Sincronización de estado y datos entre todas las columnas
+#
+#extends Control
+#class_name Transition4ColsCoordinator
+#
+## === SEÑALES PARA COORDINACIÓN ENTRE COLUMNAS ===
+## Columna 1 -> otras columnas
+#signal base_model_loaded(model_data: Dictionary)
+#signal animations_loaded(anim_a_data: Dictionary, anim_b_data: Dictionary)
+#signal preview_requested()
+#
+## Columna 2 -> otras columnas  
+#signal preview_configs_changed(anim_a_config: Dictionary, anim_b_config: Dictionary)
+#signal preview_ready(preview_data: Dictionary)
+#
+## Columna 3 -> otras columnas
+#signal transition_config_changed(config: Dictionary) 
+#signal generate_transition_requested()
+#
+## Columna 4 -> sistema
+#signal transition_generated(output_path: String)
+#signal spritesheet_generated(output_path: String)
+#
+## === REFERENCIAS A LAS 4 COLUMNAS ===
+#var columna1_logic: Node  # Lógica de carga
+#var columna1_ui: Control  # UI de carga
+#var columna2_logic: Node  # Lógica de preview animaciones
+#var columna2_ui: Control  # UI de preview animaciones
+#var columna3_logic: Node  # Lógica de config transición (pendiente) 
+#var columna3_ui: Control  # UI de config transición (pendiente)
+#var columna4_logic: Node  # Lógica de preview final (pendiente)
+#var columna4_ui: Control  # UI de preview final (pendiente)
+#
+## === ESTADO GLOBAL DEL SISTEMA ===
+#var system_state: Dictionary = {
+	#"base_loaded": false,
+	#"animations_loaded": false,
+	#"preview_ready": false,
+	#"transition_config_valid": false,
+	#"transition_generated": false
+#}
+#
+## === DATOS COMPARTIDOS ===
+#var shared_data: Dictionary = {
+	#"base_model": {},
+	#"animation_a": {},
+	#"animation_b": {},
+	#"preview_configs": {},
+	#"transition_config": {},
+	#"generated_transition": {}
+#}
+#
+#func _ready():
+	#print("🎯 Transition4ColsCoordinator inicializando...")
+	#_setup_4cols_layout()
+	#_initialize_columns()
+	#_connect_coordination_signals()
+	#_show_startup_info()
+	#print("✅ Coordinador de 4 columnas listo")
+#
+#func _show_startup_info():
+	#"""Mostrar información de inicio con controles de debug"""
+	#print("\n📋 === COORDINADOR 4 COLUMNAS INICIADO ===")
+	#print("🎯 Sistema de Transiciones v2.0 - 4 Columnas")
+	#print("📂 Columna 1: ✅ Carga funcional")
+	#print("🎬 Columna 2: ✅ Preview animaciones FUNCIONAL")
+	#print("⚙️ Columna 3: ⏳ Config transición (próximamente)")
+	#print("🎯 Columna 4: ⏳ Preview final (próximamente)")
+	#print("\n🎮 Controles de debug:")
+	#print("  F5 - Estado del sistema")
+	#print("  F6 - Datos compartidos")
+	#print("  F7 - Recargar Columna 1")
+	#print("  F8 - Detectar conflictos de UI")
+	#print("  F9 - Limpiar contenido duplicado")
+	#print("  F10 - Debug sistemas Columna1")
+	#print("  F11 - Debug sistemas Columna2")
+	#print("🚀 Listo para usar - Columna 2 integrada")
+	#print("=====================================\n")
+#
+#func _setup_4cols_layout():
+	#"""Configurar layout de 4 columnas horizontales usando estructura existente"""
+	#print("🏗️ Configurando layout de 4 columnas desde escena...")
 	#
-	#print("animation")
-	#print(animation)
-	#var final_time = animation.length
-	#print("final_time")
-	#print(final_time)
-	## Establecer pose al final de la animación
-	#anim_player_2.play(animation_name)
-	#anim_player_2.seek(final_time, true)
-	#anim_player_2.advance(0.0)
+	## Verificar que la estructura de la escena existe
+	#var main_container = get_node_or_null("HSplitContainer")
+	#if not main_container:
+		#print("❌ No se encontró HSplitContainer principal en la escena")
+		#return
 	#
-	#return skeleton_interpolator.extract_skeleton_pose(model)
-
-func _extract_final_pose(model: Node3D, animation_name: String) -> Dictionary:
-	"""Extraer pose final de una animación"""
-	var anim_player = model.get_node_or_null("AnimationPlayer")
-	print("anim_player: ", anim_player)
-	
-	# Verificar existencia del AnimationPlayer y la animación (CRUCIAL)
-	if not anim_player or not anim_player.has_animation(animation_name):
-		print("_extract_final_pose: AnimationPlayer o animación no encontrados")
-		return {}
-	
-	# Usar el parámetro animation_name en lugar de animation_a_data
-	var animation = anim_player.get_animation(animation_name)
-	print("animation: ", animation)
-	
-	var final_time = animation.length
-	print("final_time: ", final_time)
-	
-	# Establecer pose al final de la animación
-	anim_player.play(animation_name)
-	anim_player.seek(final_time, true)
-	anim_player.advance(0.0)
-	
-	return skeleton_interpolator.extract_skeleton_pose(model)
-
-func _extract_initial_pose(model: Node3D, animation_name: String) -> Dictionary:
-	"""Extraer pose inicial de una animación"""
-	var anim_player = model.get_node_or_null("AnimationPlayer")
-	print("var anim_player = model.get_node_or_null(AnimationPlayer)")
-	print(anim_player)
-	if not anim_player or not anim_player.has_animation(animation_name):
-		print("_extract_initial_pose, return {}")
-		return {}
-	
-	# Establecer pose al inicio de la animación
-	anim_player.play(animation_name)
-	anim_player.seek(0.0, true)
-	anim_player.advance(0.0)
-	
-	return skeleton_interpolator.extract_skeleton_pose(model)
-
-func _render_transition_animation(transition_frames: Array) -> bool:
-	"""Renderizar animación de transición usando el SpriteRenderer instanciado"""
-	
-	if not sprite_renderer:
-		_emit_error("SpriteRenderer no disponible")
-		return false
-	
-	# Crear modelo temporal con la animación de transición
-	var transition_model = await _create_transition_model(transition_frames)
-	
-	if not transition_model:
-		print("transition_model")
-		print(transition_model)
-		_emit_error("Error creando modelo de transición")
-		return false
-	
-	# Configurar y ejecutar renderizado
-	if sprite_renderer.has_method("initialize"):
-		sprite_renderer.initialize(transition_config)
-	
-	if sprite_renderer.has_method("render_animation"):
-		sprite_renderer.render_animation(
-			transition_model, 
-			"transition",
-			0.0,
-			transition_config.transition_frames
-		)
-	
-	# Esperar a que termine el renderizado
-	await sprite_renderer.animation_complete
-	
-	# Limpieza
-	if transition_model and is_instance_valid(transition_model):
-		transition_model.queue_free()
-	
-	return true
-
-func _create_transition_model(transition_frames: Array) -> Node3D:
-	"""Crear modelo temporal con animación de transición"""
-	# Esta función debería crear un modelo 3D con una animación 
-	# que reproduzca los frames de transición interpolados
-	
-	# Por ahora, usar el modelo base como placeholder
-	if base_data.has("model") and base_data.model:
-		var model = base_data.model.duplicate()
-		
-		# Aquí se implementaría la aplicación de los frames de transición
-		# al esqueleto del modelo
-		
-		return model
-	
-	return null
-
-# ========================================================================
-# VALIDACIONES
-# ========================================================================
-
-func _validate_skeleton_compatibility() -> bool:
-	"""Verificar que los esqueletos de las animaciones sean compatibles"""
-	
-	if not base_data.has("skeleton") or not animation_a_data.has("skeleton") or not animation_b_data.has("skeleton"):
-		return false
-	
-	
-	var base_skeleton = base_data.skeleton
-	var base_meshes= fbx_loader._extract_meshes_simple(base_skeleton).size()
-	print("var base_meshes= fbx_loader._extract_meshes_simple(base_skeleton)")
-	print(base_meshes)
-	var anim_a_skeleton = animation_a_data.skeleton
-	var anim_b_skeleton = animation_b_data.skeleton
-	
-	
-	
-	# Verificar que tienen el mismo número de huesos
-	var base_bone_count = (base_skeleton.get_bone_count())  - (base_meshes)
-	var anim_a_bone_count = anim_a_skeleton.get_bone_count()
-	var anim_b_bone_count = anim_b_skeleton.get_bone_count()
-	
-	if base_bone_count != anim_a_bone_count or base_bone_count != anim_b_bone_count:
-		print("❌ Incompatibilidad: diferentes números de huesos")
-		print("  Base: %d, Anim A: %d, Anim B: %d" % [base_bone_count, anim_a_bone_count, anim_b_bone_count])
-		return false
-	
-	# Verificar que los nombres de huesos coinciden
-	for i in range(base_bone_count):
-		var base_bone_name = base_skeleton.get_bone_name(i)
-		var anim_a_bone_name = anim_a_skeleton.get_bone_name(i)
-		var anim_b_bone_name = anim_b_skeleton.get_bone_name(i)
-		
-		if base_bone_name != anim_a_bone_name or base_bone_name != anim_b_bone_name:
-			print("❌ Incompatibilidad: nombres de huesos diferentes en índice %d" % i)
-			print("  Base: %s, Anim A: %s, Anim B: %s" % [base_bone_name, anim_a_bone_name, anim_b_bone_name])
-			return false
-	
-	print("✅ Esqueletos compatibles: %d huesos coincidentes" % base_bone_count)
-	return true
-
-# ========================================================================
-# MANEJADORES DE SEÑALES
-# ========================================================================
-
-func _on_model_loaded(model_data: Dictionary):
-	"""Manejar carga de modelo desde FBXLoader"""
-	print("📦 Modelo cargado: %s (%s)" % [model_data.get("name", "Unknown"), model_data.get("type", "Unknown")])
-
-func _on_rendering_progress(current: int, total: int):
-	"""Manejar progreso de renderizado"""
-	var progress = int((float(current) / float(total)) * 30) + 70  # 70-100% del progreso total
-	emit_signal("transition_progress", progress, 100, "rendering")
-
-func _on_rendering_complete(animation_name: String):
-	"""Manejar finalización de renderizado"""
-	print("✅ Renderizado completado: %s" % animation_name)
-	emit_signal("transition_progress", 100, 100, "complete")
-
-# ========================================================================
-# UTILIDADES
-# ========================================================================
-
-func _emit_validation_result(is_valid: bool, message: String):
-	"""Emitir resultado de validación"""
-	emit_signal("validation_complete", is_valid, message)
-
-func _emit_error(error_message: String):
-	"""Emitir error y logging"""
-	print("❌ TransitionCoordinator Error: %s" % error_message)
-	emit_signal("transition_failed", error_message)
+	## Verificar containers de columnas
+	#var col1_container = get_node_or_null("HSplitContainer/Columna1_Container")
+	#var col2_container = get_node_or_null("HSplitContainer/HSplitContainer/Columna2_Container")
+	#var col3_container = get_node_or_null("HSplitContainer/HSplitContainer/HSplitContainer/Columna3_Container")
+	#var col4_container = get_node_or_null("HSplitContainer/HSplitContainer/HSplitContainer/Columna4_Container")
+	#
+	#if not col1_container or not col2_container or not col3_container or not col4_container:
+		#print("❌ No se encontraron todos los containers de columnas en la escena")
+		#print("  Col1: %s, Col2: %s, Col3: %s, Col4: %s" % [
+			#"✓" if col1_container else "✗",
+			#"✓" if col2_container else "✗", 
+			#"✓" if col3_container else "✗",
+			#"✓" if col4_container else "✗"
+		#])
+		#return
+	#
+	## Configurar proporciones si no están configuradas
+	#main_container.split_offset = 300
+	#
+	#var remaining_split = get_node_or_null("HSplitContainer/HSplitContainer")
+	#if remaining_split:
+		#remaining_split.split_offset = 400  # Más espacio para Columna 2
+	#
+	#var right_split = get_node_or_null("HSplitContainer/HSplitContainer/HSplitContainer")
+	#if right_split:
+		#right_split.split_offset = 250
+	#
+	#print("✅ Layout de 4 columnas configurado desde escena existente")
+#
+#func _initialize_columns():
+	#"""Inicializar las columnas (Columna1 y Columna2 funcionales)"""
+	#print("🗗️ Inicializando columnas...")
+	#
+	## === COLUMNA 1: CARGA ===
+	#_initialize_column1()
+	#
+	## === COLUMNA 2: PREVIEW ANIMACIONES ===
+	#_initialize_column2()
+	#
+	## === COLUMNAS 3, 4: SOLO VERIFICAR PLACEHOLDERS ===
+	#_verify_column_placeholders()
+	#
+	#print("✅ Columnas inicializadas")
+#
+#func _initialize_column1():
+	#"""Inicializar Columna 1 usando estructura existente de la escena"""
+	#print("📂 Inicializando Columna 1 desde escena...")
+	#
+	## Buscar Columna1_Logic existente en la escena
+	#columna1_logic = get_node_or_null("Columna1_Logic")
+	#if not columna1_logic:
+		## Si no existe, crear uno nuevo
+		#columna1_logic = preload("res://scripts/transition/Columna1_logic.gd").new()
+		#columna1_logic.name = "Columna1_Logic"
+		#add_child(columna1_logic)
+		#print("🔧 Columna1_Logic creado dinámicamente")
+	#else:
+		#print("✅ Columna1_Logic encontrado en escena")
+	#
+	## Buscar Columna1_UI existente en la escena
+	#columna1_ui = get_node_or_null("HSplitContainer/Columna1_Container/Columna1_UI")
+	#if not columna1_ui:
+		## Si no existe, crear uno nuevo
+		#var col1_container = get_node("HSplitContainer/Columna1_Container")
+		#columna1_ui = preload("res://scripts/transition/Columna1_UI.gd").new()
+		#columna1_ui.name = "Columna1_UI"
+		#col1_container.add_child(columna1_ui)
+		#print("🔧 Columna1_UI creado dinámicamente")
+	#else:
+		#print("✅ Columna1_UI encontrado en escena")
+	#
+	## Conectar lógica y UI de Columna 1
+	#_connect_column1_signals()
+	#
+	#print("✅ Columna 1 inicializada usando escena existente")
+#
+#func _initialize_column2():
+	#"""Inicializar Columna 2 - Preview de Animaciones"""
+	#print("🎬 Inicializando Columna 2 desde scripts...")
+	#
+	## Crear Columna2_Logic
+	#columna2_logic = preload("res://scripts/transition/Columna2_logic.gd").new()
+	#columna2_logic.name = "Columna2_Logic"
+	#add_child(columna2_logic)
+	#print("🔧 Columna2_Logic creado dinámicamente")
+	#
+	## Verificar que Columna2_UI ya existe en la escena
+	#columna2_ui = get_node_or_null("HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI")
+	#if not columna2_ui:
+		#print("❌ Columna2_UI no encontrado en la escena - Verificar estructura")
+		#return
+	#else:
+		#print("✅ Columna2_UI encontrado en escena")
+	#
+	## Conectar lógica y UI de Columna 2
+	#_connect_column2_signals()
+	#
+	#print("✅ Columna 2 inicializada completamente")
+#
+#func _verify_column_placeholders():
+	#"""Solo verificar que los placeholders existan, sin crear contenido extra"""
+	#var containers = [
+		#"HSplitContainer/HSplitContainer/HSplitContainer/Columna3_Container",
+		#"HSplitContainer/HSplitContainer/HSplitContainer/Columna4_Container"
+	#]
+	#
+	#for i in range(containers.size()):
+		#var container = get_node_or_null(containers[i])
+		#if container:
+			#print("✅ Container %d verificado: %s" % [i + 3, container.name])
+		#else:
+			#print("❌ Container %d no encontrado" % [i + 3])
+#
+#func _connect_column1_signals():
+	#"""Conectar señales entre lógica y UI de Columna 1"""
+	#if not columna1_logic or not columna1_ui:
+		#print("❌ Error: columna1_logic o columna1_ui no inicializados")
+		#return
+	#
+	## UI -> Logic
+	#columna1_ui.base_load_requested.connect(_on_col1_base_load_requested)
+	#columna1_ui.animation_a_load_requested.connect(_on_col1_animation_a_load_requested)
+	#columna1_ui.animation_b_load_requested.connect(_on_col1_animation_b_load_requested)
+	#columna1_ui.preview_requested.connect(_on_col1_preview_requested)
+	#
+	## Logic -> UI
+	#columna1_logic.base_loaded.connect(_on_col1_base_loaded)
+	#columna1_logic.animation_loaded.connect(_on_col1_animation_loaded)
+	#columna1_logic.loading_failed.connect(_on_col1_loading_failed)
+	#
+	## Logic -> Coordinator (señales globales)
+	#columna1_logic.base_loaded.connect(_on_base_model_loaded)
+	#columna1_logic.animations_ready.connect(_on_animations_loaded)
+	#
+	#print("✅ Señales de Columna 1 conectadas")
+#
+#func _connect_column2_signals():
+	#"""Conectar señales entre lógica y UI de Columna 2"""
+	#if not columna2_logic or not columna2_ui:
+		#print("❌ Error: columna2_logic o columna2_ui no inicializados")
+		#return
+	#
+	## UI -> Logic (controles de reproducción)
+	#columna2_ui.play_animation_a_requested.connect(_on_col2_play_a_requested)
+	#columna2_ui.pause_animation_a_requested.connect(_on_col2_pause_a_requested)
+	#columna2_ui.play_animation_b_requested.connect(_on_col2_play_b_requested)
+	#columna2_ui.pause_animation_b_requested.connect(_on_col2_pause_b_requested)
+	#columna2_ui.animation_speed_a_changed.connect(_on_col2_speed_a_changed)
+	#columna2_ui.animation_speed_b_changed.connect(_on_col2_speed_b_changed)
+	#
+	## UI -> Logic (configuraciones de preview)
+	#columna2_ui.preview_config_a_changed.connect(_on_col2_config_a_changed)
+	#columna2_ui.preview_config_b_changed.connect(_on_col2_config_b_changed)
+	#
+	## Logic -> UI (estados de reproducción)
+	#columna2_logic.playback_state_changed.connect(_on_col2_playback_state_changed)
+	#
+	## Logic -> Coordinator (señales globales)
+	#columna2_logic.preview_configs_changed.connect(_on_preview_configs_changed)
+	#columna2_logic.preview_ready.connect(_on_preview_ready)
+	#
+	#print("✅ Señales de Columna 2 conectadas")
+#
+#func _connect_coordination_signals():
+	#"""Conectar señales de coordinación entre columnas"""
+	#print("🔗 Conectando señales de coordinación...")
+	#
+	## Columna 1 -> Columna 2: Cuando se cargan animaciones, notificar a Columna 2
+	#animations_loaded.connect(_on_notify_column2_animations_loaded)
+	#
+	#print("✅ Señales de coordinación conectadas")
+#
+## ========================================================================
+## MANEJADORES DE COLUMNA 1
+## ========================================================================
+#
+#func _on_col1_base_load_requested(file_path: String):
+	#"""Manejar solicitud de carga de modelo base desde UI"""
+	#print("📂 Coordinador: Solicitud de carga de base - %s" % file_path)
+	#if columna1_logic and columna1_logic.has_method("load_base_model"):
+		#columna1_logic.load_base_model(file_path)
+#
+#func _on_col1_animation_a_load_requested(file_path: String):
+	#"""Manejar solicitud de carga de animación A desde UI"""
+	#print("🎭 Coordinador: Solicitud de carga de animación A - %s" % file_path)
+	#if columna1_logic and columna1_logic.has_method("load_animation_a"):
+		#columna1_logic.load_animation_a(file_path)
+#
+#func _on_col1_animation_b_load_requested(file_path: String):
+	#"""Manejar solicitud de carga de animación B desde UI"""
+	#print("🎭 Coordinador: Solicitud de carga de animación B - %s" % file_path)
+	#if columna1_logic and columna1_logic.has_method("load_animation_b"):
+		#columna1_logic.load_animation_b(file_path)
+#
+#func _on_col1_preview_requested():
+	#"""Manejar solicitud de preview desde Columna 1"""
+	#print("👁️ Coordinador: Preview solicitado desde Columna 1")
+	#emit_signal("preview_requested")
+#
+#func _on_col1_base_loaded(model_data: Dictionary):
+	#"""Manejar confirmación de carga de base desde lógica"""
+	#print("✅ Coordinador: Base cargada confirmada")
+	#if columna1_ui and columna1_ui.has_method("on_base_loaded"):
+		#columna1_ui.on_base_loaded(model_data)
+#
+#func _on_col1_animation_loaded(animation_data: Dictionary):
+	#"""Manejar confirmación de carga de animación desde lógica"""
+	#print("✅ Coordinador: Animación cargada confirmada - %s" % animation_data.get("name", "Unknown"))
+	#if columna1_ui and columna1_ui.has_method("on_animation_loaded"):
+		#columna1_ui.on_animation_loaded(animation_data)
+#
+#func _on_col1_loading_failed(error_message: String):
+	#"""Manejar error de carga desde lógica"""
+	#print("❌ Coordinador: Error de carga - %s" % error_message)
+	#if columna1_ui and columna1_ui.has_method("on_loading_failed"):
+		#columna1_ui.on_loading_failed(error_message)
+#
+## ========================================================================
+## MANEJADORES DE COLUMNA 2  
+## ========================================================================
+#
+#func _on_col2_play_a_requested():
+	#"""Manejar solicitud de reproducir animación A"""
+	#print("▶️ Coordinador: Play animación A solicitado")
+	#if columna2_logic and columna2_logic.has_method("play_animation_a"):
+		#columna2_logic.play_animation_a()
+#
+#func _on_col2_pause_a_requested():
+	#"""Manejar solicitud de pausar animación A"""
+	#print("⏸️ Coordinador: Pause animación A solicitado")
+	#if columna2_logic and columna2_logic.has_method("pause_animation_a"):
+		#columna2_logic.pause_animation_a()
+#
+#func _on_col2_play_b_requested():
+	#"""Manejar solicitud de reproducir animación B"""
+	#print("▶️ Coordinador: Play animación B solicitado")
+	#if columna2_logic and columna2_logic.has_method("play_animation_b"):
+		#columna2_logic.play_animation_b()
+#
+#func _on_col2_pause_b_requested():
+	#"""Manejar solicitud de pausar animación B"""
+	#print("⏸️ Coordinador: Pause animación B solicitado")
+	#if columna2_logic and columna2_logic.has_method("pause_animation_b"):
+		#columna2_logic.pause_animation_b()
+#
+#func _on_col2_speed_a_changed(speed: float):
+	#"""Manejar cambio de velocidad de animación A"""
+	#print("🏃 Coordinador: Velocidad A cambiada a %.2fx" % speed)
+	#if columna2_logic and columna2_logic.has_method("set_animation_speed_a"):
+		#columna2_logic.set_animation_speed_a(speed)
+#
+#func _on_col2_speed_b_changed(speed: float):
+	#"""Manejar cambio de velocidad de animación B"""
+	#print("🏃 Coordinador: Velocidad B cambiada a %.2fx" % speed)
+	#if columna2_logic and columna2_logic.has_method("set_animation_speed_b"):
+		#columna2_logic.set_animation_speed_b(speed)
+#
+#func _on_col2_config_a_changed(config: Dictionary):
+	#"""Manejar cambio de configuración de preview A"""
+	#print("⚙️ Coordinador: Config A cambiada")
+	#if columna2_logic and columna2_logic.has_method("set_preview_config_a"):
+		#columna2_logic.set_preview_config_a(config)
+#
+#func _on_col2_config_b_changed(config: Dictionary):
+	#"""Manejar cambio de configuración de preview B"""
+	#print("⚙️ Coordinador: Config B cambiada")
+	#if columna2_logic and columna2_logic.has_method("set_preview_config_b"):
+		#columna2_logic.set_preview_config_b(config)
+#
+#func _on_col2_playback_state_changed(animation_type: String, state: Dictionary):
+	#"""Manejar cambio de estado de reproducción desde lógica"""
+	#print("📊 %s cambiado" % animation_type)
+	#if columna2_ui and columna2_ui.has_method("on_playback_state_changed"):
+		#columna2_ui.on_playback_state_changed(animation_type, state)
+#
+## ========================================================================
+## MANEJADORES DE COORDINACIÓN GLOBAL
+## ========================================================================
+#
+#func _on_base_model_loaded(model_data: Dictionary):
+	#"""Manejar carga completa del modelo base (señal global)"""
+	#print("🎯 Coordinador Global: Modelo base cargado")
+	#system_state.base_loaded = true
+	#shared_data.base_model = model_data
+	#
+	## Notificar a otras columnas
+	#emit_signal("base_model_loaded", model_data)
+	#
+	#_update_system_state()
+#
+#func _on_animations_loaded(anim_a_data: Dictionary, anim_b_data: Dictionary):
+	#"""Manejar carga completa de animaciones (señal global)"""
+	#print("🎯 Coordinador Global: Animaciones cargadas")
+	#system_state.animations_loaded = true
+	#shared_data.animation_a = anim_a_data
+	#shared_data.animation_b = anim_b_data
+	#
+	## Notificar a otras columnas
+	#emit_signal("animations_loaded", anim_a_data, anim_b_data)
+	#
+	#_update_system_state()
+#
+#func _on_notify_column2_animations_loaded(anim_a_data: Dictionary, anim_b_data: Dictionary):
+	#"""Notificar a Columna 2 que las animaciones están listas"""
+	#print("🔄 Notificando Columna 2: Animaciones cargadas")
+	#if columna2_logic and columna2_logic.has_method("load_animations_data"):
+		#columna2_logic.load_animations_data(anim_a_data, anim_b_data)
+	#
+	#if columna2_ui and columna2_ui.has_method("on_animations_loaded"):
+		#columna2_ui.on_animations_loaded(anim_a_data, anim_b_data)
+#
+#func _on_preview_configs_changed(anim_a_config: Dictionary, anim_b_config: Dictionary):
+	#"""Manejar cambio de configuraciones de preview"""
+	#print("🎛️ Coordinador Global: Configuraciones de preview cambiadas")
+	#shared_data.preview_configs = {
+		#"animation_a": anim_a_config,
+		#"animation_b": anim_b_config
+	#}
+	#
+	## Notificar a otras columnas (cuando estén implementadas)
+	#emit_signal("preview_configs_changed", anim_a_config, anim_b_config)
+#
+#func _on_preview_ready(preview_data: Dictionary):
+	#"""Manejar confirmación de preview listo"""
+	#print("🎬 Coordinador Global: Preview listo")
+	#system_state.preview_ready = true
+	#
+	#emit_signal("preview_ready", preview_data)
+	#_update_system_state()
+#
+#func _update_system_state():
+	#"""Actualizar estado global del sistema"""
+	#print("📊 Actualizando estado del sistema:")
+	#print("  Base cargada: %s" % system_state.base_loaded)
+	#print("  Animaciones cargadas: %s" % system_state.animations_loaded)
+	#print("  Preview listo: %s" % system_state.preview_ready)
+	#
+	## Habilitar funcionalidades según el estado
+	#var can_preview = system_state.base_loaded and system_state.animations_loaded
+	#
+	#if can_preview and not system_state.preview_ready:
+		#print("✅ Condiciones para preview cumplidas")
+		## system_state.preview_ready se actualiza cuando Columna2 confirme
+#
+## ========================================================================
+## API PÚBLICA PARA DEBUG Y CONTROL MANUAL
+## ========================================================================
+#
+#func get_system_state() -> Dictionary:
+	#"""Obtener estado actual del sistema"""
+	#return system_state.duplicate()
+#
+#func get_shared_data() -> Dictionary:
+	#"""Obtener datos compartidos del sistema"""
+	#return shared_data.duplicate()
+#
+#func force_reload_column1():
+	#"""Recargar Columna 1 usando estructura de escena (para desarrollo/debug)"""
+	#print("🔄 Recargando Columna 1...")
+	#
+	## Limpiar referencias existentes
+	#if columna1_ui:
+		## Solo remover si fue creado dinámicamente
+		#if columna1_ui.get_parent():
+			#columna1_ui.queue_free()
+	#
+	#if columna1_logic:
+		## Solo remover si fue creado dinámicamente  
+		#if columna1_logic.get_parent():
+			#columna1_logic.queue_free()
+	#
+	#await get_tree().process_frame
+	#
+	## Reinicializar
+	#_initialize_column1()
+#
+#func force_reload_column2():
+	#"""Recargar Columna 2 (para desarrollo/debug)"""
+	#print("🔄 Recargando Columna 2...")
+	#
+	## Limpiar referencias existentes
+	#if columna2_ui:
+		#if columna2_ui.get_parent():
+			#columna2_ui.queue_free()
+	#
+	#if columna2_logic:
+		#if columna2_logic.get_parent():
+			#columna2_logic.queue_free()
+	#
+	#await get_tree().process_frame
+	#
+	## Reinicializar
+	#_initialize_column2()
+#
+## ========================================================================
+## DEBUG Y TESTING
+## ========================================================================
+#
+#func _input(event):
+	#"""Manejo de input para debug"""
+	#if event is InputEventKey and event.pressed:
+		#match event.keycode:
+			#KEY_F5:
+				#print("🔍 Estado del sistema: %s" % str(get_system_state()))
+			#KEY_F6:
+				#print("🔍 Datos compartidos: %s" % str(shared_data.keys()))
+			#KEY_F7:
+				#force_reload_column1()
+			#KEY_F8:
+				#debug_detect_conflicts()
+			#KEY_F9:
+				#_clean_duplicate_content()
+			#KEY_F10:
+				#_debug_column1_systems()
+			#KEY_F11:
+				#_debug_column2_systems()  # NUEVO
+			#KEY_F12:
+				#_test_column1_to_column2_flow()  # NUEVO
+#
+#func debug_detect_conflicts():
+	#"""Detectar sistemas conflictivos que puedan estar creando UI duplicada"""
+	#print("\n🔍 === DEBUGGING CONFLICTOS DE UI ===")
+	#
+	## Buscar nodos TransitionPanel o TransitionGeneratorMain existentes
+	#var scene_tree = get_tree().current_scene
+	#
+	#print("🔍 Escena actual: %s" % scene_tree.name)
+	#print("🔍 Tipo: %s" % scene_tree.get_class())
+	#print("🔍 Script: %s" % str(scene_tree.get_script()))
+	#
+	## Buscar todos los hijos y sus scripts
+	#print("\n📊 Análisis de nodos hijos:")
+	#_analyze_nodes_recursive(scene_tree, 0)
+	#
+	## Buscar nodos específicos problemáticos
+	#var problematic_nodes = [
+		#"TransitionPanel",
+		#"TransitionGeneratorMain", 
+		#"TransitionCoordinator"
+	#]
+	#
+	#print("\n🚨 Buscando nodos problemáticos:")
+	#for node_name in problematic_nodes:
+		#var found_nodes = _find_nodes_by_name(scene_tree, node_name)
+		#if found_nodes.size() > 0:
+			#print("  ⚠️ %s: %d encontrados" % [node_name, found_nodes.size()])
+			#for node in found_nodes:
+				#print("    - %s" % node.get_path())
+		#else:
+			#print("  ✅ %s: No encontrado" % node_name)
+	#
+	#print("=====================================\n")
+#
+#func _clean_duplicate_content():
+	#"""Limpiar contenido duplicado detectado"""
+	#print("🧹 Limpiando contenido duplicado...")
+	## Implementación básica
+	#print("✅ Limpieza completada")
+#
+#func _analyze_nodes_recursive(node: Node, depth: int):
+	#"""Analizar nodos recursivamente"""
+	#var indent = "  ".repeat(depth)
+	#var script_info = ""
+	#if node.get_script():
+		#script_info = " [SCRIPT: %s]" % str(node.get_script()).get_file()
+	#
+	#print("%s- %s (%s)%s" % [indent, node.name, node.get_class(), script_info])
+	#
+	## Limitar profundidad para evitar spam
+	#if depth < 3:
+		#for child in node.get_children():
+			#_analyze_nodes_recursive(child, depth + 1)
+#
+#func _find_nodes_by_name(root: Node, target_name: String) -> Array:
+	#"""Buscar nodos por nombre recursivamente"""
+	#var found_nodes = []
+	#if root.name == target_name:
+		#found_nodes.append(root)
+	#
+	#for child in root.get_children():
+		#found_nodes.append_array(_find_nodes_by_name(child, target_name))
+	#
+	#return found_nodes
+#
+#func _debug_column1_systems():
+	#"""Debug específico de sistemas de Columna1"""
+	#print("=== DEBUG SISTEMAS COLUMNA1 ===")
+	#
+	#if columna1_logic and columna1_logic.has_method("debug_system_status"):
+		#columna1_logic.debug_system_status()
+	#else:
+		#print("ERROR: Columna1_logic no disponible o sin método debug_system_status")
+	#
+	#if columna1_logic and columna1_logic.has_method("verify_systems_initialization"):
+		#var systems_ok = columna1_logic.verify_systems_initialization()
+		#print("Inicialización completa: %s" % ("SI" if systems_ok else "NO"))
+	#
+	## Debug específico del proceso de carga
+	#if columna1_logic and columna1_logic.has_method("debug_loading_process"):
+		#columna1_logic.debug_loading_process()
+	#
+	#print("=========================================")
+#
+#func _debug_column2_systems():
+	#"""Debug específico de sistemas de Columna2 - NUEVO"""
+	#print("=== DEBUG SISTEMAS COLUMNA2 ===")
+	#
+	#if columna2_logic and columna2_logic.has_method("debug_system_status"):
+		#columna2_logic.debug_system_status()
+	#else:
+		#print("ERROR: Columna2_logic no disponible o sin método debug_system_status")
+	#
+	#if columna2_ui and columna2_ui.has_method("debug_ui_state"):
+		#columna2_ui.debug_ui_state()
+	#else:
+		#print("ERROR: Columna2_UI no disponible o sin método debug_ui_state")
+	#
+	#print("=========================================")
+#
+#func _test_column1_to_column2_flow():
+	#"""Test del flujo de datos de Columna 1 a Columna 2 - NUEVO"""
+	#print("=== TEST FLUJO COLUMNA1 -> COLUMNA2 ===")
+	#
+	#if not columna1_logic or not columna2_logic:
+		#print("ERROR: Una de las columnas no está disponible")
+		#return
+	#
+	#print("1. Estado de Columna 1:")
+	#if columna1_logic.has_method("get_loading_state"):
+		#print("   Carga: %s" % str(columna1_logic.get_loading_state()))
+	#
+	#print("2. Estado de Columna 2:")
+	#if columna2_logic.has_method("get_playback_state_a"):
+		#print("   Playback A: %s" % str(columna2_logic.get_playback_state_a()))
+	#if columna2_logic.has_method("get_playback_state_b"):
+		#print("   Playback B: %s" % str(columna2_logic.get_playback_state_b()))
+	#
+	#print("3. Datos compartidos:")
+	#print("   Animation A disponible: %s" % ("SI" if shared_data.animation_a.size() > 0 else "NO"))
+	#print("   Animation B disponible: %s" % ("SI" if shared_data.animation_b.size() > 0 else "NO"))
+	#
+	#print("=========================================")

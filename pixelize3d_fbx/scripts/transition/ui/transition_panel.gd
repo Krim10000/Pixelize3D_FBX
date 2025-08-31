@@ -87,13 +87,13 @@ func _create_base_status_section():
 	var base_section = VBoxContainer.new()
 	
 	var base_title = Label.new()
-	base_title.text = "🏗️ Modelo Base"
+	base_title.text = " Modelo Base"
 	base_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	base_title.add_theme_stylebox_override("normal", _create_section_style())
 	base_section.add_child(base_title)
 	
 	base_status_label = Label.new()
-	base_status_label.text = "❌ No cargado - Selecciona una carpeta"
+	base_status_label.text = "No cargado - Selecciona una carpeta"
 	base_status_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	base_section.add_child(base_status_label)
 	
@@ -106,7 +106,7 @@ func _create_vertical_animations_section():
 	animations_section = VBoxContainer.new()
 	
 	var anim_title = Label.new()
-	anim_title.text = "🎭 Selección de Transición"
+	anim_title.text = "Selección de Transición"
 	anim_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	anim_title.add_theme_stylebox_override("normal", _create_section_style())
 	animations_section.add_child(anim_title)
@@ -151,7 +151,7 @@ func _create_animation_a_panel():
 	anim_a_panel.add_child(anim_a_list)
 	
 	anim_a_status = Label.new()
-	anim_a_status.text = "❌ No seleccionada"
+	anim_a_status.text = "No seleccionada"
 	anim_a_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	anim_a_panel.add_child(anim_a_status)
 
@@ -174,7 +174,7 @@ func _create_animation_b_panel():
 	anim_b_panel.add_child(anim_b_list)
 	
 	anim_b_status = Label.new()
-	anim_b_status.text = "❌ No seleccionada"
+	anim_b_status.text = "No seleccionada"
 	anim_b_status.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	anim_b_panel.add_child(anim_b_status)
 
@@ -185,7 +185,7 @@ func _create_vertical_config_section():
 	config_section = VBoxContainer.new()
 	
 	var config_title = Label.new()
-	config_title.text = "⚙️ Configuración de Transición"
+	config_title.text = " Configuración de Transición"
 	config_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	config_title.add_theme_stylebox_override("normal", _create_section_style())
 	config_section.add_child(config_title)
@@ -260,7 +260,7 @@ func _create_vertical_actions_section():
 	actions_section = VBoxContainer.new()
 	
 	var actions_title = Label.new()
-	actions_title.text = "🎬 Generar Transición"
+	actions_title.text = "Generar Transición"
 	actions_title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	actions_title.add_theme_stylebox_override("normal", _create_section_style())
 	actions_section.add_child(actions_title)

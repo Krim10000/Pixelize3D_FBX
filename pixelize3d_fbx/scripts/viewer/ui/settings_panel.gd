@@ -96,7 +96,7 @@ func _create_ui():
 func _create_basic_settings():
 	"""Crear configuracion basica"""
 	var basic_title = Label.new()
-	basic_title.text = "📋 Configuracion Basica"
+	basic_title.text = "Configuracion Basica"
 	basic_title.add_theme_font_size_override("font_size", 14)
 	basic_title.add_theme_color_override("font_color", Color(0.3, 0.7, 1.0))
 	add_child(basic_title)
@@ -162,7 +162,7 @@ func _create_basic_settings():
 func _create_delay_settings():
 	"""Crear controles del sistema de delay"""
 	var delay_title = Label.new()
-	delay_title.text = "⏱️ Sistema de Delay (Avanzado)"
+	delay_title.text = " Sistema de Delay (Avanzado)"
 	delay_title.add_theme_font_size_override("font_size", 14)
 	delay_title.add_theme_color_override("font_color", Color(1.0, 0.6, 0.2))
 	add_child(delay_title)
@@ -204,12 +204,7 @@ func _create_delay_settings():
 	fps_equiv_label.add_theme_color_override("font_color", Color(0.8, 0.9, 1.0))
 	delay_container.add_child(fps_equiv_label)
 	
-	# Auto delay recommendation
-	#auto_delay_check = CheckBox.new()
-	#auto_delay_check.text = "Auto-recomendacion de delay optimo"
-	#auto_delay_check.button_pressed = current_settings.auto_delay_recommendation
-	#auto_delay_check.toggled.connect(_on_auto_delay_toggled)
-	#add_child(auto_delay_check)
+
 	
 	# Informacion de delay
 	delay_info_label = Label.new()
@@ -227,10 +222,7 @@ func _create_delay_settings():
 	recommend_spacer.custom_minimum_size.x = 100
 	recommend_container.add_child(recommend_spacer)
 	
-	#recommend_button = Button.new()
-	#recommend_button.text = "Obtener Recomendacion"
-	#recommend_button.pressed.connect(_on_recommend_delay_pressed)
-	#recommend_container.add_child(recommend_button)
+
 	
 	# Presets de delay comunes
 	var delay_presets_container = HBoxContainer.new()
@@ -272,7 +264,7 @@ func _create_delay_settings():
 func _create_camera_settings():
 	"""Crear configuracion de camara"""
 	var camera_title = Label.new()
-	camera_title.text = "📐 Camara"
+	camera_title.text = "Camara"
 	camera_title.add_theme_font_size_override("font_size", 14)
 	camera_title.add_theme_color_override("font_color", Color(0.3, 0.7, 1.0))
 	add_child(camera_title)
@@ -300,30 +292,6 @@ func _create_camera_settings():
 	camera_angle_label.custom_minimum_size.x = 40
 	camera_angle_container.add_child(camera_angle_label)
 
-	# Altura (comentada en original, mantengo la logica)
-	# altura
-	#var camera_height_container = HBoxContainer.new()
-	#add_child(camera_height_container)
-	#
-	#var height_label = Label.new()
-	#height_label.text = "Altura:"
-	#height_label.custom_minimum_size.x = 80
-	#camera_height_container.add_child(height_label)
-	#
-	#camera_height_slider = HSlider.new()
-	#camera_height_slider.min_value = 5.0
-	#camera_height_slider.max_value = 25.0
-	#camera_height_slider.value = 12.0
-	#camera_height_slider.step = 0.5
-	#camera_height_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	#camera_height_slider.value_changed.connect(_on_camera_height_changed)
-	#camera_height_container.add_child(camera_height_slider)
-	#
-	#camera_height_label = Label.new()
-	#camera_height_label.text = "12.0"
-	#camera_height_label.custom_minimum_size.x = 40
-	#camera_height_container.add_child(camera_height_label)
-
 func _on_camera_height_changed(value: float):
 	"""Manejar cambio en altura de camara"""
 	current_settings.camera_height = value
@@ -335,7 +303,7 @@ func _on_camera_height_changed(value: float):
 func _create_capture_area_settings():
 	"""Crear configuracion de area de captura"""
 	var capture_title = Label.new()
-	capture_title.text = "🖼️ Area de Captura"
+	capture_title.text = "Area de Captura"
 	capture_title.add_theme_font_size_override("font_size", 14)
 	capture_title.add_theme_color_override("font_color", Color(0.3, 0.7, 1.0))
 	add_child(capture_title)
@@ -360,7 +328,7 @@ func _create_capture_area_settings():
 	capture_area_slider = HSlider.new()
 	capture_area_slider.min_value = 0.5    # Modelo MUY grande (area pequeña)
 	capture_area_slider.max_value = 20.0   # Modelo pequeño (area grande)
-	capture_area_slider.value = 4.5        # Tamaño normal
+	capture_area_slider.value = 2.5        # Tamaño normal
 	capture_area_slider.step = 0.5
 	capture_area_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	capture_area_slider.value_changed.connect(_on_capture_area_changed)
@@ -415,7 +383,7 @@ func _create_capture_area_settings():
 func _create_orientation_settings():
 	"""Crear configuracion de orientacion"""
 	var orientation_title = Label.new()
-	orientation_title.text = "🧭 Orientacion"
+	orientation_title.text = " Orientacion"
 	orientation_title.add_theme_font_size_override("font_size", 14)
 	orientation_title.add_theme_color_override("font_color", Color(0.3, 0.7, 1.0))
 	add_child(orientation_title)
@@ -588,36 +556,8 @@ func _on_delay_changed(new_delay: float):
 	
 	print("⏱️ Delay cambiado: %.4fs → FPS equiv: %.1f" % [new_delay, current_settings.fps_equivalent])
 	settings_changed.emit(current_settings.duplicate())
-
-# NUEVO: Manejador para auto-recomendacion de delay
-#func _on_auto_delay_toggled(enabled: bool):
-	#"""Manejar toggle de auto-recomendacion"""
-	#current_settings.auto_delay_recommendation = enabled
-	#recommend_button.disabled = not enabled
-	#
-	#print("🎯 Auto-recomendacion de delay: %s" % ("ON" if enabled else "OFF"))
-	#settings_changed.emit(current_settings.duplicate())
-
-# NUEVO: Manejador para solicitar recomendacion manual
-#func _on_recommend_delay_pressed():
-	#"""Solicitar recomendacion manual de delay"""
-	#print("🔍 Solicitando recomendacion manual de delay...")
-	#recommend_button.text = "Analizando..."
-	#recommend_button.disabled = true
-	#
-	## Emitir señal para que el coordinador maneje la recomendacion
-	## TODO: Implementar conexion con delay analyzer
-	#
-	## Restaurar boton despues de un tiempo (simulado)
-	#var timer = get_tree().create_timer(2.0)
-	#timer.timeout.connect(_on_recommendation_timeout)
-
-#func _on_recommendation_timeout():
-	#"""Restaurar boton de recomendacion"""
-	#recommend_button.text = "Obtener Recomendacion"
-	#recommend_button.disabled = auto_delay_check.button_pressed
-
-# NUEVO: Manejador para presets de delay
+	
+	
 func _on_delay_preset_pressed(delay_value: float):
 	"""Aplicar preset de delay"""
 	delay_spinbox.value = delay_value

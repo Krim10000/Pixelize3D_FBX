@@ -1,0 +1,120 @@
+[gd_scene load_steps=6 format=3 uid="uid://dw54rje6cta3t"]
+
+[ext_resource type="Script" uid="uid://clf0gup8kibd3" path="res://scripts/transition/transition_4cols_coordinator.gd" id="1_coordinator"]
+[ext_resource type="Script" uid="uid://w0sij1s28g0j" path="res://scripts/transition/Columna1_logic.gd" id="2_logic"]
+[ext_resource type="Script" uid="uid://cukjul10f7o81" path="res://scripts/transition/Columna1_UI.gd" id="3_ui"]
+[ext_resource type="Script" uid="uid://y10isxtedbbo" path="res://scripts/transition/Columna2_logic.gd" id="4_logic2"]
+[ext_resource type="Script" uid="uid://c7fniugem5h2j" path="res://scripts/transition/Columna2_UI.gd" id="5_ui2"]
+
+[node name="Transition4ColsMain" type="Control"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+script = ExtResource("1_coordinator")
+metadata/_edit_use_anchors_ = true
+
+[node name="HSplitContainer" type="HSplitContainer" parent="."]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+split_offset = 300
+
+[node name="Columna1_Container" type="VBoxContainer" parent="HSplitContainer"]
+custom_minimum_size = Vector2(300, 0)
+layout_mode = 2
+size_flags_horizontal = 0
+
+[node name="Columna1_UI" type="VBoxContainer" parent="HSplitContainer/Columna1_Container"]
+layout_mode = 2
+script = ExtResource("3_ui")
+
+[node name="HSplitContainer" type="HSplitContainer" parent="HSplitContainer"]
+layout_mode = 2
+split_offset = 400
+
+[node name="Columna2_Container" type="VBoxContainer" parent="HSplitContainer/HSplitContainer"]
+custom_minimum_size = Vector2(400, 0)
+layout_mode = 2
+
+[node name="Columna2_UI" type="VBoxContainer" parent="HSplitContainer/HSplitContainer/Columna2_Container"]
+layout_mode = 2
+script = ExtResource("5_ui2")
+
+[node name="SubViewportContainer_A" type="SubViewportContainer" parent="HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(128, 128)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+stretch = true
+
+[node name="SubViewport_A" type="SubViewport" parent="HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/SubViewportContainer_A"]
+unique_name_in_owner = true
+handle_input_locally = false
+size = Vector2i(128, 128)
+render_target_update_mode = 4
+
+[node name="Camera3D_A" type="Camera3D" parent="HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/SubViewportContainer_A/SubViewport_A"]
+
+[node name="DirectionalLight3D_A" type="DirectionalLight3D" parent="HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/SubViewportContainer_A/SubViewport_A"]
+
+[node name="Model_A" type="Node3D" parent="HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/SubViewportContainer_A/SubViewport_A"]
+unique_name_in_owner = true
+
+[node name="SubViewportContainer_B" type="SubViewportContainer" parent="HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI"]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(128, 128)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+stretch = true
+
+[node name="SubViewport_B" type="SubViewport" parent="HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/SubViewportContainer_B"]
+unique_name_in_owner = true
+handle_input_locally = false
+size = Vector2i(128, 128)
+render_target_update_mode = 4
+
+[node name="Camera3D_B" type="Camera3D" parent="HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/SubViewportContainer_B/SubViewport_B"]
+
+[node name="DirectionalLight3D_B" type="DirectionalLight3D" parent="HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/SubViewportContainer_B/SubViewport_B"]
+
+[node name="Model_B" type="Node3D" parent="HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/SubViewportContainer_B/SubViewport_B"]
+
+[node name="HSplitContainer" type="HSplitContainer" parent="HSplitContainer/HSplitContainer"]
+layout_mode = 2
+split_offset = 250
+
+[node name="Columna3_Container" type="VBoxContainer" parent="HSplitContainer/HSplitContainer/HSplitContainer"]
+custom_minimum_size = Vector2(250, 0)
+layout_mode = 2
+
+[node name="PlaceholderLabel" type="Label" parent="HSplitContainer/HSplitContainer/HSplitContainer/Columna3_Container"]
+layout_mode = 2
+text = "⚙️ CONFIG TRANSICIÓN
+(Próximamente)"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Columna4_Container" type="VBoxContainer" parent="HSplitContainer/HSplitContainer/HSplitContainer"]
+custom_minimum_size = Vector2(300, 0)
+layout_mode = 2
+
+[node name="PlaceholderLabel" type="Label" parent="HSplitContainer/HSplitContainer/HSplitContainer/Columna4_Container"]
+layout_mode = 2
+text = "🎯 PREVIEW FINAL
+(Próximamente)"
+horizontal_alignment = 1
+vertical_alignment = 1
+
+[node name="Columna1_Logic" type="Node" parent="."]
+script = ExtResource("2_logic")
+
+[node name="Columna2_Logic" type="Node" parent="."]
+script = ExtResource("4_logic2")
