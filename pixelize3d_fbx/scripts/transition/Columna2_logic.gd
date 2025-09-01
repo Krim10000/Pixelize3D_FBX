@@ -141,7 +141,7 @@ func _setup_viewports():
 		viewport_b = ui_node.get_viewport_b()
 		print("  🖼️ Viewports obtenidos de la UI")
 		
-		_create_camera_controllers()
+		_configure_existing_cameras()
 		
 		# Verificar que los viewports tengan cámara y luz
 		if viewport_a:
@@ -225,7 +225,8 @@ func _setup_viewport_with_model(viewport: SubViewport, anim_data: Dictionary, id
 		animation_player_a = anim_player
 		animation_a_model.position = Vector3(0, 0, 0)
 		animation_a_model.scale = Vector3.ONE
-		_setup_model_configuration(model_container, camera_controller_a, "A")
+		#_setup_model_configuration(model_container, camera_controller_a, "A")
+		_auto_center_and_orient_model(model_container, viewport)
 		print("    ✅ Modelo A configurado con AnimationPlayer")
 	else:
 		#var model_container = find_child("/../../%Model_B")
@@ -240,10 +241,11 @@ func _setup_viewport_with_model(viewport: SubViewport, anim_data: Dictionary, id
 		animation_player_b = anim_player
 		animation_b_model.position = Vector3(0, 0, 0)
 		animation_b_model.scale = Vector3.ONE
-		_setup_model_configuration(model_container, camera_controller_b, "B")
+		#_setup_model_configuration(model_container, camera_controller_b, "B")
+		_auto_center_and_orient_model(model_container, viewport)
 		print("    ✅ Modelo B configurado con AnimationPlayer")
 		
-		
+	
 	# Crear un nodo contenedor para el modelo
 	## Duplicar skeleton si existe
 	#var skeleton = anim_data.get("skeleton")
@@ -565,33 +567,58 @@ var current_model_settings: Dictionary = {
 	"manual_zoom_active": false
 }
 
+# === CONFIGURACIÓN FIJA ===
+var current_capture_area: float = 2.5
+var current_north_angle: float = 0.0
 
-func _create_camera_controllers():
-	"""Crear controladores de cámara para ambos viewports"""
-	var camera_controller_script = load("res://scripts/rendering/camera_controller.gd")
+#func _create_camera_controllers():
+	#"""Crear controladores de cámara para ambos viewports"""
+	#var camera_controller_script = load("res://scripts/rendering/camera_controller.gd")
+	#
+	## Camera Controller A
+	#camera_controller_a = camera_controller_script.new()
+	#camera_controller_a.name = "CameraController_A"
+	#viewport_a.add_child(camera_controller_a)
+	#
+	## Camera Controller B
+	#camera_controller_b = camera_controller_script.new()
+	#camera_controller_b.name = "CameraController_B"
+	#viewport_b.add_child(camera_controller_b)
+	#
+	## Configurar cámaras existentes
+	#var camera_a = viewport_a.get_node_or_null("Camera3D_A")
+	#var camera_b = viewport_b.get_node_or_null("Camera3D_B")
+	#
+	#if camera_a:
+		#camera_controller_a.camera_3d = camera_a
+		#camera_controller_a.use_orthographic = true
+	#
+	#if camera_b:
+		#camera_controller_b.camera_3d = camera_b  
+		#camera_controller_b.use_orthographic = true
+
+
+func set_capture_area(size: float):
+	"""Cambiar área de captura en ambas cámaras"""
+	current_capture_area = size
 	
-	# Camera Controller A
-	camera_controller_a = camera_controller_script.new()
-	camera_controller_a.name = "CameraController_A"
-	viewport_a.add_child(camera_controller_a)
-	
-	# Camera Controller B
-	camera_controller_b = camera_controller_script.new()
-	camera_controller_b.name = "CameraController_B"
-	viewport_b.add_child(camera_controller_b)
-	
-	# Configurar cámaras existentes
-	var camera_a = viewport_a.get_node_or_null("Camera3D_A")
-	var camera_b = viewport_b.get_node_or_null("Camera3D_B")
-	
+	var camera_a = viewport_a.get_node("Camera3D_A")
 	if camera_a:
-		camera_controller_a.camera_3d = camera_a
-		camera_controller_a.use_orthographic = true
+		camera_a.size = size
 	
+	var camera_b = viewport_b.get_node("Camera3D_B")
 	if camera_b:
-		camera_controller_b.camera_3d = camera_b  
-		camera_controller_b.use_orthographic = true
+		camera_b.size = size
 
+func set_model_orientation(angle: float):
+	"""Cambiar orientación de ambos modelos"""
+	current_north_angle = angle
+	
+	if animation_a_model:
+		animation_a_model.rotation_degrees.y = angle
+	if animation_b_model:
+		animation_b_model.rotation_degrees.y = angle
+		
 func _calculate_model_bounds(model_container: Node3D) -> AABB:
 	"""Calcular bounds del modelo"""
 	var combined_bounds = AABB()
@@ -612,22 +639,42 @@ func _calculate_model_bounds(model_container: Node3D) -> AABB:
 	
 	return combined_bounds
 
-func _setup_model_configuration(model_container: Node3D, camera_controller: Node, model_id: String):
-	"""Configurar modelo con centrado automático"""
+#func _setup_model_configuration(model_container: Node3D, camera_controller: Node, model_id: String):
+	#"""Configurar modelo con centrado automático"""
+	#var bounds = _calculate_model_bounds(model_container)
+	#
+	#if model_id == "A":
+		#model_bounds_a = bounds
+	#else:
+		#model_bounds_b = bounds
+	#
+	## Configurar cámara para el modelo
+	#if camera_controller and camera_controller.has_method("setup_for_model"):
+		#camera_controller.setup_for_model(bounds)
+	#
+	## Aplicar configuración actual
+	#if camera_controller and camera_controller.has_method("set_camera_settings"):
+		#camera_controller.set_camera_settings(current_model_settings)
+
+
+func _auto_center_and_orient_model(model_container: Node3D, viewport: SubViewport):
+	"""Centrar y orientar modelo automáticamente"""
 	var bounds = _calculate_model_bounds(model_container)
+	var center = bounds.get_center()
 	
-	if model_id == "A":
-		model_bounds_a = bounds
-	else:
-		model_bounds_b = bounds
+	# CENTRADO AUTOMÁTICO: Mover modelo para que su centro esté en origen
+	model_container.position = -center
 	
-	# Configurar cámara para el modelo
-	if camera_controller and camera_controller.has_method("setup_for_model"):
-		camera_controller.setup_for_model(bounds)
+	# ORIENTACIÓN AUTOMÁTICA: Rotar hacia el norte (0°)
+	model_container.rotation_degrees.y = 0.0
 	
-	# Aplicar configuración actual
-	if camera_controller and camera_controller.has_method("set_camera_settings"):
-		camera_controller.set_camera_settings(current_model_settings)
+	# Configurar cámara para encuadrar el modelo centrado
+	var camera = viewport.get_node("Camera3D_A" if viewport == viewport_a else "Camera3D_B")
+	if camera:
+		# Mantener parámetros fijos, solo ajustar target
+		var model_size = bounds.get_longest_axis_size()
+		var auto_size = max(model_size * 1.8, 2.5)
+		camera.size = current_model_settings.get("capture_area_size", auto_size)
 
 func apply_model_settings(settings: Dictionary):
 	"""Aplicar configuración a ambos modelos"""
@@ -677,7 +724,63 @@ func _on_orientation_analysis_complete(result: Dictionary):
 
 func recenter_models():
 	"""Recentrar ambos modelos"""
-	if animation_a_model:
-		_setup_model_configuration(animation_a_model, camera_controller_a, "A")
-	if animation_b_model:
-		_setup_model_configuration(animation_b_model, camera_controller_b, "B")
+	pass
+	#if animation_a_model:
+		#_setup_model_configuration(animation_a_model, camera_controller_a, "A")
+	#if animation_b_model:
+		#_setup_model_configuration(animation_b_model, camera_controller_b, "B")
+#
+
+
+func _configure_existing_cameras():
+	"""Usar parámetros EXACTOS del proyecto original"""
+	# Valores exactos del CameraController original
+	var camera_angle = 45.0
+	var camera_distance = 5.0 
+	var camera_height = 2.0
+	var orthographic_size = 2.5
+	
+	# Calcular posición usando la fórmula exacta del original
+	var rad_angle = deg_to_rad(camera_angle)
+	var cam_x = 0
+	var cam_y = sin(rad_angle) * camera_distance + camera_height  # 5.535534
+	var cam_z = cos(rad_angle) * camera_distance                  # 3.535534
+	var camera_position = Vector3(cam_x, cam_y, cam_z)
+	
+	# Configurar Camera3D_A con parámetros exactos
+	var camera_a = viewport_a.get_node("Camera3D_A")
+	if camera_a:
+		camera_a.projection = Camera3D.PROJECTION_ORTHOGONAL
+		camera_a.size = orthographic_size
+		camera_a.near = 0.1
+		camera_a.far = 100.0
+		camera_a.position = camera_position
+		camera_a.look_at(Vector3.ZERO, Vector3.UP)  # Esto genera la rotación correcta
+	
+	# Camera3D_B idéntica
+	var camera_b = viewport_b.get_node("Camera3D_B")
+	if camera_b:
+		camera_b.projection = Camera3D.PROJECTION_ORTHOGONAL
+		camera_b.size = orthographic_size
+		camera_b.near = 0.1
+		camera_b.far = 100.0
+		camera_b.position = camera_position
+		camera_b.look_at(Vector3.ZERO, Vector3.UP)
+	
+	_configure_existing_lights()
+
+func _configure_existing_lights():
+	"""Configurar luces físicas existentes"""
+	var light_a = viewport_a.get_node("DirectionalLight3D_A")
+	if light_a:
+		light_a.light_energy = 1.0
+		light_a.light_color = Color(1.0, 0.95, 0.9)
+		light_a.rotation_degrees = Vector3(-45, -45, 0)
+		light_a.shadow_enabled = true
+	
+	var light_b = viewport_b.get_node("DirectionalLight3D_B")
+	if light_b:
+		light_b.light_energy = 1.0
+		light_b.light_color = Color(1.0, 0.95, 0.9)
+		light_b.rotation_degrees = Vector3(-45, -45, 0)
+		light_b.shadow_enabled = true

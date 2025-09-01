@@ -37,6 +37,17 @@ var anim_name_label_b: Label
 var frame_label_b: Label
 var duration_label_b: Label
 
+
+	
+var area_value_label
+var orient_container
+var orient_label_fixed
+var orient_value_label
+var orient_slider
+	
+
+
+var area_slider: float
 # === ESTADO INTERNO ===
 var animations_loaded: bool = false
 
@@ -490,116 +501,192 @@ var center_models_button: Button
 
 
 
+#func _create_model_config_panel():
+	#"""Crear panel de configuración de modelos"""
+	#model_config_panel = PanelContainer.new()
+	#model_config_panel.name = "ModelConfigPanel"
+	#
+	#var vbox = VBoxContainer.new()
+	#vbox.add_theme_constant_override("separation", 8)
+	#model_config_panel.add_child(vbox)
+	#
+	## Título
+	#var title = Label.new()
+	#title.text = "Configuración de Modelos"
+	#title.add_theme_font_size_override("font_size", 12)
+	#title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	#vbox.add_child(title)
+	#
+	## Altura de cámara
+	#var height_container = HBoxContainer.new()
+	#vbox.add_child(height_container)
+	#
+#
+	#
+	#height_slider = HSlider.new()
+	#height_slider.min_value = 0.5
+	#height_slider.max_value = 10
+	#height_slider.value = 2.5
+	#height_slider.step = 0.5
+	#height_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	#
+#
+	#height_label = Label.new()
+	#height_label.text = "Altura " + str(height_slider.value)
+	#
+	#height_label.custom_minimum_size.x = 80
+	#height_container.add_child(height_label)
+	#height_container.add_child(height_slider)
+	#
+	## Ángulo de cámara
+	#var angle_container = HBoxContainer.new()
+	#vbox.add_child(angle_container)
+	#
+	#angle_label = Label.new()
+	#angle_label.text = "Ángulo: 45°"
+	#angle_label.custom_minimum_size.x = 80
+	#angle_container.add_child(angle_label)
+	#
+	#angle_slider = HSlider.new()
+	#angle_slider.min_value = 15.0
+	#angle_slider.max_value = 75.0
+	#angle_slider.value = 45.0
+	#angle_slider.step = 1.0
+	#angle_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	#angle_container.add_child(angle_slider)
+	#
+	## Orientación Norte
+	#var north_container = HBoxContainer.new()
+	#vbox.add_child(north_container)
+	#
+	#north_label = Label.new()
+	#north_label.text = "Norte: 0°"
+	#north_label.custom_minimum_size.x = 80
+	#north_container.add_child(north_label)
+	#
+	#north_slider = HSlider.new()
+	#north_slider.min_value = 0.0
+	#north_slider.max_value = 360.0
+	#north_slider.value = 0.0
+	#north_slider.step = 1.0
+	#north_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	#north_container.add_child(north_slider)
+	#
+	## Zoom
+	#var zoom_container = HBoxContainer.new()
+	#vbox.add_child(zoom_container)
+	#
+	#zoom_label = Label.new()
+	#zoom_label.text = "Zoom: 8.0"
+	#zoom_label.custom_minimum_size.x = 80
+	#zoom_container.add_child(zoom_label)
+	#
+	#zoom_slider = HSlider.new()
+	#zoom_slider.min_value = 2.0
+	#zoom_slider.max_value = 20.0
+	#zoom_slider.value = 8.0
+	#zoom_slider.step = 0.2
+	#zoom_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	#zoom_container.add_child(zoom_slider)
+	#
+	## Botones
+	#var buttons_container = HBoxContainer.new()
+	#buttons_container.alignment = BoxContainer.ALIGNMENT_CENTER
+	#vbox.add_child(buttons_container)
+	#
+	#auto_north_button = Button.new()
+	#auto_north_button.text = "Auto Norte"
+	#buttons_container.add_child(auto_north_button)
+	#
+	#center_models_button = Button.new()
+	#center_models_button.text = "Centrar"
+	#buttons_container.add_child(center_models_button)
+	#
+	## Conectar señales
+	#height_slider.value_changed.connect(_on_height_changed)
+	#angle_slider.value_changed.connect(_on_angle_changed)
+	#north_slider.value_changed.connect(_on_north_changed)
+	#zoom_slider.value_changed.connect(_on_zoom_changed)
+	#auto_north_button.pressed.connect(_on_auto_north_pressed)
+	#center_models_button.pressed.connect(_on_center_models_pressed)
+	#
+	#add_child(model_config_panel)
+
+
 func _create_model_config_panel():
-	"""Crear panel de configuración de modelos"""
+	"""Panel simplificado con solo capture_area y orientación"""
 	model_config_panel = PanelContainer.new()
-	model_config_panel.name = "ModelConfigPanel"
-	
 	var vbox = VBoxContainer.new()
-	vbox.add_theme_constant_override("separation", 8)
 	model_config_panel.add_child(vbox)
 	
 	# Título
 	var title = Label.new()
-	title.text = "Configuración de Modelos"
-	title.add_theme_font_size_override("font_size", 12)
+	title.text = "Configuración de Vista"
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(title)
 	
-	# Altura de cámara
-	var height_container = HBoxContainer.new()
-	vbox.add_child(height_container)
+	# Área de captura
+	var area_container = HBoxContainer.new()
+	vbox.add_child(area_container)
 	
+	var area_label_fixed = Label.new()
+	area_label_fixed.text = "Área:"
+	area_label_fixed.custom_minimum_size.x = 60
+	area_container.add_child(area_label_fixed)
+	
+	var area_slider
+	area_slider = HSlider.new()
+	area_slider.min_value = 0.5
+	area_slider.max_value = 20.0
+	area_slider.value = 2.5
+	area_slider.step = 0.1
+	area_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	area_container.add_child(area_slider)
+	
+	area_value_label = Label.new()
+	area_value_label.text = "2.5"
+	area_value_label.custom_minimum_size.x = 40
+	area_container.add_child(area_value_label)
+	
+	# Orientación
+	orient_container = HBoxContainer.new()
+	vbox.add_child(orient_container)
+	
+	orient_label_fixed = Label.new()
+	orient_label_fixed.text = "Norte:"
+	orient_label_fixed.custom_minimum_size.x = 60
+	orient_container.add_child(orient_label_fixed)
 
+	orient_slider = HSlider.new()
+	orient_slider.min_value = 0.0
+	orient_slider.max_value = 360.0
+	orient_slider.value = 0.0
+	orient_slider.step = 1.0
+	orient_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	orient_container.add_child(orient_slider)
 	
-	height_slider = HSlider.new()
-	height_slider.min_value = 0.5
-	height_slider.max_value = 10
-	height_slider.value = 2.5
-	height_slider.step = 0.5
-	height_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	
-
-	height_label = Label.new()
-	height_label.text = "Altura " + str(height_slider.value)
-	
-	height_label.custom_minimum_size.x = 80
-	height_container.add_child(height_label)
-	height_container.add_child(height_slider)
-	
-	# Ángulo de cámara
-	var angle_container = HBoxContainer.new()
-	vbox.add_child(angle_container)
-	
-	angle_label = Label.new()
-	angle_label.text = "Ángulo: 45°"
-	angle_label.custom_minimum_size.x = 80
-	angle_container.add_child(angle_label)
-	
-	angle_slider = HSlider.new()
-	angle_slider.min_value = 15.0
-	angle_slider.max_value = 75.0
-	angle_slider.value = 45.0
-	angle_slider.step = 1.0
-	angle_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	angle_container.add_child(angle_slider)
-	
-	# Orientación Norte
-	var north_container = HBoxContainer.new()
-	vbox.add_child(north_container)
-	
-	north_label = Label.new()
-	north_label.text = "Norte: 0°"
-	north_label.custom_minimum_size.x = 80
-	north_container.add_child(north_label)
-	
-	north_slider = HSlider.new()
-	north_slider.min_value = 0.0
-	north_slider.max_value = 360.0
-	north_slider.value = 0.0
-	north_slider.step = 1.0
-	north_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	north_container.add_child(north_slider)
-	
-	# Zoom
-	var zoom_container = HBoxContainer.new()
-	vbox.add_child(zoom_container)
-	
-	zoom_label = Label.new()
-	zoom_label.text = "Zoom: 8.0"
-	zoom_label.custom_minimum_size.x = 80
-	zoom_container.add_child(zoom_label)
-	
-	zoom_slider = HSlider.new()
-	zoom_slider.min_value = 2.0
-	zoom_slider.max_value = 20.0
-	zoom_slider.value = 8.0
-	zoom_slider.step = 0.2
-	zoom_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	zoom_container.add_child(zoom_slider)
-	
-	# Botones
-	var buttons_container = HBoxContainer.new()
-	buttons_container.alignment = BoxContainer.ALIGNMENT_CENTER
-	vbox.add_child(buttons_container)
-	
-	auto_north_button = Button.new()
-	auto_north_button.text = "Auto Norte"
-	buttons_container.add_child(auto_north_button)
-	
-	center_models_button = Button.new()
-	center_models_button.text = "Centrar"
-	buttons_container.add_child(center_models_button)
+	orient_value_label = Label.new()
+	orient_value_label.text = "0°"
+	orient_value_label.custom_minimum_size.x = 40
+	orient_container.add_child(orient_value_label)
 	
 	# Conectar señales
-	height_slider.value_changed.connect(_on_height_changed)
-	angle_slider.value_changed.connect(_on_angle_changed)
-	north_slider.value_changed.connect(_on_north_changed)
-	zoom_slider.value_changed.connect(_on_zoom_changed)
-	auto_north_button.pressed.connect(_on_auto_north_pressed)
-	center_models_button.pressed.connect(_on_center_models_pressed)
+	area_slider.value_changed.connect(_on_area_changed)
+	orient_slider.value_changed.connect(_on_orientation_changed)
 	
 	add_child(model_config_panel)
+
+func _on_area_changed(value: float):
+	area_value_label.text = "%.1f" % value
+	var logic = get_node("../../../../Columna2_Logic")
+	if logic:
+		logic.set_capture_area(value)
+
+func _on_orientation_changed(value: float):
+	orient_value_label.text = "%.0f°" % value
+	var logic = get_node("../../../../Columna2_Logic")
+	if logic:
+		logic.set_model_orientation(value)
 
 func _on_height_changed(value: float):
 	height_label.text = "Altura: %.1f" % value
