@@ -2280,7 +2280,7 @@ func _get_current_render_settings_with_capture_area() -> Dictionary:
 		settings["camera_distance"] = 16.0
 		settings["orthographic_size"] = 8.0
 		settings["manual_zoom_override"] = true
-		settings["fixed_orthographic_size"] = 8.0
+		settings["fixed_orthographic_size"] = 2.5
 	
 	# ✅ DEBUG: Mostrar configuración final
 	print("📋 Configuración final para renderizado:")

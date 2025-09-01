@@ -46,7 +46,13 @@ layout_mode = 2
 layout_mode = 2
 script = ExtResource("5_ui2")
 
-[node name="SubViewportContainer_A" type="SubViewportContainer" parent="HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI"]
+[node name="PanelContainer_A" type="PanelContainer" parent="HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI"]
+layout_mode = 2
+
+[node name="LayoutContainer_A" type="VBoxContainer" parent="HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/PanelContainer_A"]
+layout_mode = 2
+
+[node name="SubViewportContainer_A" type="SubViewportContainer" parent="HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/PanelContainer_A/LayoutContainer_A"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(128, 128)
 layout_mode = 2
@@ -54,20 +60,29 @@ size_flags_horizontal = 4
 size_flags_vertical = 4
 stretch = true
 
-[node name="SubViewport_A" type="SubViewport" parent="HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/SubViewportContainer_A"]
+[node name="SubViewport_A" type="SubViewport" parent="HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/PanelContainer_A/LayoutContainer_A/SubViewportContainer_A"]
 unique_name_in_owner = true
 handle_input_locally = false
 size = Vector2i(128, 128)
 render_target_update_mode = 4
 
-[node name="Camera3D_A" type="Camera3D" parent="HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/SubViewportContainer_A/SubViewport_A"]
+[node name="Camera3D_A" type="Camera3D" parent="HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/PanelContainer_A/LayoutContainer_A/SubViewportContainer_A/SubViewport_A"]
 
-[node name="DirectionalLight3D_A" type="DirectionalLight3D" parent="HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/SubViewportContainer_A/SubViewport_A"]
+[node name="DirectionalLight3D_A" type="DirectionalLight3D" parent="HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/PanelContainer_A/LayoutContainer_A/SubViewportContainer_A/SubViewport_A"]
 
-[node name="Model_A" type="Node3D" parent="HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/SubViewportContainer_A/SubViewport_A"]
+[node name="Model_A" type="Node3D" parent="HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/PanelContainer_A/LayoutContainer_A/SubViewportContainer_A/SubViewport_A"]
 unique_name_in_owner = true
 
-[node name="SubViewportContainer_B" type="SubViewportContainer" parent="HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI"]
+[node name="PanelContainer_A_Controls" type="PanelContainer" parent="HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/PanelContainer_A/LayoutContainer_A"]
+layout_mode = 2
+
+[node name="PanelContainer_B" type="PanelContainer" parent="HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI"]
+layout_mode = 2
+
+[node name="LayoutContainer_B" type="VBoxContainer" parent="HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/PanelContainer_B"]
+layout_mode = 2
+
+[node name="SubViewportContainer_B" type="SubViewportContainer" parent="HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/PanelContainer_B/LayoutContainer_B"]
 unique_name_in_owner = true
 custom_minimum_size = Vector2(128, 128)
 layout_mode = 2
@@ -75,17 +90,21 @@ size_flags_horizontal = 4
 size_flags_vertical = 4
 stretch = true
 
-[node name="SubViewport_B" type="SubViewport" parent="HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/SubViewportContainer_B"]
+[node name="SubViewport_B" type="SubViewport" parent="HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/PanelContainer_B/LayoutContainer_B/SubViewportContainer_B"]
 unique_name_in_owner = true
 handle_input_locally = false
 size = Vector2i(128, 128)
 render_target_update_mode = 4
 
-[node name="Camera3D_B" type="Camera3D" parent="HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/SubViewportContainer_B/SubViewport_B"]
+[node name="Camera3D_B" type="Camera3D" parent="HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/PanelContainer_B/LayoutContainer_B/SubViewportContainer_B/SubViewport_B"]
 
-[node name="DirectionalLight3D_B" type="DirectionalLight3D" parent="HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/SubViewportContainer_B/SubViewport_B"]
+[node name="DirectionalLight3D_B" type="DirectionalLight3D" parent="HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/PanelContainer_B/LayoutContainer_B/SubViewportContainer_B/SubViewport_B"]
 
-[node name="Model_B" type="Node3D" parent="HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/SubViewportContainer_B/SubViewport_B"]
+[node name="Model_B" type="Node3D" parent="HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/PanelContainer_B/LayoutContainer_B/SubViewportContainer_B/SubViewport_B"]
+unique_name_in_owner = true
+
+[node name="PanelContainer_B_Controls" type="PanelContainer" parent="HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/PanelContainer_B/LayoutContainer_B"]
+layout_mode = 2
 
 [node name="HSplitContainer" type="HSplitContainer" parent="HSplitContainer/HSplitContainer"]
 layout_mode = 2

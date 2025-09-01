@@ -81,7 +81,7 @@ func _on_animations_ready(anim_a_data: Dictionary, anim_b_data: Dictionary):
 	"""Cuando las animaciones están listas, enviarlas a Columna2"""
 	var col2_logic = get_node("Columna2_Logic")
 	if col2_logic:
-		col2_logic.load_animations_data(anim_a_data, anim_b_data)
+		col2_logic.load_animations_data(shared_data.base_model, anim_a_data, anim_b_data)
 
 
 
@@ -504,7 +504,7 @@ func _on_base_model_loaded(model_data: Dictionary):
 	
 	_update_system_state()
 
-func _on_animations_loaded(anim_a_data: Dictionary, anim_b_data: Dictionary):
+func _on_animations_loaded(  anim_a_data: Dictionary, anim_b_data: Dictionary):
 	"""Manejar carga completa de animaciones (señal global)"""
 	print("Coordinador Global: Animaciones cargadas")
 	
@@ -564,7 +564,8 @@ func _on_notify_column2_animations_loaded(anim_a_data: Dictionary, anim_b_data: 
 					break
 	
 	if columna2_logic and columna2_logic.has_method("load_animations_data"):
-		columna2_logic.load_animations_data(anim_a_data, anim_b_data)
+		#columna2_logic.load_animations_data(anim_a_data, anim_b_data)
+		columna2_logic.load_animations_data(shared_data.base_model, anim_a_data, anim_b_data)
 		print("Datos enviados a Columna2_logic")
 	else:
 		print("Columna2_logic no disponible o sin método load_animations_data")

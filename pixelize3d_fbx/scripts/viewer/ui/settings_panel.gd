@@ -48,7 +48,7 @@ var current_settings: Dictionary = {
 	"pixelize": true,
 	"camera_angle": 45.0,
 	"north_offset": 0.0,
-	"capture_area_size": 8.0,
+	"capture_area_size": 2.5,
 	"auto_north_detection": true,
 	#"auto_delay_recommendation": true,  # NUEVO
 	#"show_debug_frame_numbers": false,  # NUEVO
@@ -727,7 +727,7 @@ func reset_to_defaults():
 		"camera_angle": 45.0,
 		"camera_height": 12.0,
 		"north_offset": 0.0,
-		"capture_area_size": 4.5,
+		"capture_area_size": 2.5,
 		"auto_north_detection": true,
 		"auto_delay_recommendation": true,  
 		"show_debug_frame_numbers": true,  
@@ -746,7 +746,7 @@ func apply_preset(preset_name: String):
 			current_settings.directions = 16
 			current_settings.sprite_size = 128
 			current_settings.camera_angle = 45.0
-			current_settings.capture_area_size = 8.0
+			current_settings.capture_area_size = 2.5
 			current_settings.auto_north_detection = true
 			current_settings.frame_delay = 0.033333  # 30 FPS
 			current_settings.fps_equivalent = 30.0
@@ -757,7 +757,7 @@ func apply_preset(preset_name: String):
 			current_settings.fps = 24
 			current_settings.frame_delay = 0.041667  # 24 FPS cinematico
 			current_settings.fps_equivalent = 24.0
-			current_settings.capture_area_size = 6.0
+			current_settings.capture_area_size = 2.5
 			current_settings.auto_north_detection = true
 		
 		"fast_preview":
@@ -766,7 +766,7 @@ func apply_preset(preset_name: String):
 			current_settings.fps = 15
 			current_settings.frame_delay = 0.066667  # 15 FPS
 			current_settings.fps_equivalent = 15.0
-			current_settings.capture_area_size = 10.0
+			current_settings.capture_area_size = 2.5
 			current_settings.auto_north_detection = true
 		
 		"model_showcase":
@@ -774,7 +774,7 @@ func apply_preset(preset_name: String):
 			current_settings.fps = 60
 			current_settings.frame_delay = 0.016667  # 60 FPS ultra smooth
 			current_settings.fps_equivalent = 60.0
-			current_settings.capture_area_size = 4.0
+			current_settings.capture_area_size = 2.5
 			current_settings.auto_north_detection = true
 			current_settings.directions = 16
 		
@@ -783,7 +783,7 @@ func apply_preset(preset_name: String):
 			current_settings.fps = 12
 			current_settings.frame_delay = 0.083333  # 12 FPS retro
 			current_settings.fps_equivalent = 12.0
-			current_settings.capture_area_size = 6.0
+			current_settings.capture_area_size = 2.5
 			current_settings.pixelize = true
 			current_settings.directions = 8
 		
@@ -792,7 +792,7 @@ func apply_preset(preset_name: String):
 			current_settings.fps = 10
 			current_settings.frame_delay = 0.1  # 10 FPS debug
 			current_settings.fps_equivalent = 10.0
-			current_settings.capture_area_size = 3.0
+			current_settings.capture_area_size = 2.5
 			current_settings.directions = 4
 	
 	_apply_current_settings()

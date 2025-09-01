@@ -13,7 +13,7 @@ signal loading_failed(error_message: String)
 signal loading_progress(stage: String, progress: float)
 
 # === SEÑALES HACIA EL COORDINADOR ===
-signal animations_ready(anim_a_data: Dictionary, anim_b_data: Dictionary)
+signal animations_ready( anim_a_data: Dictionary, anim_b_data: Dictionary)
 
 # === REFERENCIAS A SISTEMAS EXISTENTES ===
 var fbx_loader: Node

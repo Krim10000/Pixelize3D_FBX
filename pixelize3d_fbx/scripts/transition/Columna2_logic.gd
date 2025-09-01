@@ -17,6 +17,7 @@ var ui_node: Columna2UI
 # === DATOS DE ANIMACIONES ===
 var animation_a_data: Dictionary = {}
 var animation_b_data: Dictionary = {}
+var base_model_loaded:Dictionary={}
 var animation_a_model: Node3D
 var animation_b_model: Node3D
 var animation_player_a: AnimationPlayer
@@ -90,13 +91,15 @@ func _create_update_timer():
 # API PRINCIPAL - CARGA DE DATOS
 # ========================================================================
 
-func load_animations_data(anim_a: Dictionary, anim_b: Dictionary):
+func load_animations_data(base_model_loaded:Dictionary, anim_a: Dictionary, anim_b: Dictionary):
 	print("func load_animations_data")
 	"""Cargar datos de animaciones desde Columna 1"""
 	print("📥 Columna2Logic: Cargando datos de animaciones...")
-	
 
-	
+	self.base_model_loaded=base_model_loaded
+	print("ooooooooooooooooooooooooooooooooooooooooooooooooooo base_model_loaded")
+	print(base_model_loaded)
+
 	# Guardar datos
 	animation_a_data = anim_a
 	animation_b_data = anim_b
@@ -137,6 +140,8 @@ func _setup_viewports():
 		viewport_a = ui_node.get_viewport_a()
 		viewport_b = ui_node.get_viewport_b()
 		print("  🖼️ Viewports obtenidos de la UI")
+		
+		_create_camera_controllers()
 		
 		# Verificar que los viewports tengan cámara y luz
 		if viewport_a:
@@ -187,28 +192,32 @@ func _setup_viewport_with_model(viewport: SubViewport, anim_data: Dictionary, id
 		return
 	
 	print("  🔧 Configurando modelo en viewport %s..." % id)
-	
-	# Buscar y limpiar solo modelos anteriores (no cámara ni luz)
-	#for child in viewport.get_children():
-		#if child.name.begins_with("Model_") :
-			#print("    🗑️ Removiendo modelo anterior: %s" % child.name)
-			#child.queue_free()
-	
+		
 	await get_tree().process_frame
 	
 	var skeleton = anim_data.get("skeleton")
 	var skeleton_copy = skeleton.duplicate()
+	print("skeleton_copy")
+	print(skeleton_copy)
 	skeleton_copy.position = Vector3.ZERO
 	var original_player = anim_data.get("animation_player")
 	var anim_player = original_player.duplicate()
 	anim_player.name = "AnimationPlayer_" + id
+	var base_meshes = base_model_loaded.get("meshes", [])
+	print("base_meshes")
+	print(base_meshes)
+	for mesh_data in base_meshes:
+		var mesh_node = mesh_data.get("node")  # ← Extraer el MeshInstance3D
+		if mesh_node and is_instance_valid(mesh_node):
+			var mesh_copy = mesh_node.duplicate()
+			skeleton_copy.add_child(mesh_copy)
+			print("    ✅ Mesh copiado: %s" % mesh_copy.name)
+	
 	if id == "A":
-		#var model_container = find_child("/../../%Model_A")
-		#var model_container = find_child("/../%Model_A")
-		var model_container = get_parent().get_node("HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/SubViewportContainer_A/SubViewport_A/Model_A")
+
+		var model_container = get_parent().get_node("HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/PanelContainer_A/LayoutContainer_A/SubViewportContainer_A/SubViewport_A/Model_A")
 		print("model_container_A")
 		print(model_container)
-		#viewport.add_child(model_container)
 		model_container.add_child(skeleton_copy)
 		print("    ✅ Skeleton_A agregado")
 		model_container.add_child(anim_player)
@@ -216,10 +225,11 @@ func _setup_viewport_with_model(viewport: SubViewport, anim_data: Dictionary, id
 		animation_player_a = anim_player
 		animation_a_model.position = Vector3(0, 0, 0)
 		animation_a_model.scale = Vector3.ONE
+		_setup_model_configuration(model_container, camera_controller_a, "A")
 		print("    ✅ Modelo A configurado con AnimationPlayer")
 	else:
 		#var model_container = find_child("/../../%Model_B")
-		var model_container = get_parent().get_node("HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/SubViewportContainer_B/SubViewport_B/Model_B")
+		var model_container = get_parent().get_node("HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/PanelContainer_B/LayoutContainer_B/SubViewportContainer_B/SubViewport_B/Model_B")
 		print("model_container_B")
 		print(model_container)
 		#viewport.add_child(model_container)
@@ -230,6 +240,7 @@ func _setup_viewport_with_model(viewport: SubViewport, anim_data: Dictionary, id
 		animation_player_b = anim_player
 		animation_b_model.position = Vector3(0, 0, 0)
 		animation_b_model.scale = Vector3.ONE
+		_setup_model_configuration(model_container, camera_controller_b, "B")
 		print("    ✅ Modelo B configurado con AnimationPlayer")
 		
 		
@@ -532,3 +543,141 @@ func debug_system_status():
 		playback_state_b.total_frames
 	])
 	print("============================")
+
+
+
+
+
+# === CONFIGURACIÓN DE MODELOS ===
+var camera_controller_a: Node
+var camera_controller_b: Node
+var orientation_analyzer: Node
+var model_bounds_a: AABB = AABB()
+var model_bounds_b: AABB = AABB()
+
+# Configuración compartida
+var current_model_settings: Dictionary = {
+	"camera_height": 2.5,
+	"camera_angle": 45.0,
+	"north_offset": 0.0,
+	"camera_distance": 5.0,
+	"orthographic_size": 2.5,
+	"manual_zoom_active": false
+}
+
+
+func _create_camera_controllers():
+	"""Crear controladores de cámara para ambos viewports"""
+	var camera_controller_script = load("res://scripts/rendering/camera_controller.gd")
+	
+	# Camera Controller A
+	camera_controller_a = camera_controller_script.new()
+	camera_controller_a.name = "CameraController_A"
+	viewport_a.add_child(camera_controller_a)
+	
+	# Camera Controller B
+	camera_controller_b = camera_controller_script.new()
+	camera_controller_b.name = "CameraController_B"
+	viewport_b.add_child(camera_controller_b)
+	
+	# Configurar cámaras existentes
+	var camera_a = viewport_a.get_node_or_null("Camera3D_A")
+	var camera_b = viewport_b.get_node_or_null("Camera3D_B")
+	
+	if camera_a:
+		camera_controller_a.camera_3d = camera_a
+		camera_controller_a.use_orthographic = true
+	
+	if camera_b:
+		camera_controller_b.camera_3d = camera_b  
+		camera_controller_b.use_orthographic = true
+
+func _calculate_model_bounds(model_container: Node3D) -> AABB:
+	"""Calcular bounds del modelo"""
+	var combined_bounds = AABB()
+	var first = true
+	
+	for child in model_container.get_children():
+		if child is Skeleton3D:
+			for skeleton_child in child.get_children():
+				if skeleton_child is MeshInstance3D and skeleton_child.mesh:
+					var mesh_bounds = skeleton_child.mesh.get_aabb()
+					var global_bounds = skeleton_child.global_transform * mesh_bounds
+					
+					if first:
+						combined_bounds = global_bounds
+						first = false
+					else:
+						combined_bounds = combined_bounds.merge(global_bounds)
+	
+	return combined_bounds
+
+func _setup_model_configuration(model_container: Node3D, camera_controller: Node, model_id: String):
+	"""Configurar modelo con centrado automático"""
+	var bounds = _calculate_model_bounds(model_container)
+	
+	if model_id == "A":
+		model_bounds_a = bounds
+	else:
+		model_bounds_b = bounds
+	
+	# Configurar cámara para el modelo
+	if camera_controller and camera_controller.has_method("setup_for_model"):
+		camera_controller.setup_for_model(bounds)
+	
+	# Aplicar configuración actual
+	if camera_controller and camera_controller.has_method("set_camera_settings"):
+		camera_controller.set_camera_settings(current_model_settings)
+
+func apply_model_settings(settings: Dictionary):
+	"""Aplicar configuración a ambos modelos"""
+	current_model_settings.merge(settings, true)
+	
+	if camera_controller_a and camera_controller_a.has_method("set_camera_settings"):
+		camera_controller_a.set_camera_settings(current_model_settings)
+	
+	if camera_controller_b and camera_controller_b.has_method("set_camera_settings"):
+		camera_controller_b.set_camera_settings(current_model_settings)
+
+func set_north_offset(angle: float):
+	"""Establecer orientación norte para ambos modelos"""
+	current_model_settings["north_offset"] = angle
+	
+	# Aplicar rotación física a los modelos
+	if animation_a_model:
+		animation_a_model.rotation_degrees.y = angle
+	if animation_b_model:
+		animation_b_model.rotation_degrees.y = angle
+	
+	apply_model_settings(current_model_settings)
+	
+	
+	
+func request_auto_north_detection():
+	"""Solicitar detección automática de orientación"""
+	if not orientation_analyzer:
+		var analyzer_script = load("res://scripts/orientation/orientation_analyzer.gd")
+		orientation_analyzer = analyzer_script.new()
+		orientation_analyzer.name = "OrientationAnalyzer"
+		add_child(orientation_analyzer)
+		orientation_analyzer.analysis_complete.connect(_on_orientation_analysis_complete)
+	
+	# Analizar primer modelo disponible
+	if animation_a_model and animation_a_model.get_child_count() > 0:
+		var skeleton = animation_a_model.get_child(0)
+		orientation_analyzer.analyze_model_orientation(skeleton)
+
+func _on_orientation_analysis_complete(result: Dictionary):
+	"""Aplicar resultado de análisis de orientación"""
+	var suggested_angle = result.get("suggested_north", 0.0)
+	set_north_offset(suggested_angle)
+	
+	if ui_node:
+		ui_node.north_slider.value = suggested_angle
+
+func recenter_models():
+	"""Recentrar ambos modelos"""
+	if animation_a_model:
+		_setup_model_configuration(animation_a_model, camera_controller_a, "A")
+	if animation_b_model:
+		_setup_model_configuration(animation_b_model, camera_controller_b, "B")

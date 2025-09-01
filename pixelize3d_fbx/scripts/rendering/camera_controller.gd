@@ -24,7 +24,7 @@ var show_north_indicator: bool = true
 @export var camera_height: float = 2.0   # Altura sobre el modelo
 @export var target_position: Vector3 = Vector3.ZERO
 @export var use_orthographic: bool = true
-@export var orthographic_size: float = 10.0  # ← AUMENTADO: 3.0 → 15.0
+@export var orthographic_size: float = 2.5  # ← AUMENTADO: 3.0 → 15.0
 
 # Nodo pivot para rotaciones
 var pivot_node: Node3D
@@ -49,6 +49,7 @@ func _ready():
 	_setup_pivot_system()
 	_configure_camera()
 	_setup_north_indicator()
+	debug_camera_state()
 	#print("✅ CameraController con indicador norte inicializado")
 
 func _find_existing_nodes():
@@ -215,12 +216,12 @@ func toggle_north_indicator():
 	emit_signal("north_indicator_toggled", show_north_indicator)
 	#print("🧭 Indicador de norte: %s" % ("MOSTRADO" if show_north_indicator else "OCULTO"))
 
-func set_north_indicator_visible(visible: bool):
+func set_north_indicator_visible(visible_n: bool):
 	"""Establecer visibilidad del indicador de norte"""
-	show_north_indicator = visible
+	show_north_indicator = visible_n
 	
 	if north_indicator:
-		if visible:
+		if visible_n:
 			north_indicator.show_indicator()
 		else:
 			north_indicator.hide_indicator()
@@ -388,14 +389,14 @@ func debug_camera_state():
 	"""Imprimir estado actual de la cámara para debugging"""
 	#print("\n=== CAMERA CONTROLLER DEBUG CON INDICADOR ===")
 	var info = get_view_info()
-	#for key in info:
-		##print("  %s: %s" % [key, str(info[key])])
+	for key in info:
+		print("  %s: %s" % [key, str(info[key])])
 	
 	# Debug específico del indicador
 	if north_indicator:
 		north_indicator.debug_indicator_state()
 	
-	#print("============================================\n")
+	print("============================================\n")
 
 
 func set_camera_settings(settings: Dictionary):

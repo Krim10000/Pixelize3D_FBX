@@ -240,6 +240,7 @@ func _configure_camera_for_rendering(settings: Dictionary):
 			"north_offset": final_settings.get("north_offset" , 270.0)
 		}
 		camera_controller.set_camera_settings(camera_settings)
+		print( camera_settings)
 		print("✅ Configuración de cámara aplicada para renderizado")
 
 

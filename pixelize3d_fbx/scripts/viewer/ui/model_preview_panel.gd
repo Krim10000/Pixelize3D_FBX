@@ -43,6 +43,8 @@ func _ready():
 	print("🎬 ModelPreviewPanel MEJORADO inicializado")
 	_setup_ui()
 	_connect_signals()
+	print("oooooooooooooooooooooooo camera")
+	print(camera)
 	
 	# Configurar viewport
 	if viewport:
@@ -449,6 +451,7 @@ func get_current_animation() -> String:
 
 func is_playing() -> bool:
 	"""Verificar si hay animación reproduciéndose"""
+
 	return is_animation_playing
 
 func get_viewport_texture() -> ViewportTexture:
@@ -463,6 +466,7 @@ func set_camera_position(position: Vector3):
 	"""Configurar posición de cámara"""
 	if camera:
 		camera.position = position
+
 
 func set_camera_rotation(rotation: Vector3):
 	"""Configurar rotación de cámara"""
