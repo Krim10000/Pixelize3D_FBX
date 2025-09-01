@@ -1,10 +1,12 @@
-[gd_scene load_steps=6 format=3 uid="uid://dw54rje6cta3t"]
+[gd_scene load_steps=8 format=3 uid="uid://dw54rje6cta3t"]
 
 [ext_resource type="Script" uid="uid://clf0gup8kibd3" path="res://scripts/transition/transition_4cols_coordinator.gd" id="1_coordinator"]
 [ext_resource type="Script" uid="uid://w0sij1s28g0j" path="res://scripts/transition/Columna1_logic.gd" id="2_logic"]
 [ext_resource type="Script" uid="uid://cukjul10f7o81" path="res://scripts/transition/Columna1_UI.gd" id="3_ui"]
+[ext_resource type="Script" uid="uid://c8fq4dyruonvd" path="res://scripts/transition/Columna3_UI.gd" id="4_33mf6"]
 [ext_resource type="Script" uid="uid://y10isxtedbbo" path="res://scripts/transition/Columna2_logic.gd" id="4_logic2"]
 [ext_resource type="Script" uid="uid://c7fniugem5h2j" path="res://scripts/transition/Columna2_UI.gd" id="5_ui2"]
+[ext_resource type="Script" uid="uid://d15yvurvhadrq" path="res://scripts/transition/Columna3_Logic.gd" id="7_uuf4p"]
 
 [node name="Transition4ColsMain" type="Control"]
 layout_mode = 3
@@ -121,6 +123,10 @@ text = "⚙️ CONFIG TRANSICIÓN
 horizontal_alignment = 1
 vertical_alignment = 1
 
+[node name="Columna3_UI" type="VBoxContainer" parent="HSplitContainer/HSplitContainer/HSplitContainer/Columna3_Container"]
+layout_mode = 2
+script = ExtResource("4_33mf6")
+
 [node name="Columna4_Container" type="VBoxContainer" parent="HSplitContainer/HSplitContainer/HSplitContainer"]
 custom_minimum_size = Vector2(300, 0)
 layout_mode = 2
@@ -137,3 +143,6 @@ script = ExtResource("2_logic")
 
 [node name="Columna2_Logic" type="Node" parent="."]
 script = ExtResource("4_logic2")
+
+[node name="Columna3_Logic" type="Node" parent="."]
+script = ExtResource("7_uuf4p")

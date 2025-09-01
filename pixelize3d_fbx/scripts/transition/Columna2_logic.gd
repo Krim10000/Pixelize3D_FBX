@@ -96,6 +96,10 @@ func load_animations_data(base_model_loaded:Dictionary, anim_a: Dictionary, anim
 	"""Cargar datos de animaciones desde Columna 1"""
 	print("📥 Columna2Logic: Cargando datos de animaciones...")
 
+	if animation_a_model and animation_b_model and is_instance_valid(animation_a_model) and is_instance_valid(animation_b_model):
+		print("⚠️ Modelos ya cargados - ignorando llamada duplicada")
+		return
+
 	self.base_model_loaded=base_model_loaded
 	print("ooooooooooooooooooooooooooooooooooooooooooooooooooo base_model_loaded")
 	print(base_model_loaded)
@@ -179,129 +183,647 @@ func _clear_viewport(viewport: SubViewport):
 	for child in viewport.get_children():
 		child.queue_free()
 
+#func _setup_viewport_with_model(viewport: SubViewport, anim_data: Dictionary, id: String):
+	#"""Agregar modelo al viewport existente sin modificar cámara y luz"""
+	#print("func _setup_viewport_with_model")
+	#print("viewport")
+	#print(viewport)
+	#print("anim_data")
+	#print(anim_data)
+	#print("id")
+	#print(id)
+#
+	#
+	#print("  🔧 Configurando modelo en viewport %s..." % id)
+		#
+	#await get_tree().process_frame
+	#
+	#var skeleton = anim_data.get("skeleton")
+	#var skeleton_copy = skeleton.duplicate()
+	#print("skeleton_copy")
+	#print(skeleton_copy)
+	#skeleton_copy.position = Vector3.ZERO
+	#
+	#var original_player = anim_data.get("animation_player")
+	#var anim_player = original_player.duplicate()
+	#anim_player.name = "AnimationPlayer_" + id
+	#
+	#var base_meshes = base_model_loaded.get("meshes", [])
+	#for mesh_data in base_meshes:
+		#var mesh_node = mesh_data.get("node") 
+		#if mesh_node and is_instance_valid(mesh_node):
+			#var mesh_copy = mesh_node.duplicate()
+			#skeleton_copy.add_child(mesh_copy)
+			#print("    ✅ Mesh copiado: %s" % mesh_copy.name)
+	#
+	#if id == "A":
+#
+		#var model_container = get_parent().get_node("HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/PanelContainer_A/LayoutContainer_A/SubViewportContainer_A/SubViewport_A/Model_A")
+		#print("model_container_A")
+		#print(model_container)
+		#model_container.add_child(skeleton_copy)
+		#print("    ✅ Skeleton_A agregado")
+		#model_container.add_child(anim_player)
+		#animation_a_model = model_container
+		#animation_player_a = anim_player
+		#animation_a_model.position = Vector3(0, 0, 0)
+		#animation_a_model.scale = Vector3.ONE
+		#_auto_center_and_orient_model(model_container, viewport)
+		#print("    ✅ Modelo A configurado con AnimationPlayer")
+	#else:
+		##var model_container = find_child("/../../%Model_B")
+		#var model_container = get_parent().get_node("HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/PanelContainer_B/LayoutContainer_B/SubViewportContainer_B/SubViewport_B/Model_B")
+		#print("model_container_B")
+		#print(model_container)
+		#model_container.add_child(skeleton_copy)
+		#print("    ✅ Skeleton_B agregado")
+		#model_container.add_child(anim_player)
+		#animation_b_model = model_container
+		#animation_player_b = anim_player
+		#animation_b_model.position = Vector3(0, 0, 0)
+		#animation_b_model.scale = Vector3.ONE
+		#_auto_center_and_orient_model(model_container, viewport)
+		#print("    ✅ Modelo B configurado con AnimationPlayer")
+		#
+	#
+	#await get_tree().process_frame
+#
+	#print("oooooooooooooooooooooooooo anim_data_final")
+	#print(anim_data)
+
+
+# res://scripts/transition/Columna2_logic.gd  
+# Función COMPLETAMENTE AISLADA para evitar que las animaciones se reproduzcan en ambos viewports
+# Input: viewport, datos de animación, ID del modelo
+# Output: Modelo completamente independiente con AnimationPlayer aislado
+
+# res://scripts/transition/Columna2_logic.gd
+# Función usando el AnimationManager existente que ya funciona correctamente
+# Input: viewport, datos de animación, ID del modelo
+# Output: Modelo funcional usando el sistema probado del proyecto
+
 func _setup_viewport_with_model(viewport: SubViewport, anim_data: Dictionary, id: String):
-	"""Agregar modelo al viewport existente sin modificar cámara y luz"""
-	print("func _setup_viewport_with_model")
-	print("viewport")
-	print(viewport)
-	print("anim_data")
-	print(anim_data)
-	print("id")
-	print(id)
+	"""Configurar modelo usando el AnimationManager existente que ya funciona"""
+	print("=== CONFIGURANDO MODELO CON ANIMATION_MANAGER %s ===" % id)
+	
 	if not viewport:
+		print("❌ Viewport inválido")
 		return
 	
-	print("  🔧 Configurando modelo en viewport %s..." % id)
-		
 	await get_tree().process_frame
 	
-	var skeleton = anim_data.get("skeleton")
-	var skeleton_copy = skeleton.duplicate()
-	print("skeleton_copy")
-	print(skeleton_copy)
-	skeleton_copy.position = Vector3.ZERO
-	var original_player = anim_data.get("animation_player")
-	var anim_player = original_player.duplicate()
-	anim_player.name = "AnimationPlayer_" + id
-	var base_meshes = base_model_loaded.get("meshes", [])
-	print("base_meshes")
-	print(base_meshes)
-	for mesh_data in base_meshes:
-		var mesh_node = mesh_data.get("node")  # ← Extraer el MeshInstance3D
-		if mesh_node and is_instance_valid(mesh_node):
-			var mesh_copy = mesh_node.duplicate()
-			skeleton_copy.add_child(mesh_copy)
-			print("    ✅ Mesh copiado: %s" % mesh_copy.name)
+	# === OBTENER ANIMATION_MANAGER DEL SISTEMA EXISTENTE ===
+	var animation_manager = _get_animation_manager()
+	if not animation_manager:
+		print("❌ AnimationManager no encontrado")
+		return
+	
+	print("✅ AnimationManager encontrado: %s" % animation_manager.get_path())
+	
+	# === USAR LA FUNCIÓN QUE YA FUNCIONA EN TU PROYECTO ===
+	var combined_model = animation_manager.combine_base_with_animation_for_transition(
+		base_model_loaded, 
+		anim_data
+	)
+	
+	if not combined_model:
+		print("❌ Error combinando modelo con AnimationManager")
+		return
+		
+	print("✅ Modelo combinado creado: %s" % combined_model.name)
+	
+	# === DAR NOMBRE ÚNICO AL MODELO COMBINADO ===
+	combined_model.name = "CombinedModel_" + id
+	
+	# === OBTENER CONTENEDOR Y AGREGAR MODELO ===
+	var model_container = _get_model_container(id)
+	if not model_container:
+		print("❌ No se encontró contenedor para modelo %s" % id)
+		return
+	
+	# Limpiar contenedor completamente
+	_clear_model_container_completely(model_container)
+	
+	# Agregar el modelo combinado al contenedor
+	model_container.add_child(combined_model)
+	
+	# === ENCONTRAR EL ANIMATIONPLAYER EN EL MODELO COMBINADO ===
+	var animation_player = _find_animation_player_in_model(combined_model)
+	if not animation_player:
+		print("❌ No se encontró AnimationPlayer en modelo combinado")
+		return
+		
+	print("✅ AnimationPlayer encontrado: %s" % animation_player.name)
+	print("   Animaciones disponibles: %s" % animation_player.get_animation_list())
+	
+	# === CONFIGURAR REFERENCIAS GLOBALES ===
+	if id == "A":
+		animation_a_model = combined_model
+		animation_player_a = animation_player
+		print("✅ Referencias A configuradas")
+	else:
+		animation_b_model = combined_model
+		animation_player_b = animation_player
+		print("✅ Referencias B configuradas")
+	
+	# === CENTRAR MODELO ===
+	_auto_center_and_orient_model(model_container, viewport)
+	
+	await get_tree().process_frame
+	
+	# === DEBUG FINAL ===
+	print("=== MODELO %s CONFIGURADO CON ANIMATION_MANAGER ===" % id)
+	#print("Modelo combinado: %s" % combined_model.get_path())
+	#print("AnimationPlayer: %s" % animation_player.get_path())
+	#print("Animaciones: %s" % animation_player.get_animation_list())
+	#print("Modelo en contenedor: %s" % model_container.get_children())
+	print("================================================")
+
+func _get_animation_manager() -> Node:
+	"""Obtener AnimationManager del sistema existente"""
+	
+	# Intentar múltiples rutas posibles
+	var possible_paths = [
+		"/root/Transition4ColsMain/Columna1_Logic/AnimationManager",
+		"../Columna1_Logic/AnimationManager", 
+		"/root/Transition4ColsMain/AnimationManager",
+		"../AnimationManager"
+	]
+	
+	for path in possible_paths:
+		var manager = get_node_or_null(path)
+		if manager:
+			print("AnimationManager encontrado en: %s" % path)
+			return manager
+	
+	# Si no se encuentra, buscar en el árbol
+	var root = get_tree().current_scene
+	return _find_animation_manager_recursive(root)
+
+func _find_animation_manager_recursive(node: Node) -> Node:
+	"""Buscar AnimationManager recursivamente en el árbol"""
+	
+	# Verificar si este nodo tiene los métodos característicos del AnimationManager
+	if node.has_method("combine_base_with_animation_for_transition"):
+		print("AnimationManager encontrado por método: %s" % node.get_path())
+		return node
+	
+	# Buscar por nombre
+	if node.name == "AnimationManager" or "AnimationManager" in node.name:
+		print("AnimationManager encontrado por nombre: %s" % node.get_path())
+		return node
+	
+	# Buscar en hijos
+	for child in node.get_children():
+		var found = _find_animation_manager_recursive(child)
+		if found:
+			return found
+	
+	return null
+
+func _find_animation_player_in_model(model: Node3D) -> AnimationPlayer:
+	"""Encontrar AnimationPlayer en el modelo combinado"""
+	
+	# Buscar directamente
+	var anim_player = model.get_node_or_null("AnimationPlayer")
+	if anim_player:
+		return anim_player
+	
+	# Buscar con nombres alternativos
+	for child in model.get_children():
+		if child is AnimationPlayer:
+			return child
+	
+	# Buscar recursivamente
+	return _find_animation_player_recursive(model)
+
+func _find_animation_player_recursive(node: Node) -> AnimationPlayer:
+	"""Buscar AnimationPlayer recursivamente"""
+	if node is AnimationPlayer:
+		return node
+	
+	for child in node.get_children():
+		var result = _find_animation_player_recursive(child)
+		if result:
+			return result
+	
+	return null
+
+func _get_model_container(id: String) -> Node3D:
+	"""Obtener contenedor específico para el modelo"""
+	var container_path: String
 	
 	if id == "A":
-
-		var model_container = get_parent().get_node("HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/PanelContainer_A/LayoutContainer_A/SubViewportContainer_A/SubViewport_A/Model_A")
-		print("model_container_A")
-		print(model_container)
-		model_container.add_child(skeleton_copy)
-		print("    ✅ Skeleton_A agregado")
-		model_container.add_child(anim_player)
-		animation_a_model = model_container
-		animation_player_a = anim_player
-		animation_a_model.position = Vector3(0, 0, 0)
-		animation_a_model.scale = Vector3.ONE
-		#_setup_model_configuration(model_container, camera_controller_a, "A")
-		_auto_center_and_orient_model(model_container, viewport)
-		print("    ✅ Modelo A configurado con AnimationPlayer")
+		container_path = "HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/PanelContainer_A/LayoutContainer_A/SubViewportContainer_A/SubViewport_A/Model_A"
 	else:
-		#var model_container = find_child("/../../%Model_B")
-		var model_container = get_parent().get_node("HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/PanelContainer_B/LayoutContainer_B/SubViewportContainer_B/SubViewport_B/Model_B")
-		print("model_container_B")
-		print(model_container)
-		#viewport.add_child(model_container)
-		model_container.add_child(skeleton_copy)
-		print("    ✅ Skeleton_B agregado")
-		model_container.add_child(anim_player)
-		animation_b_model = model_container
-		animation_player_b = anim_player
-		animation_b_model.position = Vector3(0, 0, 0)
-		animation_b_model.scale = Vector3.ONE
-		#_setup_model_configuration(model_container, camera_controller_b, "B")
-		_auto_center_and_orient_model(model_container, viewport)
-		print("    ✅ Modelo B configurado con AnimationPlayer")
-		
+		container_path = "HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/PanelContainer_B/LayoutContainer_B/SubViewportContainer_B/SubViewport_B/Model_B"
 	
-	# Crear un nodo contenedor para el modelo
-	## Duplicar skeleton si existe
-	#var skeleton = anim_data.get("skeleton")
-	#if skeleton:
-		#var skeleton_copy = skeleton.duplicate()
-		#skeleton_copy.position = Vector3.ZERO
-		#if id == "A":
-			#model_container.add_child(skeleton_copy)
-		#else:
-			#model_container.add_child(skeleton_copy)
-		#print("    ✅ Skeleton agregado")
-	#
-	# Duplicar y configurar AnimationPlayer
+	return get_parent().get_node_or_null(container_path)
+
+func _clear_model_container_completely(container: Node3D):
+	"""Limpiar completamente el contenedor del modelo"""
+	print("🧹 Limpiando contenedor: %s" % container.name)
 	
-	#if original_player:
-#
-		#if id == "A":
-			#model_container.add_child(anim_player)
-		#else:
-			#model_container.add_child(anim_player)
-		## Verificar y configurar animaciones
-		#var animations = anim_data.get("animations", [])
-		#if animations.size() > 0:
-			#var anim_name = animations[0]
-			#print("    🎬 Animación disponible: %s" % anim_name)
-			#
-			# Copiar las animaciones del player original
-			#if original_player.has_animation_library(""):
-				#var lib = original_player.get_animation_library("")
-				#if lib:
-					#var new_lib = AnimationLibrary.new()
-					#for anim in lib.get_animation_list():
-						#new_lib.add_animation(anim, lib.get_animation(anim))
-					#anim_player.add_animation_library("", new_lib)
-					#print("    ✅ Biblioteca de animaciones copiada")
-		
-		# Guardar referencias
-		#if id == "A":
-			#animation_a_model = model_container_A
-			#animation_player_a = anim_player
-			#animation_a_model.position = Vector3(0, 0, 0)
-			#animation_a_model.scale = Vector3.ONE
-			#print("    ✅ Modelo A configurado con AnimationPlayer")
-		#else:
-			#animation_b_model = model_container_B
-			#animation_player_b = anim_player
-			#animation_b_model.position = Vector3(0, 0, 0)
-			#animation_b_model.scale = Vector3.ONE
-			#print("    ✅ Modelo B configurado con AnimationPlayer")
+	for child in container.get_children():
+		if child is Node3D:
+			print("    🗑️ Removiendo: %s" % child.name)
+			child.queue_free()
 	
-	# Ajustar posición y escala del modelo
-	#model_container.position = Vector3(0, 0, 0)
-	#model_container.scale = Vector3.ONE
-	
-	# Esperar un frame para asegurar que todo esté listo
+	# Esperar que se liberen los nodos
 	await get_tree().process_frame
+
+# === FUNCIONES DE CONTROL USANDO EL SISTEMA EXISTENTE ===
+
+func _on_play_animation_a():
+	"""Reproducir animación A usando AnimationPlayer del modelo combinado"""
+	print("▶ PLAY con AnimationManager - Animación A")
+	
+	if not animation_player_a or not is_instance_valid(animation_player_a):
+		print("❌ AnimationPlayer A no disponible")
+		return
+	
+	var anim_name = playback_state_a.animation_name
+	if anim_name == "":
+		# Intentar usar la primera animación disponible
+		var available_animations = animation_player_a.get_animation_list()
+		if available_animations.size() > 0:
+			anim_name = available_animations[0]
+			playback_state_a.animation_name = anim_name
+			print("🔧 Usando primera animación disponible: %s" % anim_name)
+		else:
+			print("❌ No hay animaciones disponibles")
+			return
+	
+	# Verificar que la animación existe
+	if not animation_player_a.has_animation(anim_name):
+		print("❌ Animación '%s' no encontrada" % anim_name)
+		print("    Animaciones disponibles: %s" % animation_player_a.get_animation_list())
+		return
+	
+	# Reproducir animación
+	animation_player_a.stop()  # Detener cualquier animación previa
+	animation_player_a.play(anim_name)
+	playback_state_a.playing = true
+	
+	print("✅ Animación A iniciada: %s" % anim_name)
+	print("    Estado reproducción: %s" % animation_player_a.is_playing())
+	
+	# Iniciar timer de actualización
+	if not update_timer.is_stopped():
+		update_timer.stop()
+	update_timer.start()
+	
+	_emit_playback_state("animation_a")
+
+func _on_play_animation_b():
+	"""Reproducir animación B usando AnimationPlayer del modelo combinado"""
+	print("▶ PLAY con AnimationManager - Animación B")
+	
+	if not animation_player_b or not is_instance_valid(animation_player_b):
+		print("❌ AnimationPlayer B no disponible")
+		return
+	
+	var anim_name = playback_state_b.animation_name
+	if anim_name == "":
+		# Intentar usar la primera animación disponible
+		var available_animations = animation_player_b.get_animation_list()
+		if available_animations.size() > 0:
+			anim_name = available_animations[0]
+			playback_state_b.animation_name = anim_name
+			print("🔧 Usando primera animación disponible: %s" % anim_name)
+		else:
+			print("❌ No hay animaciones disponibles")
+			return
+	
+	# Verificar que la animación existe
+	if not animation_player_b.has_animation(anim_name):
+		print("❌ Animación '%s' no encontrada" % anim_name)
+		print("    Animaciones disponibles: %s" % animation_player_b.get_animation_list())
+		return
+	
+	# Reproducir animación
+	animation_player_b.stop()  # Detener cualquier animación previa
+	animation_player_b.play(anim_name)
+	playback_state_b.playing = true
+	
+	print("✅ Animación B iniciada: %s" % anim_name)
+	print("    Estado reproducción: %s" % animation_player_b.is_playing())
+	
+	# Iniciar timer de actualización
+	if not update_timer.is_stopped():
+		update_timer.stop()
+	update_timer.start()
+	
+	_emit_playback_state("animation_b")
+
+# === CONFIGURACIÓN DE ESTADOS MEJORADA ===
+
+func _configure_playback_states():
+	"""Configurar estados de reproducción usando datos reales del AnimationPlayer"""
+	print("func _configure_playback_states():")
+	print("⚙️ Configurando estados de reproducción...")
+	
+	# Configurar estado A
+	var anim_name_a = animation_a_data.get("display_name", "")
+	if anim_name_a == "":
+		anim_name_a = animation_a_data.get("name", "")
+	
+	print("anim_name_a: %s" % anim_name_a)
+	
+	if animation_player_a and anim_name_a != "":
+		# Verificar qué animaciones tiene realmente el player
+		var available_anims_a = animation_player_a.get_animation_list()
+		print("AnimationPlayer A tiene: %s" % available_anims_a)
+		
+		# Buscar la animación correcta
+		var final_anim_name_a = _find_matching_animation(available_anims_a, anim_name_a)
+		
+		playback_state_a.animation_name = final_anim_name_a
+		print("playback_state_a.animation_name: %s" % playback_state_a.animation_name)
+		
+		# Obtener duración real
+		if animation_player_a.has_animation(final_anim_name_a):
+			var animation = animation_player_a.get_animation(final_anim_name_a)
+			playback_state_a.duration = animation.length
+			playback_state_a.total_frames = int(animation.length * 30)
+	
+	# Configurar estado B
+	var anim_name_b = animation_b_data.get("display_name", "")
+	if anim_name_b == "":
+		anim_name_b = animation_b_data.get("name", "")
+	
+	print("anim_name_b: %s" % anim_name_b)
+	
+	if animation_player_b and anim_name_b != "":
+		# Verificar qué animaciones tiene realmente el player
+		var available_anims_b = animation_player_b.get_animation_list()
+		print("AnimationPlayer B tiene: %s" % available_anims_b)
+		
+		# Buscar la animación correcta
+		var final_anim_name_b = _find_matching_animation(available_anims_b, anim_name_b)
+		
+		playback_state_b.animation_name = final_anim_name_b
+		print("playback_state_b.animation_name: %s" % playback_state_b.animation_name)
+		
+		# Obtener duración real
+		if animation_player_b.has_animation(final_anim_name_b):
+			var animation = animation_player_b.get_animation(final_anim_name_b)
+			playback_state_b.duration = animation.length
+			playback_state_b.total_frames = int(animation.length * 30)
+
+func _find_matching_animation(available_animations: Array, target_name: String) -> String:
+	"""Encontrar la animación que coincida con el nombre objetivo"""
+	
+	# Buscar coincidencia exacta primero
+	for anim_name in available_animations:
+		if anim_name == target_name:
+			return anim_name
+	
+	# Buscar coincidencia parcial
+	for anim_name in available_animations:
+		if target_name in anim_name or anim_name in target_name:
+			print("🔍 Coincidencia encontrada: '%s' -> '%s'" % [target_name, anim_name])
+			return anim_name
+	
+	# Si no encuentra nada, usar la primera disponible
+	if available_animations.size() > 0:
+		print("🔍 Usando primera animación: %s" % available_animations[0])
+		return available_animations[0]
+	
+	print("❌ No se encontraron animaciones")
+	return ""
+
+
+func _create_isolated_skeleton(original_skeleton: Skeleton3D, id: String) -> Skeleton3D:
+	"""Crear skeleton completamente independiente con nombre único"""
+	var isolated_skeleton = Skeleton3D.new()
+	isolated_skeleton.name = "Skeleton3D_Isolated_" + id  # Nombre único crítico
+	
+	# Copiar estructura de huesos exacta
+	for bone_idx in range(original_skeleton.get_bone_count()):
+		var bone_name = original_skeleton.get_bone_name(bone_idx)
+		var bone_parent = original_skeleton.get_bone_parent(bone_idx)
+		var bone_rest = original_skeleton.get_bone_rest(bone_idx)
+		var bone_pose = original_skeleton.get_bone_pose(bone_idx)
+		
+		isolated_skeleton.add_bone(bone_name)
+		isolated_skeleton.set_bone_parent(bone_idx, bone_parent)
+		isolated_skeleton.set_bone_rest(bone_idx, bone_rest)
+		isolated_skeleton.set_bone_pose_position(bone_idx, bone_pose.origin)
+		isolated_skeleton.set_bone_pose_rotation(bone_idx, bone_pose.basis.get_rotation_quaternion())
+		isolated_skeleton.set_bone_pose_scale(bone_idx, bone_pose.basis.get_scale())
+	
+	isolated_skeleton.position = Vector3.ZERO
+	print("Skeleton aislado: %d huesos copiados" % isolated_skeleton.get_bone_count())
+	return isolated_skeleton
+
+func _attach_isolated_meshes(isolated_skeleton: Skeleton3D, id: String):
+	"""Agregar meshes completamente independientes al skeleton aislado"""
+	var base_meshes = base_model_loaded.get("meshes", [])
+	
+	for mesh_data in base_meshes:
+		var mesh_node = mesh_data.get("node")
+		if mesh_node and is_instance_valid(mesh_node):
+			# CRÍTICO: Usar duplicate(DUPLICATE_WITH_SIGNALS | DUPLICATE_GROUPS | DUPLICATE_SCRIPTS)
+			# para asegurar copia completa
+			var isolated_mesh = mesh_node.duplicate(7)  # Todas las flags
+			isolated_mesh.name = mesh_node.name + "_Isolated_" + id
+			
+			# CRÍTICO: Reconfigurar skeleton path para apuntar al padre
+			#if isolated_mesh.has_method("set") and isolated_mesh.has_property("skeleton"):
+			if isolated_mesh.has_method("set") :
+				isolated_mesh.skeleton = NodePath("..")
+				
+			isolated_skeleton.add_child(isolated_mesh)
+			print("    ✅ Mesh aislado: %s -> %s" % [mesh_node.name, isolated_mesh.name])
+
+func _create_isolated_animation_player(original_player: AnimationPlayer, isolated_skeleton: Skeleton3D, id: String) -> AnimationPlayer:
+	"""Crear AnimationPlayer completamente aislado con rutas retargeteadas"""
+	var isolated_player = AnimationPlayer.new()
+	isolated_player.name = "AnimationPlayer_Isolated_" + id  # Nombre único crítico
+	
+	# CRÍTICO: Root node debe apuntar al contenedor padre
+	isolated_player.root_node = NodePath("..")
+	
+	# Crear biblioteca de animaciones independiente
+	var isolated_library = AnimationLibrary.new()
+	isolated_player.add_animation_library("", isolated_library)
+	
+	# Copiar cada animación con retargeting completo
+	for anim_name in original_player.get_animation_list():
+		var original_animation = original_player.get_animation(anim_name)
+		if original_animation:
+			var isolated_animation = _create_isolated_animation(original_animation, isolated_skeleton, id)
+			isolated_library.add_animation(anim_name, isolated_animation)
+			print("    ✅ Animación aislada: %s" % anim_name)
+	
+	print("AnimationPlayer aislado: %d animaciones copiadas" % isolated_player.get_animation_list().size())
+	return isolated_player
+
+func _create_isolated_animation(original_animation: Animation, isolated_skeleton: Skeleton3D, id: String) -> Animation:
+	"""Crear animación completamente aislada con rutas retargeteadas"""
+	var isolated_animation = original_animation.duplicate(true)
+	
+	# RETARGETING CRÍTICO: Actualizar TODOS los track paths
+	for track_idx in range(isolated_animation.get_track_count()):
+		var original_path = isolated_animation.track_get_path(track_idx)
+		var original_path_str = str(original_path)
+		
+		# Reemplazar rutas para apuntar al skeleton aislado
+		var isolated_path_str = _retarget_animation_path(original_path_str, isolated_skeleton.name, id)
+		
+		if isolated_path_str != original_path_str:
+			isolated_animation.track_set_path(track_idx, NodePath(isolated_path_str))
+			
+			# Debug solo primeros tracks
+			if track_idx < 2:
+				print("      🔄 Track retargeteado: %s -> %s" % [original_path_str, isolated_path_str])
+	
+	# Configurar loop automáticamente
+	isolated_animation.loop_mode = Animation.LOOP_LINEAR
+	
+	return isolated_animation
+
+func _retarget_animation_path(original_path: String, isolated_skeleton_name: String, id: String) -> String:
+	"""Retargetear path de animación para apuntar al skeleton aislado específico"""
+	
+	# Patrones comunes que necesitan ser retargeteados:
+	# "Skeleton3D:Bone_Name" -> "Skeleton3D_Isolated_A:Bone_Name"  
+	# "../Skeleton3D/Bone_Name" -> "../Skeleton3D_Isolated_A/Bone_Name"
+	# "Skeleton3D/MeshInstance3D" -> "Skeleton3D_Isolated_A/MeshInstance3D_Isolated_A"
+	
+	var retargeted_path = original_path
+	
+	# Caso 1: Rutas que empiezan con nombre del skeleton
+	if retargeted_path.begins_with("Skeleton3D"):
+		retargeted_path = retargeted_path.replace("Skeleton3D", isolated_skeleton_name)
+	
+	# Caso 2: Rutas relativas con ../Skeleton3D  
+	retargeted_path = retargeted_path.replace("../Skeleton3D", "../" + isolated_skeleton_name)
+	retargeted_path = retargeted_path.replace("./Skeleton3D", "./" + isolated_skeleton_name)
+	
+	# Caso 3: MeshInstance3D dentro del skeleton
+	retargeted_path = retargeted_path.replace("MeshInstance3D", "MeshInstance3D_Isolated_" + id)
+	
+	# Caso 4: Cualquier referencia directa al skeleton sin path
+	if "Skeleton3D" in retargeted_path and isolated_skeleton_name not in retargeted_path:
+		retargeted_path = retargeted_path.replace("Skeleton3D", isolated_skeleton_name)
+	
+	return retargeted_path
+
+#func _get_model_container(id: String) -> Node3D:
+	#"""Obtener contenedor específico para el modelo"""
+	#var container_path: String
+	#
+	#if id == "A":
+		#container_path = "HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/PanelContainer_A/LayoutContainer_A/SubViewportContainer_A/SubViewport_A/Model_A"
+	#else:
+		#container_path = "HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI/PanelContainer_B/LayoutContainer_B/SubViewportContainer_B/SubViewport_B/Model_B"
+	#
+	#return get_parent().get_node_or_null(container_path)
+
+func _clear_model_container(container: Node3D):
+	"""Limpiar selectivamente el contenedor del modelo"""
+	var nodes_to_remove = []
+	
+	for child in container.get_children():
+		# Solo remover nodos que NO pertenezcan al modelo actual que estamos creando
+		if child is Skeleton3D or child is AnimationPlayer:
+			# Verificar si es un nodo temporal o mal configurado
+			if not child.name.contains("_Isolated_"):
+				nodes_to_remove.append(child)
+				print("    🗑️ Marcando para remover: %s (no aislado)" % child.name)
+			else:
+				print("    ✅ Manteniendo: %s (ya aislado)" % child.name)
+	
+	# Remover solo los nodos marcados
+	for node in nodes_to_remove:
+		node.queue_free()
+	
+	# Esperar solo si removimos algo
+	if nodes_to_remove.size() > 0:
+		await get_tree().process_frame
+
+# === FUNCIONES DE CONTROL AISLADO ===
+
+#func _on_play_animation_a():
+	#"""Reproducir animación A de forma completamente aislada"""
+	#print("▶ PLAY AISLADO - Animación A")
+	#
+	#if not animation_player_a or not is_instance_valid(animation_player_a):
+		#print("❌ AnimationPlayer A no disponible")
+		#return
+	#
+	#var anim_name = playback_state_a.animation_name
+	#if anim_name == "":
+		#print("❌ No hay animación configurada para A")
+		#return
+	#
+	## Verificar que la animación existe en el player aislado
+	#if not animation_player_a.has_animation(anim_name):
+		#print("❌ Animación '%s' no encontrada en AnimationPlayer A aislado" % anim_name)
+		#print("    Animaciones disponibles: %s" % animation_player_a.get_animation_list())
+		#return
+	#
+	## CRÍTICO: Solo reproducir en el AnimationPlayer aislado A
+	#animation_player_a.stop()  # Detener cualquier animación previa
+	#animation_player_a.play(anim_name)
+	#playback_state_a.playing = true
+	#
+	## Verificar que NO se esté reproduciendo en B
+	#if animation_player_b and animation_player_b.is_playing():
+		#print("⚠️ DETECTADO: AnimationPlayer B también reproduciéndose - DETENIENDO")
+		#animation_player_b.stop()
+		#playback_state_b.playing = false
+	#
+	#print("✅ Animación A iniciada en modo AISLADO")
+	#
+	#if not update_timer.is_stopped():
+		#update_timer.stop()
+	#update_timer.start()
+	#
+	#_emit_playback_state("animation_a")
+#
+#func _on_play_animation_b():
+	#"""Reproducir animación B de forma completamente aislada"""
+	#print("▶ PLAY AISLADO - Animación B")
+	#
+	#if not animation_player_b or not is_instance_valid(animation_player_b):
+		#print("❌ AnimationPlayer B no disponible")
+		#return
+	#
+	#var anim_name = playback_state_b.animation_name
+	#if anim_name == "":
+		#print("❌ No hay animación configurada para B")
+		#return
+	#
+	## Verificar que la animación existe en el player aislado
+	#if not animation_player_b.has_animation(anim_name):
+		#print("❌ Animación '%s' no encontrada en AnimationPlayer B aislado" % anim_name)
+		#print("    Animaciones disponibles: %s" % animation_player_b.get_animation_list())
+		#return
+	#
+	## CRÍTICO: Solo reproducir en el AnimationPlayer aislado B
+	#animation_player_b.stop()  # Detener cualquier animación previa
+	#animation_player_b.play(anim_name)
+	#playback_state_b.playing = true
+	#
+	## Verificar que NO se esté reproduciendo en A
+	#if animation_player_a and animation_player_a.is_playing():
+		#print("⚠️ DETECTADO: AnimationPlayer A también reproduciéndose - DETENIENDO")
+		#animation_player_a.stop()
+		#playback_state_a.playing = false
+	#
+	#print("✅ Animación B iniciada en modo AISLADO")
+	#
+	#if not update_timer.is_stopped():
+		#update_timer.stop()
+	#update_timer.start()
+	#
+	#_emit_playback_state("animation_b")
+
+
+
 
 func _find_animation_player(node: Node) -> AnimationPlayer:
 	"""Buscar AnimationPlayer en el nodo o sus hijos"""
@@ -315,89 +837,59 @@ func _find_animation_player(node: Node) -> AnimationPlayer:
 	
 	return null
 
-func _configure_playback_states():
-	print("func _configure_playback_states():
-")
-	"""Configurar estados iniciales de reproducción"""
-	print("⚙️ Configurando estados de reproducción...")
-	
-	# Configurar estado A
-	var anim_name_a = animation_a_data.get("display_name", "")
-	print("anim_name_a")
-	print(anim_name_a)
-	
-	#if anim_name_a == "" and animation_a_data.has("animations") and animation_a_data.animations.size() > 0:
-		#anim_name_a = animation_a_data.display_name
-	
-	if animation_player_a and anim_name_a != "":
-		playback_state_a.animation_name = anim_name_a
-		print("playback_state_a.animation_name")
-		print(playback_state_a.animation_name)
-		
-		# Buscar en la biblioteca de animaciones
-		#if animation_player_a.has_animation_library(""):
-			#var lib = animation_player_a.get_animation_library("")
-			#if lib and lib.has_animation(anim_name_a):
-				#var anim = lib.get_animation(anim_name_a)
-				#playback_state_a.duration = anim.length
-				#playback_state_a.total_frames = int(anim.length * 30)  # Asumiendo 30 FPS
-				#print("  ✅ Estado A configurado: %s (%.2fs)" % [anim_name_a, anim.length])
-	
-	# Configurar estado B
-	var anim_name_b = animation_b_data.get("display_name", "")
-	#if anim_name_b == "" and animation_b_data.has("animations") and animation_b_data.animations.size() > 0:
-		#anim_name_b = animation_b_data.display_name
-	
-	if animation_player_b and anim_name_b != "":
-		playback_state_b.animation_name = anim_name_b
-		print("playback_state_b.animation_name")
-		print(playback_state_b.animation_name)
-		
-		# Buscar en la biblioteca de animaciones
-		#if animation_player_b.has_animation_library(""):
-			#var lib = animation_player_b.get_animation_library("")
-			#if lib and lib.has_animation(anim_name_b):
-				#var anim = lib.get_animation(anim_name_b)
-				#playback_state_b.duration = anim.length
-				#playback_state_b.total_frames = int(anim.length * 30)  # Asumiendo 30 FPS
-				#print("  ✅ Estado B configurado: %s (%.2fs)" % [anim_name_b, anim.length])
-
-# ========================================================================
-# CONTROL DE REPRODUCCIÓN
-# ========================================================================
-
-func _on_play_animation_a():
-	print("func _on_play_animation_a():")
-	"""Iniciar reproducción de animación A"""
-	#if not animation_player_a or playback_state_a.animation_name == "":
-		#print("  ⚠️ No se puede reproducir animación A")
-		#return
+#func _configure_playback_states():
+	#print("func _configure_playback_states():")
 	#
-	print("▶ Reproduciendo animación A: %s" % playback_state_a.animation_name)
-	
-	# Usar el nombre con el prefijo de la biblioteca si es necesario
-	var anim_to_play = playback_state_a.animation_name
-	print("anim_to_play")
-	print(anim_to_play)
-	print("00000000000000000000000000000000playback_state_a")
-	print(playback_state_a)
-	
-	#if animation_player_a.has_animation_library(""):
-		#var lib = animation_player_a.get_animation_library("")
-		#if lib and lib.has_animation(anim_to_play):
-			## Si la animación está en la biblioteca por defecto, agregar prefijo
-			#anim_to_play = anim_to_play  # La biblioteca "" no necesita prefijo
-	
-	animation_player_a.play(anim_to_play)
-	playback_state_a.playing = true
-	
-	
-	# Iniciar actualización de estados
-	if not update_timer.is_stopped():
-		update_timer.stop()
-	update_timer.start()
-	
-	_emit_playback_state("animation_a")
+	#"""Configurar estados iniciales de reproducción"""
+	#print("⚙️ Configurando estados de reproducción...")
+	#
+	## Configurar estado A
+	#var anim_name_a = animation_a_data.get("display_name", "")
+	#print("anim_name_a")
+	#print(anim_name_a)
+	#
+	#if animation_player_a and anim_name_a != "":
+		#playback_state_a.animation_name = anim_name_a
+		#print("playback_state_a.animation_name")
+		#print(playback_state_a.animation_name)
+		#
+	#
+	## Configurar estado B
+	#var anim_name_b = animation_b_data.get("display_name", "")
+	#
+	#if animation_player_b and anim_name_b != "":
+		#playback_state_b.animation_name = anim_name_b
+		#print("playback_state_b.animation_name")
+		#print(playback_state_b.animation_name)
+		#
+#
+## ========================================================================
+## CONTROL DE REPRODUCCIÓN
+## ========================================================================
+#
+##func _on_play_animation_a():
+	##print("func _on_play_animation_a():")
+	##"""Iniciar reproducción de animación A"""
+	###
+	##print("▶ Reproduciendo animación A: %s" % playback_state_a.animation_name)
+	##
+	### Usar el nombre con el prefijo de la biblioteca si es necesario
+	##var anim_to_play = playback_state_a.animation_name
+	##print("anim_to_play")
+	##print(anim_to_play)
+	##print("00000000000000000000000000000000playback_state_a")
+	##print(playback_state_a)
+	##
+	##animation_player_a.play(anim_to_play)
+	##playback_state_a.playing = true
+	##
+	##
+	### Iniciar actualización de estados
+	##if not update_timer.is_stopped():
+		##update_timer.stop()
+	##update_timer.start()
+	##
+	##_emit_playback_state("animation_a")
 
 func _on_pause_animation_a():
 	"""Pausar animación A"""
@@ -406,35 +898,38 @@ func _on_pause_animation_a():
 		animation_player_a.pause()
 		playback_state_a.playing = false
 		_emit_playback_state("animation_a")
+		playback_state_a.current_frame = playback_state_a.total_frames
+		
+		
 
-func _on_play_animation_b():
-	"""Iniciar reproducción de animación B"""
-	print("func _on_play_animation_b():")
-	if not animation_player_b or playback_state_b.animation_name == "":
-		print("  ⚠️ No se puede reproducir animación B")
-		return
-	
-	print("▶ Reproduciendo animación B: %s" % playback_state_b.animation_name)
-	
-	# Usar el nombre con el prefijo de la biblioteca si es necesario
-	var anim_to_play = playback_state_b.animation_name
-	print("anim_to_play")
-	print(anim_to_play)
-	#if animation_player_b.has_animation_library(""):
-		#var lib = animation_player_b.get_animation_library("")
-		#if lib and lib.has_animation(anim_to_play):
-			## Si la animación está en la biblioteca por defecto, agregar prefijo
-			#anim_to_play = anim_to_play  # La biblioteca "" no necesita prefijo
-	
-	animation_player_b.play(anim_to_play)
-	playback_state_b.playing = true
-	
-	# Iniciar actualización de estados
-	if not update_timer.is_stopped():
-		update_timer.stop()
-	update_timer.start()
-	
-	_emit_playback_state("animation_b")
+#func _on_play_animation_b():
+	#"""Iniciar reproducción de animación B"""
+	#print("func _on_play_animation_b():")
+	#if not animation_player_b or playback_state_b.animation_name == "":
+		#print("  ⚠️ No se puede reproducir animación B")
+		#return
+	#
+	#print("▶ Reproduciendo animación B: %s" % playback_state_b.animation_name)
+	#
+	## Usar el nombre con el prefijo de la biblioteca si es necesario
+	#var anim_to_play = playback_state_b.animation_name
+	#print("anim_to_play")
+	#print(anim_to_play)
+	##if animation_player_b.has_animation_library(""):
+		##var lib = animation_player_b.get_animation_library("")
+		##if lib and lib.has_animation(anim_to_play):
+			### Si la animación está en la biblioteca por defecto, agregar prefijo
+			##anim_to_play = anim_to_play  # La biblioteca "" no necesita prefijo
+	#
+	#animation_player_b.play(anim_to_play)
+	#playback_state_b.playing = true
+	#
+	## Iniciar actualización de estados
+	#if not update_timer.is_stopped():
+		#update_timer.stop()
+	#update_timer.start()
+	#
+	#_emit_playback_state("animation_b")
 
 func _on_pause_animation_b():
 	"""Pausar animación B"""
@@ -443,7 +938,7 @@ func _on_pause_animation_b():
 		animation_player_b.pause()
 		playback_state_b.playing = false
 		_emit_playback_state("animation_b")
-
+		playback_state_b.current_frame = 0	
 # ========================================================================
 # ACTUALIZACIÓN DE ESTADOS
 # ========================================================================
@@ -462,7 +957,7 @@ func _update_playback_states():
 		else:
 			# Animación terminó
 			playback_state_a.playing = false
-			playback_state_a.current_frame = 0
+			playback_state_a.current_frame = playback_state_a.total_frames
 			_emit_playback_state("animation_a")
 	
 	# Actualizar estado B

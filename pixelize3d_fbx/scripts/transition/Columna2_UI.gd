@@ -246,6 +246,7 @@ func _on_pause_a_pressed():
 	print("⏸ Pause animación A solicitado")
 	play_button_a.disabled = false
 	pause_button_a.disabled = true
+	
 	emit_signal("pause_animation_a_requested")
 
 func _on_play_b_pressed():
@@ -254,7 +255,7 @@ func _on_play_b_pressed():
 	play_button_b.disabled = true
 	pause_button_b.disabled = false
 	emit_signal("play_animation_b_requested")
-
+	
 func _on_pause_b_pressed():
 	"""Callback del botón Pause B"""
 	print("⏸ Pause animación B solicitado")
@@ -430,6 +431,9 @@ func _setup_control_panel(panel: PanelContainer, id: String):
 	frame_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
 	vbox.add_child(frame_label)
 	
+	
+	
+	
 	# Container horizontal para botones
 	var buttons_hbox = HBoxContainer.new()
 	buttons_hbox.alignment = BoxContainer.ALIGNMENT_CENTER
@@ -438,13 +442,13 @@ func _setup_control_panel(panel: PanelContainer, id: String):
 	
 	# Botones de control
 	var play_button = Button.new()
-	play_button.text = "▶"+id
+	play_button.text = "▶"  +id
 	play_button.custom_minimum_size = Vector2(40, 30)
 	play_button.tooltip_text = "Reproducir animación %s" % id
 	buttons_hbox.add_child(play_button)
 	
 	var pause_button = Button.new()
-	pause_button.text = "PAUSE"+id
+	pause_button.text = "PAUSE  "+id
 	pause_button.custom_minimum_size = Vector2(40, 30)
 	pause_button.tooltip_text = "Pausar animación %s" % id
 	buttons_hbox.add_child(pause_button)
@@ -639,12 +643,13 @@ func _create_model_config_panel():
 	area_slider.min_value = 0.5
 	area_slider.max_value = 20.0
 	area_slider.value = 2.5
-	area_slider.step = 0.1
+	area_slider.step = 0.5
 	area_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	area_container.add_child(area_slider)
 	
 	area_value_label = Label.new()
-	area_value_label.text = "2.5"
+	#area_value_label.text = "2.5"
+	area_value_label.text= str(area_slider.value)
 	area_value_label.custom_minimum_size.x = 40
 	area_container.add_child(area_value_label)
 	

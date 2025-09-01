@@ -29,8 +29,8 @@ var columna1_logic: Node  # Lógica de carga
 var columna1_ui: Control  # UI de carga
 var columna2_logic: Node  # Lógica de preview animaciones
 var columna2_ui: Control  # UI de preview animaciones
-var columna3_logic: Node  # Lógica de config transición (pendiente) 
-var columna3_ui: Control  # UI de config transición (pendiente)
+var columna3_logic: Node  # Lógica de config transición
+var columna3_ui: Control  # UI de config transición
 var columna4_logic: Node  # Lógica de preview final (pendiente)
 var columna4_ui: Control  # UI de preview final (pendiente)
 
@@ -78,27 +78,33 @@ func _connect_column1_to_column2():
 		col2_logic.playback_state_changed.connect(col2_ui.on_playback_state_changed)
 
 func _on_animations_ready(anim_a_data: Dictionary, anim_b_data: Dictionary):
-	"""Cuando las animaciones están listas, enviarlas a Columna2"""
+	"""Cuando las animaciones están listas, enviarlas a Columna2 Y Columna3"""
 	var col2_logic = get_node("Columna2_Logic")
 	if col2_logic:
 		col2_logic.load_animations_data(shared_data.base_model, anim_a_data, anim_b_data)
-
-
-
+	
+	# NUEVO: Enviar datos también a Columna 3 (incluyendo modelo base)
+	if columna3_logic and columna3_logic.has_method("load_skeleton_data"):
+		print("Enviando datos de esqueletos a Columna 3...")
+		print("  Modelo base keys: %s" % str(shared_data.base_model.keys()))
+		print("  Anim A keys: %s" % str(anim_a_data.keys()))
+		print("  Anim B keys: %s" % str(anim_b_data.keys()))
+		columna3_logic.load_skeleton_data(shared_data.base_model, anim_a_data, anim_b_data)
 
 func _show_startup_info():
 	"""Mostrar información de inicio con controles de debug"""
 	print("\n=== COORDINADOR 4 COLUMNAS INICIADO ===")
 	print("Sistema de Transiciones v2.0 - 4 Columnas")
-	print("Columna 1: Carga funcional")
-	print("Columna 2: Preview animaciones FUNCIONAL")
-	print("Columna 3: Config transición (próximamente)")
-	print("Columna 4: Preview final (próximamente)")
+	print("Columna 1: ✅ Carga funcional")
+	print("Columna 2: ✅ Preview animaciones FUNCIONAL")
+	print("Columna 3: ✅ Config transición FUNCIONAL")
+	print("Columna 4: ⏳ Preview final (próximamente)")
 	print("\nControles de debug:")
 	print("  F5 - Estado del sistema")
 	print("  F6 - Debug Columna 1")
 	print("  F7 - Debug Columna 2")
 	print("  F8 - Debug coordinador")
+	print("  F9 - Debug Columna 3")
 	print("===============================================\n")
 
 func _input(event):
@@ -113,6 +119,8 @@ func _input(event):
 				_debug_column2_systems()
 			KEY_F8:
 				debug_coordinator_state()
+			KEY_F9:
+				_debug_column3_systems()
 
 # ========================================================================
 # CONFIGURACIÓN DEL LAYOUT DE 4 COLUMNAS
@@ -140,8 +148,11 @@ func _initialize_columns():
 	# Columna 2: Preview de animaciones
 	_initialize_column2()
 	
-	# Columnas 3 y 4: Verificar placeholders
-	_verify_column_placeholders()
+	# Columna 3: Configuración de transiciones
+	_initialize_column3()
+	
+	# Columna 4: Solo verificar placeholder
+	_verify_column4_placeholder()
 	
 	print("Inicialización de columnas completada")
 
@@ -177,49 +188,6 @@ func _initialize_column1():
 	
 	print("Columna 1 inicializada usando escena existente")
 
-#func _initialize_column2():
-	#"""Inicializar Columna 2 - Preview de Animaciones VERSIÓN SIMPLIFICADA"""
-	#print("Inicializando Columna 2 desde scripts (versión simplificada)...")
-	#
-	## Crear Columna2_Logic usando script simplificado
-	#var columna2_logic_script = load("res://scripts/transition/Columna2_Logic.gd")
-	##res://scripts/transition/Columna2_logic.gd
-	#if columna2_logic_script:
-		#columna2_logic = columna2_logic_script.new()
-		#columna2_logic.name = "Columna2_Logic"
-		#add_child(columna2_logic)
-		#print("Columna2_Logic creado dinámicamente (versión simplificada)")
-	#else:
-		#print("Error: No se pudo cargar Columna2_Logic.gd")
-		#return
-	#
-	## Verificar que Columna2_UI ya existe en la escena
-	#columna2_ui = get_node_or_null("HSplitContainer/HSplitContainer/Columna2_Container/Columna2_UI")
-	#if not columna2_ui:
-		#print("Columna2_UI no encontrado en la escena - Intentando crear dinámicamente")
-		#
-		## Intentar crear dinámicamente si no existe
-		#var columna2_container = get_node_or_null("HSplitContainer/HSplitContainer/Columna2_Container")
-		#if columna2_container:
-			#var columna2_ui_script = load("res://scripts/transition/Columna2_UI.gd")
-			#if columna2_ui_script:
-				#columna2_ui = columna2_ui_script.new()
-				#columna2_ui.name = "Columna2_UI"
-				#columna2_container.add_child(columna2_ui)
-				#print("Columna2_UI creado dinámicamente (versión simplificada)")
-			#else:
-				#print("Error: No se pudo cargar Columna2_UI.gd")
-				#return
-		#else:
-			#print("Error: Contenedor Columna2 no encontrado")
-			#return
-	#else:
-		#print("Columna2_UI encontrado en escena")
-	#
-	## Conectar lógica y UI de Columna 2
-	#_connect_column2_signals()
-	#
-	#print("Columna 2 inicializada completamente (versión simplificada)")
 func _initialize_column2():
 	"""Inicializar Columna 2 - SIN CARGA DE ARCHIVOS"""
 	print("Inicializando Columna 2 (buscando instancia existente)...")
@@ -272,36 +240,55 @@ func _initialize_column2():
 	_connect_column2_signals()
 	print("Columna 2 inicializada (método directo)")
 
-#func _find_existing_columna2_logic(node: Node) -> Node:
-	#"""Buscar instancia existente de Columna2Logic recursivamente"""
-	## Verificar si este nodo tiene los métodos característicos
-	#if node.has_method("load_animations_data") and node.has_method("setup_viewport_with_camera_and_model"):
-		#print("DEBUG: Encontrado Columna2Logic existente en: %s" % node.get_path())
-		#return node
-	#
-	## Buscar en hijos
-	#for child in node.get_children():
-		#var found = _find_existing_columna2_logic(child)
-		#if found:
-			#return found
-	#
-	#return null
-
-
-
-func _verify_column_placeholders():
-	"""Solo verificar que los placeholders existan, sin crear contenido extra"""
-	var containers = [
-		"HSplitContainer/HSplitContainer/HSplitContainer/Columna3_Container",
-		"HSplitContainer/HSplitContainer/HSplitContainer/Columna4_Container"
-	]
+func _initialize_column3():
+	"""Inicializar Columna 3 - Configuración de transiciones"""
+	print("⚙️ Inicializando Columna 3...")
 	
-	for i in range(containers.size()):
-		var container = get_node_or_null(containers[i])
-		if container:
-			print("Container %d verificado: %s" % [i + 3, container.name])
-		else:
-			print("Container %d no encontrado" % [i + 3])
+	# Crear Columna3_Logic
+	var columna3_logic_script = load("res://scripts/transition/Columna3_Logic.gd")
+	if columna3_logic_script:
+		columna3_logic = columna3_logic_script.new()
+		columna3_logic.name = "Columna3_Logic"
+		add_child(columna3_logic)
+		print("✅ Columna3_Logic ENCONTRADO")
+	else:
+		print("❌ Error: No se pudo cargar Columna3_Logic.gd")
+		return
+	
+	# Buscar contenedor de Columna 3
+	var col3_container = get_node_or_null("HSplitContainer/HSplitContainer/HSplitContainer/Columna3_Container")
+	if not col3_container:
+		print("❌ Error: Contenedor Columna3 no encontrado")
+		return
+	
+	# Remover placeholder label si existe
+	for child in col3_container.get_children():
+		if child is Label:
+			child.queue_free()
+	
+	# Crear Columna3_UI
+	var columna3_ui_script = load("res://scripts/transition/Columna3_UI.gd")
+	if columna3_ui_script:
+		columna3_ui = columna3_ui_script.new()
+		columna3_ui.name = "Columna3_UI"
+		col3_container.add_child(columna3_ui)
+		print("✅ Columna3_UI ENCONTRADO")
+	else:
+		print("❌ Error: No se pudo cargar Columna3_UI.gd")
+		return
+	
+	# Conectar señales
+	_connect_column3_signals()
+	print("✅ Columna 3 inicializada completamente")
+
+func _verify_column4_placeholder():
+	"""Solo verificar que el placeholder de Columna 4 exista"""
+	var col4_container = get_node_or_null("HSplitContainer/HSplitContainer/HSplitContainer/Columna4_Container")
+	
+	if col4_container:
+		print("✅ Container Columna 4 verificado: %s" % col4_container.name)
+	else:
+		print("❌ Container Columna 4 no encontrado")
 
 # ========================================================================
 # CONEXIÓN DE SEÑALES - COLUMNA 1
@@ -365,10 +352,6 @@ func _connect_column2_signals():
 		columna2_ui.animation_speed_b_changed.connect(_on_col2_speed_b_changed)
 		print("Señal animation_speed_b_changed conectada")
 	
-	# ELIMINADO - Señales de configuración de preview (no existen en versión simplificada)
-	# columna2_ui.preview_config_a_changed.connect(_on_col2_config_a_changed)
-	# columna2_ui.preview_config_b_changed.connect(_on_col2_config_b_changed)
-	
 	# Logic -> UI (estados de reproducción) - CONEXIÓN ROBUSTA
 	if columna2_logic.has_signal("playback_state_changed"):
 		columna2_logic.playback_state_changed.connect(_on_col2_playback_state_changed)
@@ -384,6 +367,33 @@ func _connect_column2_signals():
 		print("Advertencia: Señal preview_ready no encontrada")
 	
 	print("Señales de Columna 2 conectadas (versión simplificada)")
+
+# ========================================================================
+# CONEXIÓN DE SEÑALES - COLUMNA 3
+# ========================================================================
+
+func _connect_column3_signals():
+	"""Conectar señales entre lógica y UI de Columna 3"""
+	if not columna3_logic or not columna3_ui:
+		print("❌ Error: columna3_logic o columna3_ui no inicializados")
+		return
+	
+	# UI -> Logic
+	columna3_ui.duration_changed.connect(_on_col3_duration_changed)
+	columna3_ui.frames_changed.connect(_on_col3_frames_changed)
+	columna3_ui.interpolation_changed.connect(_on_col3_interpolation_changed)
+	columna3_ui.reset_requested.connect(_on_col3_reset_requested)
+	columna3_ui.generate_requested.connect(_on_col3_generate_requested)
+	
+	# Logic -> UI
+	columna3_logic.config_updated.connect(_on_col3_config_updated)
+	columna3_logic.skeleton_info_ready.connect(_on_col3_skeleton_info_ready)
+	
+	# Logic -> Coordinator (señales globales)
+	columna3_logic.transition_config_changed.connect(_on_transition_config_changed)
+	columna3_logic.generate_transition_requested.connect(_on_generate_transition_requested)
+	
+	print("✅ Señales de Columna 3 conectadas")
 
 func _connect_coordination_signals():
 	"""Conectar señales de coordinación entre columnas"""
@@ -479,15 +489,57 @@ func _on_col2_speed_b_changed(speed: float):
 	if columna2_logic and columna2_logic.has_method("set_animation_speed"):
 		columna2_logic.set_animation_speed("animation_b", speed)
 
-# ELIMINADO - Métodos de configuración de preview (no existen en versión simplificada)
-# func _on_col2_config_a_changed(config: Dictionary):
-# func _on_col2_config_b_changed(config: Dictionary):
-
 func _on_col2_playback_state_changed(animation_type: String, state: Dictionary):
 	"""Manejar cambio de estado de reproducción desde lógica"""
 	#print("Coordinador: Estado de %s cambiado" % animation_type)
 	if columna2_ui and columna2_ui.has_method("on_playback_state_changed"):
 		columna2_ui.on_playback_state_changed(animation_type, state)
+
+# ========================================================================
+# MANEJADORES DE COLUMNA 3
+# ========================================================================
+
+func _on_col3_duration_changed(duration: float):
+	"""Manejar cambio de duración desde UI"""
+	print("Coordinador: Duración cambiada a %.2fs" % duration)
+	if columna3_logic and columna3_logic.has_method("set_duration"):
+		columna3_logic.set_duration(duration)
+
+func _on_col3_frames_changed(frames: int):
+	"""Manejar cambio de frames desde UI"""
+	print("Coordinador: Frames cambiados a %d" % frames)
+	if columna3_logic and columna3_logic.has_method("set_frames"):
+		columna3_logic.set_frames(frames)
+
+func _on_col3_interpolation_changed(interpolation_type: String):
+	"""Manejar cambio de interpolación desde UI"""
+	print("Coordinador: Interpolación cambiada a %s" % interpolation_type)
+	if columna3_logic and columna3_logic.has_method("set_interpolation"):
+		columna3_logic.set_interpolation(interpolation_type)
+
+func _on_col3_reset_requested():
+	"""Manejar solicitud de reset desde UI"""
+	print("Coordinador: Reset de configuración solicitado")
+	if columna3_logic and columna3_logic.has_method("reset_to_defaults"):
+		columna3_logic.reset_to_defaults()
+
+func _on_col3_generate_requested():
+	"""Manejar solicitud de generación desde UI"""
+	print("Coordinador: Generación de transición solicitada")
+	if columna3_logic and columna3_logic.has_method("request_generate_transition"):
+		columna3_logic.request_generate_transition()
+
+func _on_col3_config_updated(config: Dictionary):
+	"""Manejar actualización de configuración desde lógica"""
+	print("Coordinador: Configuración actualizada")
+	if columna3_ui and columna3_ui.has_method("on_config_updated"):
+		columna3_ui.on_config_updated(config)
+
+func _on_col3_skeleton_info_ready(info: Dictionary):
+	"""Manejar información de esqueletos lista"""
+	print("Coordinador: Información de esqueletos lista")
+	if columna3_ui and columna3_ui.has_method("on_skeleton_info_ready"):
+		columna3_ui.on_skeleton_info_ready(info)
 
 # ========================================================================
 # MANEJADORES DE COORDINACIÓN GLOBAL
@@ -504,7 +556,7 @@ func _on_base_model_loaded(model_data: Dictionary):
 	
 	_update_system_state()
 
-func _on_animations_loaded(  anim_a_data: Dictionary, anim_b_data: Dictionary):
+func _on_animations_loaded(anim_a_data: Dictionary, anim_b_data: Dictionary):
 	"""Manejar carga completa de animaciones (señal global)"""
 	print("Coordinador Global: Animaciones cargadas")
 	
@@ -534,6 +586,34 @@ func _on_animations_loaded(  anim_a_data: Dictionary, anim_b_data: Dictionary):
 	emit_signal("animations_loaded", anim_a_data, anim_b_data)
 	
 	_update_system_state()
+
+func _on_transition_config_changed(config: Dictionary):
+	"""Manejar cambio de configuración de transición (señal global)"""
+	print("Coordinador Global: Configuración de transición cambiada")
+	system_state.transition_config_valid = config.get("valid", false)
+	shared_data.transition_config = config
+	
+	# Emitir señal global
+	emit_signal("transition_config_changed", config)
+	
+	_update_system_state()
+
+func _on_generate_transition_requested():
+	"""Manejar solicitud de generación de transición (señal global)"""
+	print("Coordinador Global: Generación de transición solicitada")
+	
+	# Verificar que el sistema esté listo
+	if not system_state.animations_loaded:
+		print("❌ No se puede generar: animaciones no cargadas")
+		return
+	
+	if not system_state.transition_config_valid:
+		print("❌ No se puede generar: configuración no válida")
+		return
+	
+	# Emitir señal global
+	emit_signal("generate_transition_requested")
+	print("🎬 Solicitud de generación propagada al sistema")
 
 func _on_notify_column2_animations_loaded(anim_a_data: Dictionary, anim_b_data: Dictionary):
 	"""Notificar a Columna 2 que las animaciones están listas"""
@@ -590,6 +670,7 @@ func _update_system_state():
 	print("  Base cargada: %s" % system_state.base_loaded)
 	print("  Animaciones cargadas: %s" % system_state.animations_loaded)
 	print("  Preview listo: %s" % system_state.preview_ready)
+	print("  Config transición válida: %s" % system_state.transition_config_valid)
 	
 	# Habilitar funcionalidades según el estado
 	var can_preview = system_state.base_loaded and system_state.animations_loaded
@@ -620,6 +701,11 @@ func force_reload_column2():
 	print("Forzando recarga de Columna 2...")
 	_initialize_column2()
 
+func force_reload_column3():
+	"""Recargar Columna 3 usando estructura de escena (para desarrollo/debug)"""
+	print("Forzando recarga de Columna 3...")
+	_initialize_column3()
+
 # ========================================================================
 # MÉTODOS DE DEBUG Y TESTING
 # ========================================================================
@@ -636,11 +722,14 @@ func debug_system_state():
 	print("  Columna1_UI: %s" % ("OK" if columna1_ui else "NULL"))
 	print("  Columna2_Logic: %s" % ("OK" if columna2_logic else "NULL"))
 	print("  Columna2_UI: %s" % ("OK" if columna2_ui else "NULL"))
+	print("  Columna3_Logic: %s" % ("OK" if columna3_logic else "NULL"))
+	print("  Columna3_UI: %s" % ("OK" if columna3_ui else "NULL"))
 	
 	print("\nDatos compartidos:")
 	print("  Base model size: %d keys" % shared_data.base_model.size())
 	print("  Animation A size: %d keys" % shared_data.animation_a.size())
 	print("  Animation B size: %d keys" % shared_data.animation_b.size())
+	print("  Transition config size: %d keys" % shared_data.transition_config.size())
 	print("=====================================\n")
 
 func debug_coordinator_state():
@@ -692,20 +781,21 @@ func _debug_column2_systems():
 	
 	print("=========================================")
 
-#func _find_existing_columna2_logic(node: Node) -> Node:
-	#"""Buscar instancia existente de Columna2Logic recursivamente"""
-	## Verificar si este nodo tiene los métodos característicos
-	#if node.has_method("load_animations_data") and node.has_method("setup_viewport_with_camera_and_model"):
-		#print("DEBUG: Encontrado Columna2Logic existente en: %s" % node.get_path())
-		#return node
-	#
-	## Buscar en hijos
-	#for child in node.get_children():
-		#var found = _find_existing_columna2_logic(child)
-		#if found:
-			#return found
-	#
-	#return null
+func _debug_column3_systems():
+	"""Debug específico de sistemas de Columna 3"""
+	print("\n=== DEBUG COLUMNA 3 ===")
+	print("Columna3_Logic: %s" % ("OK" if columna3_logic else "NULL"))
+	print("Columna3_UI: %s" % ("OK" if columna3_ui else "NULL"))
+	
+	if columna3_logic:
+		print("Config válida: %s" % columna3_logic.is_ready_for_transition())
+		var config = columna3_logic.get_transition_config()
+		print("Duración: %.2fs" % config.get("duration", 0))
+		print("Frames: %d" % config.get("frames", 0))
+		print("Interpolación: %s" % config.get("interpolation", "None"))
+	
+	print("Estado del sistema - Config válida: %s" % system_state.transition_config_valid)
+	print("========================\n")
 
 func _analyze_nodes_recursive(node: Node, depth: int):
 	"""Analizar nodos recursivamente"""
