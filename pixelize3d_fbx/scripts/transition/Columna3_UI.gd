@@ -47,11 +47,15 @@ var skeleton_info: Dictionary = {}
 var is_updating_ui: bool = false
 
 func _ready():
+	print("=== COLUMNA3_UI INICIALIZANDO ===")
 	print("Columna3_UI inicializando...")
 	_create_ui_layout()
 	_setup_initial_values()
 	_connect_ui_signals()
 	print("Columna3_UI lista - Interfaz de configuración")
+	print("  Controles creados: duración, frames, interpolación")
+	print("  Botones: reset, generar")
+	print("=== COLUMNA3_UI INICIADA ===\n")
 
 # ========================================================================
 # CONSTRUCCIÓN DE INTERFAZ
@@ -402,20 +406,32 @@ func on_config_updated(config: Dictionary):
 
 func on_skeleton_info_ready(info: Dictionary):
 	"""Actualizar información de esqueletos"""
+	print("=== UI: ACTUALIZANDO INFO DE ESQUELETOS ===")
 	print("UI: Actualizando información de poses de esqueletos...")
+	print("  Info recibido: %s" % str(info.keys()))
+	print("  is_valid: %s" % str(info.get("is_valid", "not_found")))
+	print("  bones_count: %s" % str(info.get("bones_count", "not_found")))
 	
 	skeleton_info = info.duplicate()
 	
 	# Actualizar labels de información
-	if info.has("is_valid") and info.is_valid:
-		status_label.text = "Estado: ✅ Poses compatibles para transición"
-		status_label.modulate = Color(0.8, 1, 0.8)
+	if info.has("is_valid"):
+		var is_valid = info.is_valid
+		print("  Aplicando is_valid: %s" % str(is_valid))
+		if is_valid:
+			status_label.text = "Estado: ✅ Poses compatibles para transición"
+			status_label.modulate = Color(0.8, 1, 0.8)
+		else:
+			status_label.text = "Estado: ❌ Poses incompatibles o faltantes" 
+			status_label.modulate = Color(1, 0.8, 0.8)
 	else:
-		status_label.text = "Estado: ❌ Poses incompatibles o faltantes"
-		status_label.modulate = Color(1, 0.8, 0.8)
+		print("  ⚠️ is_valid no encontrado en info")
+		status_label.text = "Estado: ⚠️ Información incompleta"
+		status_label.modulate = Color(1, 1, 0.8)
 	
 	if info.has("bones_count"):
 		bones_count_label.text = "Bones: %d" % info.bones_count
+		print("  Bones count actualizado: %d" % info.bones_count)
 		
 	if info.has("has_pose_a") and info.has("has_pose_b"):
 		var pose_status = ""
@@ -431,11 +447,15 @@ func on_skeleton_info_ready(info: Dictionary):
 			pose_status = "❌ Sin poses de transición"
 		
 		skeleton_info_label.text = "Transición: %s" % pose_status
+		print("  Pose status actualizado: %s" % pose_status)
 	
 	if info.has("has_mesh"):
 		var mesh_status = "✅ Mesh del modelo base" if info.has_mesh else "❌ Sin mesh"
 		# Si ya tenemos texto en skeleton_info_label, agregarlo
 		skeleton_info_label.text += "\nMesh: %s" % mesh_status
+		print("  Mesh status actualizado: %s" % mesh_status)
+	
+	print("=== UI: ACTUALIZACIÓN COMPLETADA ===\n")
 
 # ========================================================================
 # UTILIDADES PÚBLICAS

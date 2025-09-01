@@ -79,17 +79,37 @@ func _connect_column1_to_column2():
 
 func _on_animations_ready(anim_a_data: Dictionary, anim_b_data: Dictionary):
 	"""Cuando las animaciones están listas, enviarlas a Columna2 Y Columna3"""
+	print("=== _on_animations_ready EJECUTANDOSE ===")
+	print("  anim_a_data keys: %s" % str(anim_a_data.keys()))
+	print("  anim_b_data keys: %s" % str(anim_b_data.keys()))
+	print("  shared_data.base_model keys: %s" % str(shared_data.base_model.keys()))
+	
 	var col2_logic = get_node("Columna2_Logic")
 	if col2_logic:
 		col2_logic.load_animations_data(shared_data.base_model, anim_a_data, anim_b_data)
 	
-	# NUEVO: Enviar datos también a Columna 3 (incluyendo modelo base)
+	# FIXME: Si shared_data.base_model está vacío, buscar base_model desde Columna1
+	var base_model_data = shared_data.base_model
+	if base_model_data.is_empty() and columna1_logic and columna1_logic.has_method("get_loaded_data"):
+		print("⚠️ shared_data.base_model vacío, obteniendo desde Columna1...")
+		var loaded_data = columna1_logic.get_loaded_data()
+		base_model_data = loaded_data.get("base", {})
+		print("  Base data desde Columna1: %s" % str(base_model_data.keys()))
+	
+	# Enviar datos a Columna 3 (incluyendo modelo base)
 	if columna3_logic and columna3_logic.has_method("load_skeleton_data"):
 		print("Enviando datos de esqueletos a Columna 3...")
-		print("  Modelo base keys: %s" % str(shared_data.base_model.keys()))
-		print("  Anim A keys: %s" % str(anim_a_data.keys()))
-		print("  Anim B keys: %s" % str(anim_b_data.keys()))
-		columna3_logic.load_skeleton_data(shared_data.base_model, anim_a_data, anim_b_data)
+		print("  Base model keys: %s" % str(base_model_data.keys()))
+		columna3_logic.load_skeleton_data(base_model_data, anim_a_data, anim_b_data)
+		print("✅ Datos enviados a Columna 3")
+	else:
+		print("❌ Columna3_logic no disponible o sin método load_skeleton_data")
+		if not columna3_logic:
+			print("  columna3_logic es null")
+		elif not columna3_logic.has_method("load_skeleton_data"):
+			print("  columna3_logic no tiene método load_skeleton_data")
+	
+	print("=== _on_animations_ready COMPLETADO ===\n")
 
 func _show_startup_info():
 	"""Mostrar información de inicio con controles de debug"""
@@ -244,41 +264,87 @@ func _initialize_column3():
 	"""Inicializar Columna 3 - Configuración de transiciones"""
 	print("⚙️ Inicializando Columna 3...")
 	
+	# PREVENIR INICIALIZACIÓN DUPLICADA
+	if columna3_logic != null or columna3_ui != null:
+		print("⚠️ Columna 3 ya inicializada - evitando duplicación")
+		print("  columna3_logic existe: %s" % ("SI" if columna3_logic else "NO"))
+		print("  columna3_ui existe: %s" % ("SI" if columna3_ui else "NO"))
+		return
+	
+	# Debug inicial
+	print("DEBUG _initialize_column3:")
+	print("  columna3_logic antes: %s" % ("EXISTS" if columna3_logic else "NULL"))
+	print("  columna3_ui antes: %s" % ("EXISTS" if columna3_ui else "NULL"))
+	
 	# Crear Columna3_Logic
+	print("Intentando cargar Columna3_Logic.gd...")
 	var columna3_logic_script = load("res://scripts/transition/Columna3_Logic.gd")
 	if columna3_logic_script:
+		print("✅ Script Columna3_Logic.gd cargado exitosamente")
 		columna3_logic = columna3_logic_script.new()
 		columna3_logic.name = "Columna3_Logic"
 		add_child(columna3_logic)
-		print("✅ Columna3_Logic ENCONTRADO")
+		print("✅ Columna3_Logic creado dinámicamente: %s" % columna3_logic.get_path())
 	else:
 		print("❌ Error: No se pudo cargar Columna3_Logic.gd")
+		print("  Ruta esperada: res://scripts/transition/Columna3_Logic.gd")
 		return
 	
 	# Buscar contenedor de Columna 3
+	print("Buscando contenedor de Columna 3...")
 	var col3_container = get_node_or_null("HSplitContainer/HSplitContainer/HSplitContainer/Columna3_Container")
 	if not col3_container:
 		print("❌ Error: Contenedor Columna3 no encontrado")
+		print("  Ruta esperada: HSplitContainer/HSplitContainer/HSplitContainer/Columna3_Container")
 		return
+	else:
+		print("✅ Contenedor encontrado: %s" % col3_container.get_path())
+		print("  Hijos actuales: %d" % col3_container.get_child_count())
+	
+	# Verificar si ya hay UI en el contenedor
+	var existing_ui = null
+	for child in col3_container.get_children():
+		if child.name == "Columna3_UI":
+			existing_ui = child
+			break
+	
+	if existing_ui:
+		print("⚠️ Ya existe Columna3_UI - removiendo duplicado")
+		existing_ui.queue_free()
 	
 	# Remover placeholder label si existe
+	print("Removiendo placeholders existentes...")
+	var removed_count = 0
 	for child in col3_container.get_children():
 		if child is Label:
+			print("  Removiendo Label: %s" % child.name)
 			child.queue_free()
+			removed_count += 1
+	print("  Placeholders removidos: %d" % removed_count)
 	
 	# Crear Columna3_UI
+	print("Intentando cargar Columna3_UI.gd...")
 	var columna3_ui_script = load("res://scripts/transition/Columna3_UI.gd")
 	if columna3_ui_script:
+		print("✅ Script Columna3_UI.gd cargado exitosamente")
 		columna3_ui = columna3_ui_script.new()
 		columna3_ui.name = "Columna3_UI"
 		col3_container.add_child(columna3_ui)
-		print("✅ Columna3_UI ENCONTRADO")
+		print("✅ Columna3_UI creado dinámicamente: %s" % columna3_ui.get_path())
 	else:
 		print("❌ Error: No se pudo cargar Columna3_UI.gd")
+		print("  Ruta esperada: res://scripts/transition/Columna3_UI.gd")
 		return
 	
 	# Conectar señales
+	print("Conectando señales de Columna 3...")
 	_connect_column3_signals()
+	
+	# Debug final
+	print("DEBUG _initialize_column3 FINAL:")
+#	print("  columna3_logic después: %s (%s)" % ("EXISTS" if columna3_logic else "NULL"), (columna3_logic.get_path() if columna3_logic else "N/A"))
+	#print("  columna3_ui después: %s (%s)" % ("EXISTS" if columna3_ui else "NULL"), (columna3_ui.get_path() if columna3_ui else "N/A"))
+	
 	print("✅ Columna 3 inicializada completamente")
 
 func _verify_column4_placeholder():
@@ -374,26 +440,47 @@ func _connect_column2_signals():
 
 func _connect_column3_signals():
 	"""Conectar señales entre lógica y UI de Columna 3"""
+	print("Conectando señales de Columna 3...")
+	
 	if not columna3_logic or not columna3_ui:
 		print("❌ Error: columna3_logic o columna3_ui no inicializados")
+		print("  columna3_logic: %s" % ("EXISTS" if columna3_logic else "NULL"))
+		print("  columna3_ui: %s" % ("EXISTS" if columna3_ui else "NULL"))
 		return
+	
+	print("✅ Ambos componentes disponibles, conectando...")
 	
 	# UI -> Logic
 	columna3_ui.duration_changed.connect(_on_col3_duration_changed)
+	print("  ✓ duration_changed conectada")
+	
 	columna3_ui.frames_changed.connect(_on_col3_frames_changed)
+	print("  ✓ frames_changed conectada")
+	
 	columna3_ui.interpolation_changed.connect(_on_col3_interpolation_changed)
+	print("  ✓ interpolation_changed conectada")
+	
 	columna3_ui.reset_requested.connect(_on_col3_reset_requested)
+	print("  ✓ reset_requested conectada")
+	
 	columna3_ui.generate_requested.connect(_on_col3_generate_requested)
+	print("  ✓ generate_requested conectada")
 	
 	# Logic -> UI
 	columna3_logic.config_updated.connect(_on_col3_config_updated)
+	print("  ✓ config_updated conectada")
+	
 	columna3_logic.skeleton_info_ready.connect(_on_col3_skeleton_info_ready)
+	print("  ✓ skeleton_info_ready conectada")
 	
 	# Logic -> Coordinator (señales globales)
 	columna3_logic.transition_config_changed.connect(_on_transition_config_changed)
-	columna3_logic.generate_transition_requested.connect(_on_generate_transition_requested)
+	print("  ✓ transition_config_changed conectada")
 	
-	print("✅ Señales de Columna 3 conectadas")
+	columna3_logic.generate_transition_requested.connect(_on_generate_transition_requested)
+	print("  ✓ generate_transition_requested conectada")
+	
+	print("✅ Todas las señales de Columna 3 conectadas exitosamente")
 
 func _connect_coordination_signals():
 	"""Conectar señales de coordinación entre columnas"""
@@ -525,9 +612,21 @@ func _on_col3_reset_requested():
 
 func _on_col3_generate_requested():
 	"""Manejar solicitud de generación desde UI"""
+	print("=== SOLICITUD DE GENERACIÓN DESDE COLUMNA 3 ===")
 	print("Coordinador: Generación de transición solicitada")
-	if columna3_logic and columna3_logic.has_method("request_generate_transition"):
-		columna3_logic.request_generate_transition()
+	
+	if not columna3_logic:
+		print("❌ columna3_logic es NULL")
+		return
+	
+	if not columna3_logic.has_method("request_generate_transition"):
+		print("❌ columna3_logic no tiene método request_generate_transition")
+		return
+	
+	print("✅ Llamando request_generate_transition en Columna3_Logic...")
+	var result = columna3_logic.request_generate_transition()
+	print("  Resultado: %s" % str(result))
+	print("=== FIN SOLICITUD DE GENERACIÓN ===\n")
 
 func _on_col3_config_updated(config: Dictionary):
 	"""Manejar actualización de configuración desde lógica"""
@@ -788,13 +887,44 @@ func _debug_column3_systems():
 	print("Columna3_UI: %s" % ("OK" if columna3_ui else "NULL"))
 	
 	if columna3_logic:
-		print("Config válida: %s" % columna3_logic.is_ready_for_transition())
-		var config = columna3_logic.get_transition_config()
-		print("Duración: %.2fs" % config.get("duration", 0))
-		print("Frames: %d" % config.get("frames", 0))
-		print("Interpolación: %s" % config.get("interpolation", "None"))
+		print("Columna3_Logic detalles:")
+		print("  Nombre: %s" % columna3_logic.name)
+		print("  Ruta: %s" % columna3_logic.get_path())
+		print("  Script: %s" % str(columna3_logic.get_script()))
+		print("  Método load_skeleton_data: %s" % ("SI" if columna3_logic.has_method("load_skeleton_data") else "NO"))
+		print("  Es válido: %s" % ("SI" if is_instance_valid(columna3_logic) else "NO"))
+		
+		if columna3_logic.has_method("is_ready_for_transition"):
+			print("  Config válida: %s" % columna3_logic.is_ready_for_transition())
+		if columna3_logic.has_method("get_transition_config"):
+			var config = columna3_logic.get_transition_config()
+			print("  Duración: %.2fs" % config.get("duration", 0))
+			print("  Frames: %d" % config.get("frames", 0))
+			print("  Interpolación: %s" % config.get("interpolation", "None"))
+	else:
+		print("❌ Columna3_Logic es NULL - verificar inicialización")
+	
+	if columna3_ui:
+		print("Columna3_UI detalles:")
+		print("  Nombre: %s" % columna3_ui.name)
+		print("  Ruta: %s" % columna3_ui.get_path())
+		print("  Es válido: %s" % ("SI" if is_instance_valid(columna3_ui) else "NO"))
+	else:
+		print("❌ Columna3_UI es NULL - verificar inicialización")
 	
 	print("Estado del sistema - Config válida: %s" % system_state.transition_config_valid)
+	
+	# DEBUG ADICIONAL: Verificar contenedor
+	var col3_container = get_node_or_null("HSplitContainer/HSplitContainer/HSplitContainer/Columna3_Container")
+	if col3_container:
+		print("Columna3_Container encontrado:")
+		print("  Hijos: %d" % col3_container.get_child_count())
+		for i in range(col3_container.get_child_count()):
+			var child = col3_container.get_child(i)
+			print("    %d. %s (%s)" % [i, child.name, child.get_class()])
+	else:
+		print("❌ Columna3_Container NO encontrado")
+	
 	print("========================\n")
 
 func _analyze_nodes_recursive(node: Node, depth: int):

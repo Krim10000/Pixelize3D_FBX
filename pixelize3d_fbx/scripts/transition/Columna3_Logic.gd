@@ -52,9 +52,14 @@ const FRAMES_MIN: int = 10
 const FRAMES_MAX: int = 120
 
 func _ready():
+	print("=== COLUMNA3_LOGIC INICIALIZANDO ===")
 	print("Columna3_Logic inicializando...")
 	_reset_to_defaults()
 	print("Columna3_Logic lista - Configuración de transiciones")
+	print("  Duración por defecto: %.2fs" % transition_config.duration)
+	print("  Frames por defecto: %d" % transition_config.frames)
+	print("  Interpolación por defecto: %s" % transition_config.interpolation)
+	print("=== COLUMNA3_LOGIC INICIADA ===\n")
 
 # ========================================================================
 # API PÚBLICA - RECEPCIÓN DE DATOS
@@ -62,7 +67,11 @@ func _ready():
 
 func load_skeleton_data(base_model_data: Dictionary, anim_a_data: Dictionary, anim_b_data: Dictionary):
 	"""Cargar datos de esqueletos desde modelo base y animaciones"""
+	print("\n=== COLUMNA3_LOGIC: CARGANDO DATOS DE ESQUELETOS ===")
 	print("Columna3_Logic: Cargando datos de esqueletos y mesh...")
+	print("  base_model_data keys: %s" % str(base_model_data.keys()))
+	print("  anim_a_data keys: %s" % str(anim_a_data.keys()))
+	print("  anim_b_data keys: %s" % str(anim_b_data.keys()))
 	
 	# Extraer mesh del modelo base (la misma para ambas animaciones)
 	skeleton_data.mesh_a = _extract_mesh_from_base_model(base_model_data)
@@ -80,17 +89,25 @@ func load_skeleton_data(base_model_data: Dictionary, anim_a_data: Dictionary, an
 	# Validar y procesar esqueletos
 	var is_valid = _validate_skeletons()
 	if is_valid:
+		# PRIMERO establecer como válido
+		transition_config.valid = true
+		print("✅ transition_config.valid establecido a true")
+		
+		# DESPUÉS analizar y emitir
 		_analyze_skeleton_compatibility()
 		_emit_skeleton_info()
-		transition_config.valid = true
 		print("✅ Esqueletos cargados y validados para transición")
 	else:
 		transition_config.valid = false
 		print("❌ Error en validación de esqueletos")
+		# Emitir info incluso si es inválido para actualizar UI
+		_emit_skeleton_info()
 	
 	# Emitir configuración actualizada
+	print("Emitiendo señales de configuración actualizada...")
 	emit_signal("config_updated", transition_config)
 	emit_signal("transition_config_changed", transition_config)
+	print("=== COLUMNA3_LOGIC: CARGA COMPLETADA ===\n")
 
 # ========================================================================
 # API PÚBLICA - CONFIGURACIÓN
@@ -194,38 +211,46 @@ func _extract_mesh_from_base_model(base_model_data: Dictionary) -> MeshInstance3
 	"""Extraer MeshInstance3D del modelo base"""
 	print("Extrayendo mesh del modelo base...")
 	
-	if not base_model_data.has("model_node"):
-		print("❌ No se encontró model_node en base_model_data")
+	if not base_model_data.has("meshes"):
+		print("❌ No se encontró 'meshes' en base_model_data")
 		return null
 	
-	var base_model = base_model_data.model_node
-	if not base_model is Node3D:
-		print("❌ model_node no es Node3D")
+	var meshes = base_model_data["meshes"]
+	if not meshes is Array or meshes.is_empty():
+		print("❌ 'meshes' no es Array o está vacío")
 		return null
 	
-	# Buscar MeshInstance3D en el modelo base
-	var mesh = _find_mesh_in_node(base_model)
-	if mesh:
+	# Tomar el primer mesh disponible
+	var first_mesh_data = meshes[0]
+	if first_mesh_data.has("node") and first_mesh_data.node is MeshInstance3D:
+		var mesh = first_mesh_data.node
 		print("✅ Mesh encontrado en modelo base: %s" % mesh.name)
 		return mesh
 	else:
-		print("❌ No se encontró MeshInstance3D en modelo base")
+		print("❌ No se encontró MeshInstance3D válido en meshes[0]")
 		return null
 
 func _extract_last_frame_pose(anim_data: Dictionary) -> Dictionary:
 	"""Extraer pose del último frame de la animación"""
 	print("Extrayendo último frame de animación A...")
 	
-	if not anim_data.has("model_node"):
-		print("❌ No se encontró model_node en anim_data")
+	if not anim_data.has("skeleton"):
+		print("❌ No se encontró 'skeleton' en anim_data")
 		return {}
 	
-	var model = anim_data.model_node
-	var skeleton = _find_skeleton_in_node(model)
-	var anim_player = _find_animation_player_in_node(model)
+	if not anim_data.has("animation_player"):
+		print("❌ No se encontró 'animation_player' en anim_data")
+		return {}
 	
-	if not skeleton or not anim_player:
-		print("❌ No se encontró skeleton o AnimationPlayer")
+	var skeleton = anim_data["skeleton"]
+	var anim_player = anim_data["animation_player"]
+	
+	if not skeleton is Skeleton3D:
+		print("❌ 'skeleton' no es Skeleton3D")
+		return {}
+	
+	if not anim_player is AnimationPlayer:
+		print("❌ 'animation_player' no es AnimationPlayer")
 		return {}
 	
 	# Obtener la animación
@@ -262,16 +287,23 @@ func _extract_first_frame_pose(anim_data: Dictionary) -> Dictionary:
 	"""Extraer pose del primer frame de la animación"""
 	print("Extrayendo primer frame de animación B...")
 	
-	if not anim_data.has("model_node"):
-		print("❌ No se encontró model_node en anim_data")
+	if not anim_data.has("skeleton"):
+		print("❌ No se encontró 'skeleton' en anim_data")
 		return {}
 	
-	var model = anim_data.model_node
-	var skeleton = _find_skeleton_in_node(model)
-	var anim_player = _find_animation_player_in_node(model)
+	if not anim_data.has("animation_player"):
+		print("❌ No se encontró 'animation_player' en anim_data")
+		return {}
 	
-	if not skeleton or not anim_player:
-		print("❌ No se encontró skeleton o AnimationPlayer")
+	var skeleton = anim_data["skeleton"]
+	var anim_player = anim_data["animation_player"]
+	
+	if not skeleton is Skeleton3D:
+		print("❌ 'skeleton' no es Skeleton3D")
+		return {}
+	
+	if not anim_player is AnimationPlayer:
+		print("❌ 'animation_player' no es AnimationPlayer")
 		return {}
 	
 	# Obtener la animación
@@ -339,17 +371,9 @@ func _extract_skeleton_current_pose(skeleton: Skeleton3D) -> Dictionary:
 	
 	return pose_data
 
-func _find_animation_player_in_node(node: Node) -> AnimationPlayer:
-	"""Buscar recursivamente un AnimationPlayer en el árbol de nodos"""
-	if node is AnimationPlayer:
-		return node as AnimationPlayer
-		
-	for child in node.get_children():
-		var anim_player = _find_animation_player_in_node(child)
-		if anim_player:
-			return anim_player
-	
-	return null
+# ========================================================================
+# FUNCIONES DE UTILIDAD (eliminadas las que buscaban model_node)
+# ========================================================================
 
 func _find_skeleton_in_node(node: Node) -> Skeleton3D:
 	"""Buscar recursivamente un Skeleton3D en el árbol de nodos"""
@@ -375,12 +399,41 @@ func _find_mesh_in_node(node: Node) -> MeshInstance3D:
 	
 	return null
 
+#func _find_skeleton_in_node(node: Node) -> Skeleton3D:
+	#"""Buscar recursivamente un Skeleton3D en el árbol de nodos"""
+	#if node is Skeleton3D:
+		#return node as Skeleton3D
+	#
+	#for child in node.get_children():
+		#var skeleton = _find_skeleton_in_node(child)
+		#if skeleton:
+			#return skeleton
+	#
+	#return null
+#
+#func _find_mesh_in_node(node: Node) -> MeshInstance3D:
+	#"""Buscar recursivamente un MeshInstance3D en el árbol de nodos"""
+	#if node is MeshInstance3D:
+		#return node as MeshInstance3D
+		#
+	#for child in node.get_children():
+		#var mesh = _find_mesh_in_node(child)
+		#if mesh:
+			#return mesh
+	#
+	#return null
+
 func _validate_skeletons() -> bool:
 	"""Validar que las poses de esqueletos sean compatibles"""
+	print("=== VALIDANDO POSES DE ESQUELETOS ===")
+	
 	var pose_a = skeleton_data.skeleton_pose_a
 	var pose_b = skeleton_data.skeleton_pose_b
 	
-	if not pose_a or not pose_b:
+	print("pose_a: %s" % ("NULL" if pose_a == null else ("EMPTY" if pose_a.is_empty() else "OK")))
+	print("pose_b: %s" % ("NULL" if pose_b == null else ("EMPTY" if pose_b.is_empty() else "OK")))
+	
+	if pose_a == null or pose_b == null:
 		print("❌ Una o ambas poses son null")
 		return false
 	
@@ -391,6 +444,8 @@ func _validate_skeletons() -> bool:
 	var bones_a = pose_a.get("bone_count", 0)
 	var bones_b = pose_b.get("bone_count", 0)
 	
+	print("Bones count - A: %d, B: %d" % [bones_a, bones_b])
+	
 	if bones_a != bones_b:
 		print("❌ Poses incompatibles: %d vs %d bones" % [bones_a, bones_b])
 		return false
@@ -399,16 +454,33 @@ func _validate_skeletons() -> bool:
 		print("❌ Poses sin bones")
 		return false
 	
+	# Verificar que bone_poses existe en ambas poses
+	if not pose_a.has("bone_poses") or not pose_b.has("bone_poses"):
+		print("❌ Una o ambas poses no tienen 'bone_poses'")
+		print("  pose_a keys: %s" % str(pose_a.keys()))
+		print("  pose_b keys: %s" % str(pose_b.keys()))
+		return false
+	
 	# Verificar que los nombres de bones coincidan
 	var bones_a_names = pose_a.bone_poses.keys()
 	var bones_b_names = pose_b.bone_poses.keys()
 	
+	print("Bones A count: %d, Bones B count: %d" % [bones_a_names.size(), bones_b_names.size()])
+	
+	if bones_a_names.size() != bones_b_names.size():
+		print("❌ Diferente número de bones en bone_poses: %d vs %d" % [bones_a_names.size(), bones_b_names.size()])
+		return false
+	
+	var missing_bones = []
 	for bone_name in bones_a_names:
 		if not bone_name in bones_b_names:
-			print("❌ Bone '%s' no encontrado en pose B" % bone_name)
-			return false
+			missing_bones.append(bone_name)
 	
-	print("✅ Poses compatibles: %d bones" % bones_a)
+	if missing_bones.size() > 0:
+		print("❌ Bones faltantes en pose B: %s" % str(missing_bones))
+		return false
+	
+	print("✅ Poses compatibles: %d bones validados" % bones_a)
 	return true
 
 func _analyze_skeleton_compatibility():

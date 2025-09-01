@@ -674,12 +674,30 @@ func _create_model_config_panel():
 	orient_value_label.text = "0°"
 	orient_value_label.custom_minimum_size.x = 40
 	orient_container.add_child(orient_value_label)
+
+	var separator = HSeparator.new()
+	vbox.add_child(separator)
+
+	var compare_frames_button = Button.new()
+	compare_frames_button.text = "Comparar: A=Final | B=Inicio"  
+	compare_frames_button.custom_minimum_size = Vector2(0, 30)
+	compare_frames_button.pressed.connect(_on_compare_frames_pressed)
+	vbox.add_child(compare_frames_button)
+
 	
 	# Conectar señales
 	area_slider.value_changed.connect(_on_area_changed)
 	orient_slider.value_changed.connect(_on_orientation_changed)
+
+
 	
 	add_child(model_config_panel)
+
+
+func _on_compare_frames_pressed():
+	var logic = get_node("../../../../Columna2_Logic")
+	if logic and logic.has_method("quick_compare_frames"):
+		logic.quick_compare_frames()
 
 func _on_area_changed(value: float):
 	area_value_label.text = "%.1f" % value

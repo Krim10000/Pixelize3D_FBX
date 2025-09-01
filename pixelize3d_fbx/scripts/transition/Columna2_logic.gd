@@ -1279,3 +1279,200 @@ func _configure_existing_lights():
 		light_b.light_color = Color(1.0, 0.95, 0.9)
 		light_b.rotation_degrees = Vector3(-45, -45, 0)
 		light_b.shadow_enabled = true
+
+
+
+
+# === NUEVA FUNCIÓN: COMPARAR FRAMES USANDO TOTAL_FRAMES ===
+func compare_animation_frames():
+	"""Posicionar animación A en último frame y B en primer frame usando total_frames"""
+	print("🔄 Comparando frames usando sistema total_frames")
+	print("  Estado A: %d/%d frames" % [playback_state_a.current_frame, playback_state_a.total_frames])
+	print("  Estado B: %d/%d frames" % [playback_state_b.current_frame, playback_state_b.total_frames])
+	
+	# Detener timer de actualización
+	if not update_timer.is_stopped():
+		update_timer.stop()
+	
+	# Detener ambas animaciones
+	if animation_player_a and is_instance_valid(animation_player_a):
+		animation_player_a.stop()
+		playback_state_a.playing = false
+	
+	if animation_player_b and is_instance_valid(animation_player_b):
+		animation_player_b.stop()
+		playback_state_b.playing = false
+	
+	# Posicionar animación A en último frame
+	_set_animation_to_last_frame("A")
+	
+	# Posicionar animación B en primer frame  
+	_set_animation_to_first_frame("B")
+	
+	print("✅ Animaciones posicionadas para comparación")
+	
+	# Actualizar UI con nuevos estados
+	_emit_playback_state("animation_a")
+	_emit_playback_state("animation_b")
+
+func _set_animation_to_last_frame(animation_id: String):
+	"""Posicionar animación específica en su último frame"""
+	var animation_player: AnimationPlayer
+	var playback_state: Dictionary
+	
+	if animation_id == "A":
+		animation_player = animation_player_a
+		playback_state = playback_state_a
+	else:
+		animation_player = animation_player_b
+		playback_state = playback_state_b
+	
+	if not animation_player or not is_instance_valid(animation_player):
+		print("❌ AnimationPlayer %s no válido" % animation_id)
+		return
+	
+	var anim_name = playback_state.animation_name
+	if anim_name == "" or not animation_player.has_animation(anim_name):
+		print("❌ Animación %s no encontrada: %s" % [animation_id, anim_name])
+		return
+	
+	var animation = animation_player.get_animation(anim_name)
+	if not animation:
+		print("❌ No se pudo obtener animación %s: %s" % [animation_id, anim_name])
+		return
+	
+	# Calcular posición del último frame
+	var total_frames = playback_state.total_frames
+	if total_frames <= 0:
+		total_frames = int(animation.length * 30)  # Fallback a 30 FPS
+		playback_state.total_frames = total_frames
+	
+	var last_frame = total_frames 
+	var frame_duration = animation.length / total_frames
+	var last_position = last_frame * frame_duration
+	
+	# Posicionar en último frame
+	animation_player.play(anim_name)
+	animation_player.seek(last_position)
+	animation_player.pause()
+	
+	# Actualizar estado
+	playback_state.current_frame = last_frame
+	playback_state.playing = false
+	
+	print("✅ Animación %s -> último frame: %d/%d (%.3fs)" % [animation_id, last_frame, total_frames, last_position])
+
+func _set_animation_to_first_frame(animation_id: String):
+	"""Posicionar animación específica en su primer frame"""
+	var animation_player: AnimationPlayer
+	var playback_state: Dictionary
+	
+	if animation_id == "A":
+		animation_player = animation_player_a
+		playback_state = playback_state_a
+	else:
+		animation_player = animation_player_b
+		playback_state = playback_state_b
+	
+	if not animation_player or not is_instance_valid(animation_player):
+		print("❌ AnimationPlayer %s no válido" % animation_id)
+		return
+	
+	var anim_name = playback_state.animation_name
+	if anim_name == "" or not animation_player.has_animation(anim_name):
+		print("❌ Animación %s no encontrada: %s" % [animation_id, anim_name])
+		return
+	
+	# Posicionar en primer frame
+	animation_player.play(anim_name)
+	animation_player.seek(0.0)
+	animation_player.pause()
+	
+	# Actualizar estado
+	playback_state.current_frame = 0
+	playback_state.playing = false
+	
+	print("✅ Animación %s -> primer frame: 0/%d (0.000s)" % [animation_id, playback_state.total_frames])
+
+# === FUNCIONES ADICIONALES DE CONTROL FRAME POR FRAME ===
+
+func set_animation_frame(animation_id: String, target_frame: int):
+	"""Posicionar animación en frame específico - función genérica útil"""
+	var animation_player: AnimationPlayer
+	var playback_state: Dictionary
+	
+	if animation_id == "A":
+		animation_player = animation_player_a
+		playback_state = playback_state_a
+	else:
+		animation_player = animation_player_b
+		playback_state = playback_state_b
+	
+	if not animation_player or not is_instance_valid(animation_player):
+		print("❌ AnimationPlayer %s no válido" % animation_id)
+		return
+	
+	var anim_name = playback_state.animation_name
+	if anim_name == "" or not animation_player.has_animation(anim_name):
+		print("❌ Animación %s no encontrada: %s" % [animation_id, anim_name])
+		return
+	
+	var animation = animation_player.get_animation(anim_name)
+	var total_frames = playback_state.total_frames
+	if total_frames <= 0:
+		total_frames = int(animation.length * 30)
+	
+	# Limitar frame al rango válido
+	target_frame = clamp(target_frame, 0, total_frames - 1)
+	
+	# Calcular posición temporal
+	var frame_duration = animation.length / total_frames
+	var target_position = target_frame * frame_duration
+	
+	# Detener timer si está corriendo
+	if not update_timer.is_stopped():
+		update_timer.stop()
+	
+	# Posicionar
+	animation_player.play(anim_name)
+	animation_player.seek(target_position)
+	animation_player.pause()
+	
+	# Actualizar estado
+	playback_state.current_frame = target_frame
+	playback_state.playing = false
+	
+	print("✅ Animación %s posicionada en frame: %d/%d (%.3fs)" % [animation_id, target_frame, total_frames, target_position])
+	
+	# Emitir actualización de estado
+	_emit_playback_state("animation_" + animation_id.to_lower())
+
+# === VERSIÓN SIMPLE PARA EL BOTÓN DE UI ===
+func quick_compare_frames():
+	"""Versión simple para llamar desde UI - A último, B primero"""
+	compare_animation_frames()
+
+
+# En Columna2_UI.gd solo necesitas esto:
+
+# Agregar en _create_model_config_panel() después de orient_value_label:
+# 
+# # === BOTÓN PARA COMPARAR FRAMES ===
+# var separator = HSeparator.new()
+# vbox.add_child(separator)
+# 
+# compare_frames_button = Button.new()
+# compare_frames_button.text = "Comparar: A=Final | B=Inicio"
+# compare_frames_button.custom_minimum_size = Vector2(0, 30)
+# compare_frames_button.pressed.connect(_on_compare_frames_pressed)
+# vbox.add_child(compare_frames_button)
+
+# Y agregar esta función en Columna2_UI.gd:
+# 
+# func _on_compare_frames_pressed():
+# 	"""Solicitar comparación de frames a la lógica"""
+# 	var logic = get_node("../../../../Columna2_Logic")
+# 	if logic and logic.has_method("quick_compare_frames"):
+# 		logic.quick_compare_frames()
+# 	else:
+# 		print("❌ No se pudo acceder a Columna2_Logic")
