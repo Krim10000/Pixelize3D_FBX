@@ -1,12 +1,14 @@
-[gd_scene load_steps=8 format=3 uid="uid://dw54rje6cta3t"]
+[gd_scene load_steps=10 format=3 uid="uid://dw54rje6cta3t"]
 
 [ext_resource type="Script" uid="uid://clf0gup8kibd3" path="res://scripts/transition/transition_4cols_coordinator.gd" id="1_coordinator"]
 [ext_resource type="Script" uid="uid://w0sij1s28g0j" path="res://scripts/transition/Columna1_logic.gd" id="2_logic"]
 [ext_resource type="Script" uid="uid://cukjul10f7o81" path="res://scripts/transition/Columna1_UI.gd" id="3_ui"]
 [ext_resource type="Script" uid="uid://c8fq4dyruonvd" path="res://scripts/transition/Columna3_UI.gd" id="4_33mf6"]
 [ext_resource type="Script" uid="uid://y10isxtedbbo" path="res://scripts/transition/Columna2_logic.gd" id="4_logic2"]
+[ext_resource type="Script" path="res://scripts/transition/Columna4_UI.gd" id="5_gm4uy"]
 [ext_resource type="Script" uid="uid://c7fniugem5h2j" path="res://scripts/transition/Columna2_UI.gd" id="5_ui2"]
 [ext_resource type="Script" uid="uid://d15yvurvhadrq" path="res://scripts/transition/Columna3_Logic.gd" id="7_uuf4p"]
+[ext_resource type="Script" path="res://scripts/transition/Columna4_logic.gd" id="9_7se4s"]
 
 [node name="Transition4ColsMain" type="Control"]
 layout_mode = 3
@@ -116,13 +118,6 @@ split_offset = 250
 custom_minimum_size = Vector2(250, 0)
 layout_mode = 2
 
-[node name="PlaceholderLabel" type="Label" parent="HSplitContainer/HSplitContainer/HSplitContainer/Columna3_Container"]
-layout_mode = 2
-text = "⚙️ CONFIG TRANSICIÓN
-(Próximamente)"
-horizontal_alignment = 1
-vertical_alignment = 1
-
 [node name="Columna3_UI" type="VBoxContainer" parent="HSplitContainer/HSplitContainer/HSplitContainer/Columna3_Container"]
 layout_mode = 2
 script = ExtResource("4_33mf6")
@@ -131,12 +126,36 @@ script = ExtResource("4_33mf6")
 custom_minimum_size = Vector2(300, 0)
 layout_mode = 2
 
-[node name="PlaceholderLabel" type="Label" parent="HSplitContainer/HSplitContainer/HSplitContainer/Columna4_Container"]
+[node name="Columna4_UI" type="VBoxContainer" parent="HSplitContainer/HSplitContainer/HSplitContainer/Columna4_Container"]
 layout_mode = 2
-text = "🎯 PREVIEW FINAL
-(Próximamente)"
-horizontal_alignment = 1
-vertical_alignment = 1
+script = ExtResource("5_gm4uy")
+
+[node name="PanelContainer_PRE" type="PanelContainer" parent="HSplitContainer/HSplitContainer/HSplitContainer/Columna4_Container/Columna4_UI"]
+layout_mode = 2
+
+[node name="LayoutContainer_A" type="VBoxContainer" parent="HSplitContainer/HSplitContainer/HSplitContainer/Columna4_Container/Columna4_UI/PanelContainer_PRE"]
+layout_mode = 2
+
+[node name="SubViewportContainer_PRE" type="SubViewportContainer" parent="HSplitContainer/HSplitContainer/HSplitContainer/Columna4_Container/Columna4_UI/PanelContainer_PRE/LayoutContainer_A"]
+custom_minimum_size = Vector2(128, 128)
+layout_mode = 2
+size_flags_horizontal = 4
+size_flags_vertical = 4
+stretch = true
+
+[node name="SubViewport_PRE" type="SubViewport" parent="HSplitContainer/HSplitContainer/HSplitContainer/Columna4_Container/Columna4_UI/PanelContainer_PRE/LayoutContainer_A/SubViewportContainer_PRE"]
+handle_input_locally = false
+size = Vector2i(128, 128)
+render_target_update_mode = 4
+
+[node name="Camera3D_PRE" type="Camera3D" parent="HSplitContainer/HSplitContainer/HSplitContainer/Columna4_Container/Columna4_UI/PanelContainer_PRE/LayoutContainer_A/SubViewportContainer_PRE/SubViewport_PRE"]
+
+[node name="DirectionalLight3D_PRE" type="DirectionalLight3D" parent="HSplitContainer/HSplitContainer/HSplitContainer/Columna4_Container/Columna4_UI/PanelContainer_PRE/LayoutContainer_A/SubViewportContainer_PRE/SubViewport_PRE"]
+
+[node name="Model_PRE" type="Node3D" parent="HSplitContainer/HSplitContainer/HSplitContainer/Columna4_Container/Columna4_UI/PanelContainer_PRE/LayoutContainer_A/SubViewportContainer_PRE/SubViewport_PRE"]
+
+[node name="PanelContainer_PRE_Controls" type="PanelContainer" parent="HSplitContainer/HSplitContainer/HSplitContainer/Columna4_Container/Columna4_UI/PanelContainer_PRE/LayoutContainer_A"]
+layout_mode = 2
 
 [node name="Columna1_Logic" type="Node" parent="."]
 script = ExtResource("2_logic")
@@ -146,3 +165,6 @@ script = ExtResource("4_logic2")
 
 [node name="Columna3_Logic" type="Node" parent="."]
 script = ExtResource("7_uuf4p")
+
+[node name="Columna4_Logic" type="Node" parent="."]
+script = ExtResource("9_7se4s")
