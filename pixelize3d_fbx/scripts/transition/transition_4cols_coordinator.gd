@@ -34,6 +34,8 @@ var columna3_ui: Control  # UI de config transición
 var columna4_logic: Node  # Lógica de preview final (pendiente)
 var columna4_ui: Control  # UI de preview final (pendiente)
 
+
+
 # === ESTADO GLOBAL DEL SISTEMA ===
 var system_state: Dictionary = {
 	"base_loaded": false,
@@ -50,7 +52,9 @@ var shared_data: Dictionary = {
 	"animation_b": {},
 	"preview_configs": {},
 	"transition_config": {},
-	"generated_transition": {}
+	"generated_transition": {},
+	"transition_preview": {},  # Datos de preview de Columna 4
+	"transition_export": {},   # Datos de exportación
 }
 
 func _ready():
@@ -118,7 +122,7 @@ func _show_startup_info():
 	print("Columna 1: ✅ Carga funcional")
 	print("Columna 2: ✅ Preview animaciones FUNCIONAL")
 	print("Columna 3: ✅ Config transición FUNCIONAL")
-	print("Columna 4: ⏳ Preview final (próximamente)")
+	print("Columna 4: ⏳ Preview final (en proceso)")
 	print("\nControles de debug:")
 	print("  F5 - Estado del sistema")
 	print("  F6 - Debug Columna 1")
@@ -141,6 +145,8 @@ func _input(event):
 				debug_coordinator_state()
 			KEY_F9:
 				_debug_column3_systems()
+			KEY_F10:
+				_debug_column4_systems()
 
 # ========================================================================
 # CONFIGURACIÓN DEL LAYOUT DE 4 COLUMNAS
@@ -172,7 +178,7 @@ func _initialize_columns():
 	_initialize_column3()
 	
 	# Columna 4: Solo verificar placeholder
-	_verify_column4_placeholder()
+	_initialize_column4()
 	
 	print("Inicialización de columnas completada")
 
@@ -347,6 +353,63 @@ func _initialize_column3():
 	
 	print("✅ Columna 3 inicializada completamente")
 
+
+func _initialize_column4():
+	"""Inicializar Columna 4 - Preview final de transiciones"""
+	print("🎯 Inicializando Columna 4...")
+	
+	# PREVENIR INICIALIZACIÓN DUPLICADA
+	if columna4_logic != null or columna4_ui != null:
+		print("⚠️ Columna 4 ya inicializada - evitando duplicación")
+		return
+	
+	# Crear Columna4_Logic
+	print("Intentando cargar Columna4_Logic.gd...")
+	var columna4_logic_script = load("res://scripts/transition/Columna4_logic.gd")
+	if columna4_logic_script:
+		print("✅ Script Columna4_Logic.gd cargado exitosamente")
+		columna4_logic = columna4_logic_script.new()
+		columna4_logic.name = "Columna4_Logic"
+		add_child(columna4_logic)
+		#print("✅ Columna4_Logic creado dinámicamente: %s" % columna4_logic.get_path())
+	else:
+		print("❌ Error: No se pudo cargar Columna4_Logic.gd")
+		return
+	
+	# Buscar contenedor de Columna 4
+	print("Buscando contenedor de Columna 4...")
+	var col4_container = get_node_or_null("HSplitContainer/HSplitContainer/HSplitContainer/Columna4_Container")
+	if not col4_container:
+		print("❌ Error: Contenedor Columna4 no encontrado")
+		print("  Ruta esperada: HSplitContainer/HSplitContainer/HSplitContainer/Columna4_Container")
+		return
+	else:
+		print("✅ Contenedor encontrado: %s" % col4_container.get_path())
+	
+	# Remover placeholders existentes
+	print("Removiendo placeholders existentes...")
+	for child in col4_container.get_children():
+		if child is Label:
+			print("  Removiendo Label: %s" % child.name)
+			child.queue_free()
+	
+# Crear Columna4_UI
+	print("Intentando cargar Columna4_UI.gd...")
+	var columna4_ui_script = preload("res://scripts/transition/Columna4_UI.gd")
+	if columna4_ui_script:
+		print("✅ Script Columna4_UI.gd cargado exitosamente")
+		columna4_ui = get_node("HSplitContainer/HSplitContainer/HSplitContainer/Columna4_Container/Columna4_UI")
+	
+		print("✅ Columna4_UI")
+	else:
+		print("❌ Error: No se pudo cargar Columna4_UI.gd")
+		return
+
+	
+	# Conectar señales
+	_connect_column4_signals()
+	print("✅ Columna 4 inicializada completamente")
+
 func _verify_column4_placeholder():
 	"""Solo verificar que el placeholder de Columna 4 exista"""
 	var col4_container = get_node_or_null("HSplitContainer/HSplitContainer/HSplitContainer/Columna4_Container")
@@ -481,6 +544,63 @@ func _connect_column3_signals():
 	print("  ✓ generate_transition_requested conectada")
 	
 	print("✅ Todas las señales de Columna 3 conectadas exitosamente")
+
+
+func _connect_column4_signals():
+	"""Conectar señales entre lógica y UI de Columna 4"""
+	print("Conectando señales de Columna 4...")
+	
+	print("columna4_logic")
+	print(columna4_logic)
+	print("columna4_ui")
+	print(columna4_ui)
+	if not columna4_logic or not columna4_ui:
+		print("❌ Error: columna4_logic o columna4_ui no inicializados")
+		return
+	
+	# UI -> Logic
+	columna4_ui.generate_preview_requested.connect(_on_col4_generate_preview_requested)
+	print("  ✓ generate_preview_requested conectada")
+	
+	columna4_ui.play_requested.connect(_on_col4_play_requested)
+	print("  ✓ play_requested conectada")
+	
+	columna4_ui.pause_requested.connect(_on_col4_pause_requested)
+	print("  ✓ pause_requested conectada")
+	
+	columna4_ui.seek_requested.connect(_on_col4_seek_requested)
+	print("  ✓ seek_requested conectada")
+	
+	columna4_ui.speed_changed.connect(_on_col4_speed_changed)
+	print("  ✓ speed_changed conectada")
+	
+	columna4_ui.export_spritesheet_requested.connect(_on_col4_export_requested)
+	print("  ✓ export_spritesheet_requested conectada")
+	
+	# Logic -> UI
+	columna4_logic.playback_state_changed.connect(columna4_ui.on_playback_state_changed)
+	print("  ✓ playback_state_changed conectada")
+	
+	columna4_logic.frame_updated.connect(columna4_ui.on_frame_updated)
+	print("  ✓ frame_updated conectada")
+	
+	columna4_logic.generation_progress_updated.connect(columna4_ui.on_generation_progress_updated)
+	print("  ✓ generation_progress_updated conectada")
+	
+	columna4_logic.generation_complete.connect(columna4_ui.on_generation_complete)
+	print("  ✓ generation_complete conectada")
+	
+	columna4_logic.generation_failed.connect(columna4_ui.on_generation_failed)
+	print("  ✓ generation_failed conectada")
+	
+	# Logic -> Coordinator (señales globales)
+	columna4_logic.transition_preview_ready.connect(_on_transition_preview_ready)
+	print("  ✓ transition_preview_ready conectada")
+	
+	#columna4_logic.transition_generated.connect(_on_transition_generated)
+	#print("  ✓ transition_generated conectada")
+	
+	print("✅ Todas las señales de Columna 4 conectadas exitosamente")
 
 func _connect_coordination_signals():
 	"""Conectar señales de coordinación entre columnas"""
@@ -940,3 +1060,200 @@ func _analyze_nodes_recursive(node: Node, depth: int):
 	if depth < 3:
 		for child in node.get_children():
 			_analyze_nodes_recursive(child, depth + 1)
+
+
+
+func _on_col4_generate_preview_requested():
+	"""Manejar solicitud de generación de preview desde UI"""
+	print("🎬 Solicitud de generación de preview desde Columna 4")
+	
+	if not columna4_logic:
+		print("❌ columna4_logic no disponible")
+		return
+	
+	# Recopilar datos de otras columnas
+	var transition_config = {}
+	var skeleton_data = {}
+	var camera_settings = {}
+	
+	# Obtener configuración de Columna 3
+	if columna3_logic and columna3_logic.has_method("get_transition_config"):
+		transition_config = columna3_logic.get_transition_config()
+		print("✅ Configuración obtenida de Columna 3: %s" % str(transition_config))
+	
+	if columna3_logic and columna3_logic.has_method("get_skeleton_info"):
+		skeleton_data = columna3_logic.get_skeleton_info()
+		print("✅ Datos de esqueleto obtenidos de Columna 3")
+	
+	# Obtener configuración de cámara de Columna 2
+	if columna2_logic and columna2_logic.has_method("get_current_model_settings"):
+		camera_settings = columna2_logic.get_current_model_settings()
+		print("✅ Configuración de cámara obtenida de Columna 2")
+	
+	# Validar datos antes de enviar
+	if _validate_transition_data_for_column4(transition_config, skeleton_data):
+		# Cargar datos en Columna 4
+		columna4_logic.load_transition_data(transition_config, skeleton_data, camera_settings)
+		
+		# Iniciar generación
+		columna4_logic.generate_transition_animation()
+	else:
+		print("❌ Datos insuficientes para generar transición")
+
+func _validate_transition_data_for_column4(config: Dictionary, skeleton: Dictionary) -> bool:
+	"""Validar que los datos estén listos para Columna 4"""
+	if config.is_empty():
+		print("❌ Configuración de transición vacía")
+		return false
+	
+	if not config.get("valid", false):
+		print("❌ Configuración de transición no válida")
+		return false
+	
+	if skeleton.is_empty() or skeleton.get("bones_count", 0) <= 0:
+		print("❌ Datos de esqueleto insuficientes")
+		return false
+	
+	if not skeleton.get("has_pose_a", false) or not skeleton.get("has_pose_b", false):
+		print("❌ Poses A o B no disponibles")
+		return false
+	
+	print("✅ Validación exitosa para Columna 4")
+	return true
+
+func _on_col4_play_requested():
+	"""Manejar solicitud de reproducción desde UI"""
+	print("▶️ Play solicitado en Columna 4")
+	if columna4_logic and columna4_logic.has_method("play_preview"):
+		columna4_logic.play_preview()
+
+func _on_col4_pause_requested():
+	"""Manejar solicitud de pausa desde UI"""
+	print("⏸️ Pause solicitado en Columna 4")
+	if columna4_logic and columna4_logic.has_method("pause_preview"):
+		columna4_logic.pause_preview()
+
+func _on_col4_seek_requested(frame_index: int):
+	"""Manejar solicitud de búsqueda de frame"""
+	print("🎯 Seek a frame %d solicitado en Columna 4" % frame_index)
+	if columna4_logic and columna4_logic.has_method("seek_to_frame"):
+		columna4_logic.seek_to_frame(frame_index)
+
+func _on_col4_speed_changed(speed: float):
+	"""Manejar cambio de velocidad de reproducción"""
+	print("⚡ Velocidad cambiada a %.1fx en Columna 4" % speed)
+	if columna4_logic and columna4_logic.has_method("set_playback_speed"):
+		columna4_logic.set_playback_speed(speed)
+
+func _on_col4_export_requested(export_config: Dictionary):
+	"""Manejar solicitud de exportación de spritesheet"""
+	print("📁 Exportación de spritesheet solicitada desde Columna 4")
+	print("  Configuración: %s" % str(export_config))
+	
+	if columna4_logic and columna4_logic.has_method("export_spritesheet"):
+		var output_path = export_config.get("output_path", "res://output/transition_spritesheet.png")
+		var success = await columna4_logic.export_spritesheet(output_path, export_config)
+		
+		if success:
+			print("✅ Spritesheet exportado exitosamente")
+			emit_signal("spritesheet_generated", output_path)
+		else:
+			print("❌ Error en exportación de spritesheet")
+
+func _on_transition_preview_ready(preview_data: Dictionary):
+	"""Manejar preview de transición listo"""
+	print("Coordinador: Preview de transición listo")
+	system_state.transition_generated = true
+	
+	# Habilitar UI de Columna 4 si está disponible
+	if columna4_ui and columna4_ui.has_method("load_preview_data"):
+		columna4_ui.load_preview_data(preview_data)
+
+func _on_transition_generated(output_path: String):
+	"""Manejar transición generada completamente"""
+	print("Coordinador: Transición generada en %s" % output_path)
+	emit_signal("transition_generated", output_path)
+
+# ========================================================================
+# MODIFICAR _on_col3_generate_requested() - AGREGAR AL FINAL
+# ========================================================================
+
+# AGREGAR AL FINAL DE LA FUNCIÓN EXISTENTE _on_col3_generate_requested():
+
+	# Habilitar Columna 4 para generar preview
+	if columna4_ui and columna4_ui.has_method("enable_generation"):
+		columna4_ui.enable_generation()
+		print("✅ Columna 4 habilitada para generación")
+
+# ========================================================================
+# AGREGAR A debug_system_state() - AL FINAL DE LA FUNCIÓN
+# ========================================================================
+
+	print("Columna 4: %s" % ("✅ Inicializada" if (columna4_logic and columna4_ui) else "❌ Pendiente"))
+	if columna4_logic and columna4_logic.has_method("get_current_state"):
+		print("  Estado: %s" % columna4_logic.get_current_state())
+	if columna4_logic and columna4_logic.has_method("is_ready_for_preview"):
+		print("  Listo para preview: %s" % columna4_logic.is_ready_for_preview())
+
+# ========================================================================
+# AGREGAR NUEVA TECLA DE DEBUG (EN _unhandled_input)
+# ========================================================================
+
+
+
+# ========================================================================
+# NUEVA FUNCIÓN DE DEBUG - AGREGAR AL FINAL DEL ARCHIVO
+# ========================================================================
+
+func _debug_column4_systems():
+	"""Debug específico de sistemas de Columna 4"""
+	print("\n=== DEBUG COLUMNA 4 SYSTEMS ===")
+	
+	print("📊 ESTADO DE COMPONENTES:")
+	print("  columna4_logic: %s" % ("✅ OK" if columna4_logic else "❌ NULL"))
+	print("  columna4_ui: %s" % ("✅ OK" if columna4_ui else "❌ NULL"))
+	
+	if columna4_logic:
+		print("\n🔍 COLUMNA4_LOGIC:")
+		print("  Nombre: %s" % columna4_logic.name)
+		print("  Ruta: %s" % columna4_logic.get_path())
+		print("  Script: %s" % str(columna4_logic.get_script()))
+		
+		# Métodos disponibles
+		var methods = ["generate_transition_animation", "play_preview", "pause_preview", 
+					   "seek_to_frame", "export_spritesheet", "get_current_state"]
+		for method in methods:
+			print("    %s: %s" % [method, "✅" if columna4_logic.has_method(method) else "❌"])
+		
+		# Estado interno
+		if columna4_logic.has_method("get_current_state"):
+			print("  Estado actual: %s" % columna4_logic.get_current_state())
+		if columna4_logic.has_method("is_ready_for_preview"):
+			print("  Listo para preview: %s" % columna4_logic.is_ready_for_preview())
+		if columna4_logic.has_method("is_ready_for_export"):
+			print("  Listo para export: %s" % columna4_logic.is_ready_for_export())
+	
+	if columna4_ui:
+		print("\n🎮 COLUMNA4_UI:")
+		print("  Nombre: %s" % columna4_ui.name)
+		print("  Ruta: %s" % columna4_ui.get_path())
+		print("  Script: %s" % str(columna4_ui.get_script()))
+		print("  Hijos UI: %d" % columna4_ui.get_child_count())
+		
+		# Verificar componentes clave
+		if columna4_ui.has_method("get_viewport_3d"):
+			var viewport = columna4_ui.get_viewport_3d()
+			print("  Viewport 3D: %s" % ("✅ OK" if viewport else "❌ NULL"))
+		
+		if columna4_ui.has_method("debug_ui_state"):
+			columna4_ui.debug_ui_state()
+	
+	print("\n🔗 FLUJO DE DATOS:")
+	print("  Columna 3 → Columna 4: %s" % ("✅" if (columna3_logic and columna4_logic) else "❌"))
+	print("  Columna 2 → Columna 4: %s" % ("✅" if (columna2_logic and columna4_logic) else "❌"))
+	
+	print("=== FIN DEBUG COLUMNA 4 ===\n")
+
+# ========================================================================
+# MODIFICAR shared_data PARA INCLUIR COLUMNA 4
+# ========================================================================

@@ -38,8 +38,8 @@ var preview_mode_enabled = true
 var pan_start_pos: Vector2
 #var config_manager = get_node_or_null("/root/ConfigManager")  # ❌ NO EXISTE
 var manual_override = false  # ❌ SIEMPRE SERÁ FALSE
-var manual_zoom_active: bool = false
-var manual_orthographic_size: float = 15.0
+var manual_zoom_active: bool = true
+var manual_orthographic_size: float = 2.5
 
 # Variable para orientación norte del modelo
 var current_north_offset: float = 0.0
@@ -51,7 +51,12 @@ func _ready():
 	_setup_north_indicator()
 	debug_camera_state()
 	#print("✅ CameraController con indicador norte inicializado")
-
+	manual_zoom_active = true
+	manual_orthographic_size = 2.5
+	orthographic_size = 2.5
+	
+	if camera_3d and use_orthographic:
+		camera_3d.size = orthographic_size
 func _find_existing_nodes():
 	#print("🔍 CameraController: Buscando nodos existentes...")
 	
