@@ -2249,15 +2249,15 @@ func _get_current_render_settings_with_capture_area() -> Dictionary:
 	# Obtener configuración base
 	var settings = _get_current_render_settings()
 	
-	print("🔍 Debug configuración original:")
-	print("  sprite_size: %d" % settings.get("sprite_size", 128))
-	print("  capture_area_size: %s" % str(settings.get("capture_area_size", "NO ENCONTRADO")))
+	#print("🔍 Debug configuración original:")
+	#print("  sprite_size: %d" % settings.get("sprite_size", 128))
+	#print("  capture_area_size: %s" % str(settings.get("capture_area_size", "NO ENCONTRADO")))
 	
 	# ✅ CORRECCIÓN: La configuración ya viene con capture_area_size del settings_panel
 	if settings.has("capture_area_size"):
 		var capture_area = settings.capture_area_size
 		
-		print("✅ capture_area_size encontrado: %.1f" % capture_area)
+		#print("✅ capture_area_size encontrado: %.1f" % capture_area)
 		
 		# ✅ CRÍTICO: Convertir capture_area_size a camera_distance
 		# Lógica: capture_area más pequeño = modelo más grande = cámara más cerca
@@ -2269,13 +2269,13 @@ func _get_current_render_settings_with_capture_area() -> Dictionary:
 		settings["manual_zoom_override"] = true
 		settings["fixed_orthographic_size"] = capture_area
 		
-		print("🔄 Conversiones aplicadas:")
-		print("  capture_area_size: %.1f → camera_distance: %.1f" % [capture_area, camera_distance])
-		print("  orthographic_size: %.1f" % capture_area)
-		
+		#print("🔄 Conversiones aplicadas:")
+		#print("  capture_area_size: %.1f → camera_distance: %.1f" % [capture_area, camera_distance])
+		#print("  orthographic_size: %.1f" % capture_area)
+		#
 	else:
 		# ✅ FALLBACK: Si no se encuentra capture_area_size, usar valores por defecto
-		print("⚠️ capture_area_size NO encontrado, usando valores por defecto")
+		#print("⚠️ capture_area_size NO encontrado, usando valores por defecto")
 		settings["capture_area_size"] = 8.0
 		settings["camera_distance"] = 16.0
 		settings["orthographic_size"] = 8.0
@@ -2283,11 +2283,11 @@ func _get_current_render_settings_with_capture_area() -> Dictionary:
 		settings["fixed_orthographic_size"] = 2.5
 	
 	# ✅ DEBUG: Mostrar configuración final
-	print("📋 Configuración final para renderizado:")
-	print("  sprite_size: %d" % settings.get("sprite_size", 128))
-	print("  capture_area_size: %.1f" % settings.get("capture_area_size", 8.0))
-	print("  camera_distance: %.1f" % settings.get("camera_distance", 16.0))
-	print("  orthographic_size: %.1f" % settings.get("orthographic_size", 8.0))
+	#print("📋 Configuración final para renderizado:")
+	#print("  sprite_size: %d" % settings.get("sprite_size", 128))
+	#print("  capture_area_size: %.1f" % settings.get("capture_area_size", 8.0))
+	#print("  camera_distance: %.1f" % settings.get("camera_distance", 16.0))
+	#print("  orthographic_size: %.1f" % settings.get("orthographic_size", 8.0))
 	
 	return settings
 
@@ -2296,15 +2296,15 @@ func _get_current_render_settings_with_capture_area() -> Dictionary:
 # ========================================================================
 
 func _on_render_settings_changed(settings: Dictionary):
-	"""Manejar cambios en configuración de renderizado - VERSIÓN CON DEBUG EXTENDIDO"""
-	print("\n📡 === CONFIGURACIÓN RECIBIDA DESDE SETTINGS_PANEL ===")
-	print("  directions: %d" % settings.get("directions", 16))
-	print("  camera_height: %.1f" % settings.get("camera_height", 12.0))
-	print("  camera_angle: %.1f°" % settings.get("camera_angle", 45.0))
-	print("  sprite_size: %d" % settings.get("sprite_size", 128))
-	print("  capture_area_size: %.1f" % settings.get("capture_area_size", 8.0))
-	print("  north_offset: %.0f°" % settings.get("north_offset", 0.0))
-	print("====================================================")
+	#"""Manejar cambios en configuración de renderizado - VERSIÓN CON DEBUG EXTENDIDO"""
+	#print("\n📡 === CONFIGURACIÓN RECIBIDA DESDE SETTINGS_PANEL ===")
+	#print("  directions: %d" % settings.get("directions", 16))
+	#print("  camera_height: %.1f" % settings.get("camera_height", 12.0))
+	#print("  camera_angle: %.1f°" % settings.get("camera_angle", 45.0))
+	#print("  sprite_size: %d" % settings.get("sprite_size", 128))
+	#print("  capture_area_size: %.1f" % settings.get("capture_area_size", 8.0))
+	#print("  north_offset: %.0f°" % settings.get("north_offset", 0.0))
+	#print("====================================================")
 
 	# ✅ CRÍTICO: Convertir capture_area_size a configuración de cámara
 	var enhanced_settings = settings.duplicate()
@@ -2318,31 +2318,32 @@ func _on_render_settings_changed(settings: Dictionary):
 		enhanced_settings["manual_zoom_override"] = true
 		enhanced_settings["fixed_orthographic_size"] = capture_area
 		
-		print("🔄 Parámetros de cámara calculados:")
-		print("  camera_distance: %.1f" % enhanced_settings["camera_distance"])
-		print("  orthographic_size: %.1f" % enhanced_settings["orthographic_size"])
+		#print("🔄 Parámetros de cámara calculados:")
+		#print("  camera_distance: %.1f" % enhanced_settings["camera_distance"])
+		#print("  orthographic_size: %.1f" % enhanced_settings["orthographic_size"])
 	
 	# 1. Enviar al Model Preview Panel (para preview en tiempo real)
 	if model_preview_panel:
 		var preview_camera = model_preview_panel.get_node_or_null("ViewportContainer/SubViewport/CameraController")
 		if preview_camera and preview_camera.has_method("set_camera_settings"):
 			preview_camera.set_camera_settings(enhanced_settings)
-			print("✅ Configuración MEJORADA enviada al preview camera")
+			#print("✅ Configuración MEJORADA enviada al preview camera")
 			
 			if preview_camera.has_method("update_camera_position"):
 				preview_camera.update_camera_position()
 		else:
-			print("❌ Preview camera controller no encontrado")
+			#print("❌ Preview camera controller no encontrado")
+			pass
 	
 	# 2. Enviar al Sprite Renderer (para renderizado) - CON CONFIGURACIÓN MEJORADA
 	if sprite_renderer:
 		if sprite_renderer.has_method("initialize"):
 			sprite_renderer.initialize(enhanced_settings)
-			print("✅ Configuración MEJORADA enviada al sprite renderer")
+			#print("✅ Configuración MEJORADA enviada al sprite renderer")
 		
 		if sprite_renderer.has_method("update_render_settings"):
 			sprite_renderer.update_render_settings(enhanced_settings)
-			print("✅ Configuración MEJORADA actualizada en sprite renderer")
+			#print("✅ Configuración MEJORADA actualizada en sprite renderer")
 	
 	# 3. Aplicar al pipeline - CON CONFIGURACIÓN MEJORADA
 	if spritesheet_pipeline and spritesheet_pipeline.has_method("update_pipeline_settings"):
@@ -2397,15 +2398,15 @@ func _on_render_requested_with_capture_fix():
 	var config = _get_current_render_settings_with_capture_area()
 	
 	# ✅ DEBUG EXTENDIDO: Mostrar configuración completa
-	print("📋 Configuración final para pipeline:")
-	print("  animation: %s" % current_anim)
-	print("  sprite_size: %d" % config.get("sprite_size", 128))
-	print("  capture_area_size: %.1f" % config.get("capture_area_size", 8.0))
-	print("  camera_distance: %.1f" % config.get("camera_distance", 16.0))
-	print("  orthographic_size: %.1f" % config.get("orthographic_size", 8.0))
-	print("  camera_height: %.1f" % config.get("camera_height", 12.0))
-	print("  camera_angle: %.1f°" % config.get("camera_angle", 45.0))
-	print("  directions: %d" % config.get("directions", 16))
+	#print("📋 Configuración final para pipeline:")
+	#print("  animation: %s" % current_anim)
+	#print("  sprite_size: %d" % config.get("sprite_size", 128))
+	#print("  capture_area_size: %.1f" % config.get("capture_area_size", 8.0))
+	#print("  camera_distance: %.1f" % config.get("camera_distance", 16.0))
+	#print("  orthographic_size: %.1f" % config.get("orthographic_size", 8.0))
+	#print("  camera_height: %.1f" % config.get("camera_height", 12.0))
+	#print("  camera_angle: %.1f°" % config.get("camera_angle", 45.0))
+	#print("  directions: %d" % config.get("directions", 16))
 
 	# ✅ USAR PIPELINE con configuración corregida
 	var success = spritesheet_pipeline.generate_spritesheet(current_anim, config)
@@ -2432,28 +2433,29 @@ func debug_capture_area_chain():
 	# 1. Verificar settings_panel
 	if settings_panel and settings_panel.has_method("get_settings"):
 		var panel_settings = settings_panel.get_settings()
-		print("📋 SETTINGS_PANEL:")
-		print("  capture_area_size: %s" % str(panel_settings.get("capture_area_size", "NO ENCONTRADO")))
-		print("  manual_zoom_override: %s" % str(panel_settings.get("manual_zoom_override", "NO ENCONTRADO")))
-		print("  fixed_orthographic_size: %s" % str(panel_settings.get("fixed_orthographic_size", "NO ENCONTRADO")))
+		#print("📋 SETTINGS_PANEL:")
+		#print("  capture_area_size: %s" % str(panel_settings.get("capture_area_size", "NO ENCONTRADO")))
+		#print("  manual_zoom_override: %s" % str(panel_settings.get("manual_zoom_override", "NO ENCONTRADO")))
+		#print("  fixed_orthographic_size: %s" % str(panel_settings.get("fixed_orthographic_size", "NO ENCONTRADO")))
 	else:
 		print("❌ settings_panel no disponible o no tiene get_settings()")
 	
 	# 2. Verificar current_render_settings
 	print("\n📋 CURRENT_RENDER_SETTINGS:")
 	if not current_render_settings.is_empty():
-		print("  capture_area_size: %s" % str(current_render_settings.get("capture_area_size", "NO ENCONTRADO")))
-		print("  camera_distance: %s" % str(current_render_settings.get("camera_distance", "NO ENCONTRADO")))
-		print("  orthographic_size: %s" % str(current_render_settings.get("orthographic_size", "NO ENCONTRADO")))
+		pass
+		#print("  capture_area_size: %s" % str(current_render_settings.get("capture_area_size", "NO ENCONTRADO")))
+		#print("  camera_distance: %s" % str(current_render_settings.get("camera_distance", "NO ENCONTRADO")))
+		#print("  orthographic_size: %s" % str(current_render_settings.get("orthographic_size", "NO ENCONTRADO")))
 	else:
 		print("  current_render_settings está vacío")
 	
 	# 3. Verificar configuración final
-	print("\n📋 CONFIGURACIÓN PROCESADA:")
+	#print("\n📋 CONFIGURACIÓN PROCESADA:")
 	var processed_config = _get_current_render_settings_with_capture_area()
-	print("  capture_area_size: %s" % str(processed_config.get("capture_area_size", "NO ENCONTRADO")))
-	print("  camera_distance: %s" % str(processed_config.get("camera_distance", "NO ENCONTRADO")))
-	print("  orthographic_size: %s" % str(processed_config.get("orthographic_size", "NO ENCONTRADO")))
+	#print("  capture_area_size: %s" % str(processed_config.get("capture_area_size", "NO ENCONTRADO")))
+	#print("  camera_distance: %s" % str(processed_config.get("camera_distance", "NO ENCONTRADO")))
+	#print("  orthographic_size: %s" % str(processed_config.get("orthographic_size", "NO ENCONTRADO")))
 	
 	# 4. Verificar sprite_renderer
 	if sprite_renderer:
@@ -2476,7 +2478,7 @@ func debug_capture_area_chain():
 	else:
 		print("\n❌ sprite_renderer no disponible")
 	
-	print("==========================================\n")
+	#print("==========================================\n")
 
 # ========================================================================
 # ✅ FUNCIÓN DE VALIDACIÓN: VERIFICAR QUE PREVIEW Y RENDER COINCIDAN

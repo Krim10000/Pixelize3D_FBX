@@ -47,23 +47,23 @@ func _ready():
 
 func update_render_settings(new_settings: Dictionary):
 	"""Actualizar configuración de renderizado en tiempo real"""
-	print("🔄 Actualizando configuración de sprite renderer...")
+	#print("🔄 Actualizando configuración de sprite renderer...")
 	
 	render_settings = new_settings.duplicate()
 	
 	# Aplicar cambios inmediatamente si hay una cámara configurada
 	if camera_controller and camera_controller.has_method("set_camera_settings"):
 		camera_controller.set_camera_settings(new_settings)
-		print("✅ Configuración aplicada al camera controller del renderer")
+		#print("✅ Configuración aplicada al camera controller del renderer")
 	
-	print("✅ Configuración de renderer actualizada")
-	print("  - directions: %d" % render_settings.get("directions", 16))
-	print("  - sprite_size: %d" % render_settings.get("sprite_size", 128))
-	print("  - camera_height: %.1f" % render_settings.get("camera_height", 12.0))
+	#print("✅ Configuración de renderer actualizada")
+	#print("  - directions: %d" % render_settings.get("directions", 16))
+	#print("  - sprite_size: %d" % render_settings.get("sprite_size", 128))
+	#print("  - camera_height: %.1f" % render_settings.get("camera_height", 12.0))
 
 func _initialize_shared_references():
 	"""Inicializar referencias compartidas con ModelPreviewPanel"""
-	print("🔗 Inicializando referencias compartidas...")
+	#print("🔗 Inicializando referencias compartidas...")
 	
 	# Buscar ModelPreviewPanel
 	preview_panel = _find_model_preview_panel()
@@ -143,13 +143,13 @@ func _get_preview_references():
 
 func _log_initialization_status():
 	"""Log del estado de inicialización"""
-	print("✅ Referencias compartidas inicializadas:")
-	print("  PreviewPanel: %s" % ("✅" if preview_panel else "❌"))
-	print("  Viewport: %s" % ("✅" if viewport else "❌"))
-	print("  Camera: %s" % ("✅" if camera else "❌"))
-	print("  CameraController: %s" % ("✅" if camera_controller else "❌"))
-	print("  ModelContainer: %s" % ("✅" if model_container else "❌"))
-	print("  AnimationManager: %s" % ("✅" if anim_manager else "❌"))
+	#print("✅ Referencias compartidas inicializadas:")
+	#print("  PreviewPanel: %s" % ("✅" if preview_panel else "❌"))
+	#print("  Viewport: %s" % ("✅" if viewport else "❌"))
+	#print("  Camera: %s" % ("✅" if camera else "❌"))
+	#print("  CameraController: %s" % ("✅" if camera_controller else "❌"))
+	#print("  ModelContainer: %s" % ("✅" if model_container else "❌"))
+	#print("  AnimationManager: %s" % ("✅" if anim_manager else "❌"))
 
 # ========================================================================
 # INICIALIZACIÓN DE RENDERIZADO - MODIFICADO
@@ -163,17 +163,17 @@ func initialize(settings: Dictionary):
 	
 	render_settings = settings
 	
-	print("🎨 Inicializando renderizado con viewport compartido...")
-	print("  Viewport path: %s" % viewport.get_path())
-	print("  Tamaño solicitado: %dx%d" % [settings.get("sprite_size", 128), settings.get("sprite_size", 128)])
-	
+	#print("🎨 Inicializando renderizado con viewport compartido...")
+	#print("  Viewport path: %s" % viewport.get_path())
+	#print("  Tamaño solicitado: %dx%d" % [settings.get("sprite_size", 128), settings.get("sprite_size", 128)])
+	#
 	# ✅ NUEVO: Configurar viewport para renderizado sin afectar preview
 	_prepare_viewport_for_rendering(settings)
 	
 	# Configurar cámara para renderizado
 	_configure_camera_for_rendering(settings)
 	
-	print("✅ SpriteRenderer inicializado con viewport compartido")
+	#print("✅ SpriteRenderer inicializado con viewport compartido")
 
 func _prepare_viewport_for_rendering(settings: Dictionary):
 	"""Preparar viewport compartido para renderizado"""
@@ -187,10 +187,9 @@ func _prepare_viewport_for_rendering(settings: Dictionary):
 	var sprite_size = settings.get("sprite_size", 128)
 	
 	# ✅ CRÍTICO: Respetar el tamaño del preview pero preparar para captura
-	print("🔧 Preparando viewport para renderizado:")
-	print("  Tamaño actual: %s" % str(viewport.size))
-	
-	print("  Modo actual: %d" % viewport.render_target_update_mode)
+	#print("🔧 Preparando viewport para renderizado:")
+	#print("  Tamaño actual: %s" % str(viewport.size))	
+	#print("  Modo actual: %d" % viewport.render_target_update_mode)
 	
 	# Configurar para renderizado óptimo
 	viewport.render_target_clear_mode = SubViewport.CLEAR_MODE_ALWAYS
@@ -203,12 +202,12 @@ func _configure_camera_for_rendering(settings: Dictionary):
 	if not camera or not camera_controller:
 		return
 	
-	print("📸 Configurando cámara compartida para renderizado...")
+	#print("📸 Configurando cámara compartida para renderizado...")
 	
 	# 1. Verificar si necesitamos auto-detección de norte
 	var final_settings = settings.duplicate()
 	if settings.get("auto_north_detection", true) and current_model:
-		print("🧭 Aplicando detección automática de norte...")
+		#print("🧭 Aplicando detección automática de norte...")
 		
 		# 2. Obtener orientación sugerida
 		var suggested_north = orientation_analyzer.analyze_model_quick(current_model)

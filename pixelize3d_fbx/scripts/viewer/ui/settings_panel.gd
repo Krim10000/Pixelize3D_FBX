@@ -1,7 +1,7 @@
 # scripts/viewer/ui/settings_panel.gd
-# Panel COMPLETO con sistema de delay integrado - LISTO PARA PRODUCCION
+# Panel COMPLETO con sistema de delay integrado + SHADER AVANZADO - LISTO PARA PRODUCCION
 # Input: Cambios en controles de configuracion
-# Output: Señales con configuracion actualizada incluyendo delay system
+# Output: Señales con configuracion actualizada incluyendo delay system y shader avanzado
 
 extends VBoxContainer
 
@@ -37,7 +37,12 @@ var auto_delay_check: CheckBox
 var delay_info_label: Label
 var recommend_button: Button
 
-# Configuracion interna - EXTENDIDA CON DELAY SYSTEM
+# NUEVAS VARIABLES PARA SHADER AVANZADO
+var advanced_shader_panel: Control = null
+var show_shader_panel_button: Button = null
+var current_shader_settings: Dictionary = {}
+
+# Configuracion interna - EXTENDIDA CON DELAY SYSTEM Y SHADER AVANZADO
 var current_settings: Dictionary = {
 	"directions": 16,
 	"sprite_size": 128,
@@ -50,13 +55,14 @@ var current_settings: Dictionary = {
 	"north_offset": 0.0,
 	"capture_area_size": 2.5,
 	"auto_north_detection": true,
-	#"auto_delay_recommendation": true,  # NUEVO
-	#"show_debug_frame_numbers": false,  # NUEVO
-	"timing_validation": true  # NUEVO
+	"timing_validation": true,
+	# NUEVOS CAMPOS PARA SHADER AVANZADO
+	"use_advanced_shader": false,
+	"advanced_shader": {}
 }
 
 func _ready():
-	print("⚙️ SettingsPanel con DELAY SYSTEM inicializado")
+	print("⚙️ SettingsPanel con DELAY SYSTEM + SHADER AVANZADO inicializado")
 	_create_ui()
 	_apply_current_settings()
 
@@ -151,12 +157,39 @@ func _create_basic_settings():
 	fps_spinbox.value_changed.connect(_on_fps_changed)
 	fps_container.add_child(fps_spinbox)
 	
-	# Pixelizado
+	# SECCION MODIFICADA: EFECTOS AVANZADOS (antes era solo pixelizado)
+	var effects_title = Label.new()
+	effects_title.text = "🎨 EFECTOS"
+	effects_title.add_theme_font_size_override("font_size", 14)
+	effects_title.add_theme_color_override("font_color", Color(0.3, 0.7, 1.0))
+	add_child(effects_title)
+	
+	# Container horizontal para checkbox y botón avanzado
+	var pixelize_container = HBoxContainer.new()
+	add_child(pixelize_container)
+	
+	# Pixelizado básico
 	pixelize_check = CheckBox.new()
 	pixelize_check.text = "Aplicar pixelizacion"
 	pixelize_check.button_pressed = true
-	pixelize_check.toggled.connect(_on_setting_changed)
-	add_child(pixelize_check)
+	pixelize_check.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	pixelize_check.toggled.connect(_on_pixelize_changed)
+	pixelize_container.add_child(pixelize_check)
+	
+	# Botón avanzado
+	show_shader_panel_button = Button.new()
+	show_shader_panel_button.text = "⚙️ Avanzado"
+	show_shader_panel_button.custom_minimum_size.x = 100
+	show_shader_panel_button.pressed.connect(_on_show_advanced_shader_panel)
+	pixelize_container.add_child(show_shader_panel_button)
+	
+	# Descripción
+	var effects_desc = Label.new()
+	effects_desc.text = "Click 'Avanzado' para configuración detallada de efectos"
+	effects_desc.add_theme_font_size_override("font_size", 9)
+	effects_desc.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
+	effects_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	add_child(effects_desc)
 
 # NUEVA SECCION: SISTEMA DE DELAY
 func _create_delay_settings():
@@ -191,8 +224,6 @@ func _create_delay_settings():
 	delay_spinbox.value = current_settings.frame_delay
 	delay_spinbox.value_changed.connect(_on_delay_changed)
 	delay_container.add_child(delay_spinbox)
-	#current_settings.frame_delay = delay_spinbox.value
-	
 	
 	var seconds_label = Label.new()
 	seconds_label.text = "s"
@@ -204,8 +235,6 @@ func _create_delay_settings():
 	fps_equiv_label.add_theme_color_override("font_color", Color(0.8, 0.9, 1.0))
 	delay_container.add_child(fps_equiv_label)
 	
-
-	
 	# Informacion de delay
 	delay_info_label = Label.new()
 	delay_info_label.text = "💡 Delay mas bajo = animacion mas fluida, delay mas alto = menos frames"
@@ -213,16 +242,6 @@ func _create_delay_settings():
 	delay_info_label.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
 	delay_info_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(delay_info_label)
-	
-	# Boton para obtener recomendacion manual
-	var recommend_container = HBoxContainer.new()
-	add_child(recommend_container)
-	
-	var recommend_spacer = Control.new()
-	recommend_spacer.custom_minimum_size.x = 100
-	recommend_container.add_child(recommend_spacer)
-	
-
 	
 	# Presets de delay comunes
 	var delay_presets_container = HBoxContainer.new()
@@ -295,8 +314,6 @@ func _create_camera_settings():
 func _on_camera_height_changed(value: float):
 	"""Manejar cambio en altura de camara"""
 	current_settings.camera_height = value
-	#camera_height_label.text = "%.1f" % value
-	
 	print("📏 Altura de camara: %.1f" % value)
 	settings_changed.emit(current_settings.duplicate())
 
@@ -328,8 +345,8 @@ func _create_capture_area_settings():
 	capture_area_slider = HSlider.new()
 	capture_area_slider.min_value = 0.5    # Modelo MUY grande (area pequeña)
 	capture_area_slider.max_value = 20.0   # Modelo pequeño (area grande)
-	capture_area_slider.value = 2.5        # Tamaño normal
-	capture_area_slider.step = 0.5
+	capture_area_slider.value = 2.3        # Tamaño normal
+	capture_area_slider.step = 0.1
 	capture_area_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	capture_area_slider.value_changed.connect(_on_capture_area_changed)
 	capture_container.add_child(capture_area_slider)
@@ -486,11 +503,9 @@ func _apply_current_settings():
 	
 	# Aplicar valores de delay system
 	delay_spinbox.value = current_settings.frame_delay
-	#auto_delay_check.button_pressed = current_settings.auto_delay_recommendation
 	
 	# Aplicar valores de camara
 	camera_angle_slider.value = current_settings.camera_angle
-	#camera_height_slider.value = current_settings.camera_height  
 	
 	# Aplicar valores de orientacion
 	north_offset_slider.value = current_settings.north_offset
@@ -507,7 +522,7 @@ func _apply_current_settings():
 	_on_delay_changed(current_settings.frame_delay)
 
 # ========================================================================
-# MANEJADORES DE EVENTOS - EXTENDIDOS PARA DELAY SYSTEM
+# MANEJADORES DE EVENTOS - EXTENDIDOS PARA DELAY SYSTEM Y SHADER AVANZADO
 # ========================================================================
 
 func _on_setting_changed(value = null):
@@ -519,7 +534,21 @@ func _on_setting_changed(value = null):
 	current_settings.pixelize = pixelize_check.button_pressed
 	
 	print("⚙️ Configuracion basica actualizada")
-	settings_changed.emit(current_settings.duplicate())
+	settings_changed.emit(_get_enhanced_settings())
+
+func _on_pixelize_changed(enabled: bool):
+	"""Manejar cambio específico en pixelización"""
+	current_settings.pixelize = enabled
+	
+	# Sincronizar con shader avanzado si existe
+	if not current_shader_settings.is_empty():
+		current_shader_settings.pixelize_enabled = enabled
+		if advanced_shader_panel:
+			var temp_settings = current_shader_settings.duplicate()
+			advanced_shader_panel.apply_settings(temp_settings)
+	
+	print("🎨 Pixelización cambiada: %s" % enabled)
+	settings_changed.emit(_get_enhanced_settings())
 
 # NUEVO: Manejador especifico para cambios en FPS
 func _on_fps_changed(new_fps: float):
@@ -538,7 +567,7 @@ func _on_fps_changed(new_fps: float):
 	_update_fps_equivalent_label()
 	
 	print("🔄 FPS cambiado: %.1f → delay: %.4fs" % [new_fps, current_settings.frame_delay])
-	settings_changed.emit(current_settings.duplicate())
+	settings_changed.emit(_get_enhanced_settings())
 
 # NUEVO: Manejador especifico para cambios en delay
 func _on_delay_changed(new_delay: float):
@@ -555,8 +584,7 @@ func _on_delay_changed(new_delay: float):
 	_update_fps_equivalent_label()
 	
 	print("⏱️ Delay cambiado: %.4fs → FPS equiv: %.1f" % [new_delay, current_settings.fps_equivalent])
-	settings_changed.emit(current_settings.duplicate())
-	
+	settings_changed.emit(_get_enhanced_settings())
 	
 func _on_delay_preset_pressed(delay_value: float):
 	"""Aplicar preset de delay"""
@@ -569,7 +597,7 @@ func _on_camera_angle_changed(value: float):
 	camera_angle_label.text = "%.0f°" % value
 	
 	print("📐 Angulo de camara: %.1f°" % value)
-	settings_changed.emit(current_settings.duplicate())
+	settings_changed.emit(_get_enhanced_settings())
 
 func _on_north_offset_changed(value: float):
 	"""Manejar cambio en orientacion norte"""
@@ -577,7 +605,7 @@ func _on_north_offset_changed(value: float):
 	north_offset_label.text = "%.0f°" % value
 	
 	print("🧭 Orientacion norte: %.1f°" % value)
-	settings_changed.emit(current_settings.duplicate())
+	settings_changed.emit(_get_enhanced_settings())
 
 func _on_capture_area_changed(value: float):
 	"""Manejar cambio en area de captura"""
@@ -589,7 +617,7 @@ func _on_capture_area_changed(value: float):
 	current_settings.fixed_orthographic_size = value
 	
 	print("🖼️ Area de captura: %.1f" % value)
-	settings_changed.emit(current_settings.duplicate())
+	settings_changed.emit(_get_enhanced_settings())
 
 	_update_capture_area_visual()
 
@@ -614,7 +642,7 @@ func _on_auto_north_toggled(enabled: bool):
 	print("🧭 Deteccion automatica de norte %s" % ("habilitada" if enabled else "deshabilitada"))
 	if enabled:
 		request_auto_north_detection.emit()  # Nueva señal
-	settings_changed.emit(current_settings.duplicate())
+	settings_changed.emit(_get_enhanced_settings())
 
 func _on_preset_pressed(angle: float):
 	"""Manejar preset de orientacion"""
@@ -637,6 +665,174 @@ func _on_orientation_cross_toggled(enabled: bool):
 			else:
 				if preview_panel.has_method("hide_orientation_cross"):
 					preview_panel.hide_orientation_cross()
+
+# ========================================================================
+# NUEVAS FUNCIONES PARA SHADER AVANZADO
+# ========================================================================
+
+func _validate_shader_system() -> bool:
+	"""Validar que el sistema de shader esté correctamente configurado"""
+	var validation_errors = []
+	
+	# 1. Verificar que existe el shader avanzado
+	var shader_path = "res://resources/shaders/pixelize_advanced.gdshader"
+	if not ResourceLoader.exists(shader_path):
+		validation_errors.append("Shader no encontrado en: " + shader_path)
+	
+	# 2. Verificar que existe el script del panel
+	var panel_script_path = "res://scripts/ui/advanced_shader_panel.gd"
+	if not ResourceLoader.exists(panel_script_path):
+		validation_errors.append("Script del panel no encontrado en: " + panel_script_path)
+	
+	# 3. Verificar controles UI básicos
+	if not pixelize_check:
+		validation_errors.append("pixelize_check no está inicializado")
+	if not show_shader_panel_button:
+		validation_errors.append("show_shader_panel_button no está inicializado")
+	
+	if validation_errors.size() > 0:
+		print("❌ ERRORES DE VALIDACIÓN DEL SISTEMA DE SHADER:")
+		for error in validation_errors:
+			print("  - " + error)
+		
+		var error_message = "Sistema de shader no configurado correctamente:\n"
+		for error in validation_errors:
+			error_message += "• " + error + "\n"
+		
+		_show_error(error_message)
+		return false
+	
+	print("✅ Sistema de shader validado correctamente")
+	return true
+
+func _create_advanced_shader_panel():
+	"""Crear el panel avanzado de shader como ventana modal"""
+	
+	# Crear ventana de configuración avanzada
+	var advanced_window = Window.new()
+	advanced_window.title = "Configuración Avanzada de Shader"
+	advanced_window.size = Vector2i(700, 500)
+	advanced_window.unresizable = false
+	advanced_window.transient = true
+	advanced_window.exclusive = false
+	get_tree().current_scene.add_child(advanced_window)
+	
+	# Container principal con botones
+	var main_vbox = VBoxContainer.new()
+	main_vbox.size_flags_horizontal =Control.SIZE_EXPAND
+	advanced_window.add_child(main_vbox)
+	
+	# Crear el panel avanzado dentro de la ventana
+	advanced_shader_panel = preload("res://scripts/ui/advanced_shader_panel.gd").new()
+	advanced_shader_panel.name = "AdvancedShaderPanel"
+	#advanced_shader_panel.size = Vector2i(800, 800)
+	#advanced_shader_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	main_vbox.add_child(advanced_shader_panel)
+	
+	# Botones de acción
+	var button_container = HBoxContainer.new()
+	button_container.size_flags_horizontal = Control.SIZE_EXPAND
+	main_vbox.add_child(button_container)
+	
+	var apply_button = Button.new()
+	apply_button.text = "Aplicar y Cerrar"
+	apply_button.pressed.connect(func(): _on_advanced_shader_applied(); advanced_window.hide())
+	button_container.add_child(apply_button)
+	
+	var cancel_button = Button.new()
+	cancel_button.text = "Cancelar"
+	cancel_button.pressed.connect(func(): advanced_window.hide())
+	button_container.add_child(cancel_button)
+	
+	# Conectar señales del panel avanzado
+	advanced_shader_panel.shader_settings_changed.connect(_on_advanced_shader_settings_changed)
+	advanced_shader_panel.reset_to_defaults_requested.connect(_on_shader_reset_requested)
+	
+	# Configurar cierre con X
+	advanced_window.close_requested.connect(func(): advanced_window.hide())
+	
+	print("✅ Panel avanzado de shader creado")
+	return advanced_window
+
+func _on_show_advanced_shader_panel():
+	"""Mostrar el panel avanzado de shader con validación"""
+	print("🎨 Mostrando panel avanzado de shader...")
+	
+	if not _validate_shader_system():
+		return
+	
+	if not advanced_shader_panel:
+		var advanced_window = _create_advanced_shader_panel()
+		if not current_shader_settings.is_empty():
+			advanced_shader_panel.apply_settings(current_shader_settings)
+		advanced_window.popup_centered()
+	else:
+		var current_node = advanced_shader_panel.get_parent()
+		while current_node != null and not current_node is Window:
+			current_node = current_node.get_parent()
+		
+		if current_node and current_node is Window:
+			current_node.popup_centered()
+		else:
+			print("⚠️ No se pudo encontrar la ventana padre")
+
+func _on_advanced_shader_settings_changed(settings: Dictionary):
+	"""Manejar cambios en configuración avanzada de shader"""
+	current_shader_settings = settings.duplicate()
+	
+	if pixelize_check and settings.has("pixelize_enabled"):
+		pixelize_check.button_pressed = settings.pixelize_enabled
+		current_settings.pixelize = settings.pixelize_enabled
+	
+	settings_changed.emit(_get_enhanced_settings())
+
+func _on_advanced_shader_applied():
+	"""Aplicar configuración avanzada y cerrar panel"""
+	if advanced_shader_panel:
+		current_shader_settings = advanced_shader_panel.get_current_settings()
+		print("✅ Configuración avanzada aplicada:")
+		print("  Configuraciones guardadas: %d" % current_shader_settings.size())
+		settings_changed.emit(_get_enhanced_settings())
+
+func _on_shader_reset_requested():
+	"""Resetear configuración de shader a valores por defecto"""
+	print("🔄 Reseteando configuración de shader...")
+	current_shader_settings.clear()
+	
+	if pixelize_check:
+		pixelize_check.button_pressed = true
+		current_settings.pixelize = true
+	
+	settings_changed.emit(_get_enhanced_settings())
+
+func _get_enhanced_settings() -> Dictionary:
+	"""Obtener configuración mejorada con shader avanzado"""
+	var enhanced_settings = current_settings.duplicate()
+	
+	# NUEVA FUNCIONALIDAD: Configuración avanzada de shader
+	if not current_shader_settings.is_empty():
+		# Incluir toda la configuración avanzada
+		enhanced_settings["advanced_shader"] = current_shader_settings.duplicate()
+		enhanced_settings["use_advanced_shader"] = true
+		
+		# Sobrescribir pixelización básica con la avanzada
+		enhanced_settings["pixelize"] = current_shader_settings.get("pixelize_enabled", true)
+	else:
+		enhanced_settings["use_advanced_shader"] = false
+		enhanced_settings["advanced_shader"] = {}
+	
+	return enhanced_settings
+
+func _show_error(message: String):
+	"""Mostrar mensaje de error"""
+	print("❌ Error: %s" % message)
+	
+	var error_dialog = AcceptDialog.new()
+	error_dialog.title = "Error"
+	error_dialog.dialog_text = message
+	get_tree().current_scene.add_child(error_dialog)
+	error_dialog.popup_centered()
+	error_dialog.confirmed.connect(error_dialog.queue_free)
 
 # ========================================================================
 # FUNCIONES AUXILIARES PARA DELAY SYSTEM
@@ -676,12 +872,12 @@ func validate_delay_settings() -> bool:
 	return true
 
 # ========================================================================
-# FUNCIONES PUBLICAS - EXTENDIDAS
+# FUNCIONES PUBLICAS - EXTENDIDAS CON SHADER AVANZADO
 # ========================================================================
 
 func get_settings() -> Dictionary:
 	"""Obtener configuracion actual completa"""
-	return current_settings.duplicate()
+	return _get_enhanced_settings()
 
 func get_current_settings() -> Dictionary:
 	"""Alias para compatibilidad"""
@@ -695,11 +891,16 @@ func apply_settings(settings: Dictionary):
 		if key in current_settings:
 			current_settings[key] = settings[key]
 	
+	# Manejar configuración de shader avanzado
+	if settings.has("advanced_shader") and not settings.advanced_shader.is_empty():
+		current_shader_settings = settings.advanced_shader.duplicate()
+		current_settings.use_advanced_shader = true
+	
 	# Sincronizar FPS y delay si es necesario
 	_sync_fps_and_delay()
 	
 	_apply_current_settings()
-	settings_changed.emit(current_settings.duplicate())
+	settings_changed.emit(_get_enhanced_settings())
 
 func _sync_fps_and_delay():
 	"""Sincronizar valores de FPS y delay"""
@@ -714,8 +915,8 @@ func _sync_fps_and_delay():
 		current_settings.fps = int(current_settings.fps_equivalent)
 
 func reset_to_defaults():
-	"""Resetear a valores por defecto con delay system"""
-	print("🔄 Reseteando a valores por defecto con delay system")
+	"""Resetear a valores por defecto con delay system y shader avanzado"""
+	print("🔄 Reseteando a valores por defecto con delay system y shader avanzado")
 	
 	current_settings = {
 		"directions": 16,
@@ -729,78 +930,82 @@ func reset_to_defaults():
 		"north_offset": 0.0,
 		"capture_area_size": 2.5,
 		"auto_north_detection": true,
-		"auto_delay_recommendation": true,  
-		"show_debug_frame_numbers": true,  
-		"timing_validation": true
+		"timing_validation": true,
+		"use_advanced_shader": false,
+		"advanced_shader": {}
 	}
 	
-	_apply_current_settings()
-	settings_changed.emit(current_settings.duplicate())
-
-func apply_preset(preset_name: String):
-	"""Aplicar preset especifico - EXTENDIDO CON DELAY SYSTEM"""
-	print("🎯 Aplicando preset con delay system: %s" % preset_name)
-	
-	match preset_name:
-		"rts_standard":
-			current_settings.directions = 16
-			current_settings.sprite_size = 128
-			current_settings.camera_angle = 45.0
-			current_settings.capture_area_size = 2.5
-			current_settings.auto_north_detection = true
-			current_settings.frame_delay = 0.033333  # 30 FPS
-			current_settings.fps_equivalent = 30.0
-			current_settings.fps = 30
-		
-		"high_quality":
-			current_settings.sprite_size = 128
-			current_settings.fps = 24
-			current_settings.frame_delay = 0.041667  # 24 FPS cinematico
-			current_settings.fps_equivalent = 24.0
-			current_settings.capture_area_size = 2.5
-			current_settings.auto_north_detection = true
-		
-		"fast_preview":
-			current_settings.directions = 8
-			current_settings.sprite_size = 256
-			current_settings.fps = 15
-			current_settings.frame_delay = 0.066667  # 15 FPS
-			current_settings.fps_equivalent = 15.0
-			current_settings.capture_area_size = 2.5
-			current_settings.auto_north_detection = true
-		
-		"model_showcase":
-			current_settings.sprite_size = 128
-			current_settings.fps = 60
-			current_settings.frame_delay = 0.016667  # 60 FPS ultra smooth
-			current_settings.fps_equivalent = 60.0
-			current_settings.capture_area_size = 2.5
-			current_settings.auto_north_detection = true
-			current_settings.directions = 16
-		
-		"pixel_art":
-			current_settings.sprite_size = 64
-			current_settings.fps = 12
-			current_settings.frame_delay = 0.083333  # 12 FPS retro
-			current_settings.fps_equivalent = 12.0
-			current_settings.capture_area_size = 2.5
-			current_settings.pixelize = true
-			current_settings.directions = 8
-		
-		"debug_large":
-			current_settings.sprite_size = 128
-			current_settings.fps = 10
-			current_settings.frame_delay = 0.1  # 10 FPS debug
-			current_settings.fps_equivalent = 10.0
-			current_settings.capture_area_size = 2.5
-			current_settings.directions = 4
+	current_shader_settings.clear()
 	
 	_apply_current_settings()
-	preset_applied.emit(preset_name)
-	settings_changed.emit(current_settings.duplicate())
+	settings_changed.emit(_get_enhanced_settings())
 
 # ========================================================================
-# FUNCIONES DE INFORMACION - EXTENDIDAS
+# FUNCIONES PARA COMPATIBILIDAD CON SISTEMA EXISTENTE
+# ========================================================================
+
+func get_current_shader_configuration() -> Dictionary:
+	"""Obtener configuración actual de shader para uso externo"""
+	return current_shader_settings.duplicate()
+
+func has_advanced_shader_settings() -> bool:
+	"""Verificar si hay configuración avanzada de shader"""
+	return not current_shader_settings.is_empty()
+
+func apply_advanced_shader_to_material(material: Material, settings: Dictionary):
+	"""Aplicar configuración avanzada de shader a un material"""
+	
+	if not material is ShaderMaterial:
+		print("⚠️ Material no es ShaderMaterial, no se puede aplicar configuración avanzada")
+		return
+	
+	var shader_material = material as ShaderMaterial
+	
+	# Cargar shader avanzado si no está cargado
+	if not shader_material.shader:
+		var advanced_shader = load("res://resources/shaders/pixelize_advanced.gdshader")
+		if advanced_shader:
+			shader_material.shader = advanced_shader
+			print("✅ Shader avanzado cargado en material")
+		else:
+			print("❌ Error: No se pudo cargar shader avanzado")
+			return
+	
+	# Aplicar todos los parámetros del shader
+	var shader_settings = settings.get("advanced_shader", {})
+	
+	if not shader_settings.is_empty():
+		# Parámetros de pixelización
+		shader_material.set_shader_parameter("pixel_size", shader_settings.get("pixel_size", 4.0))
+		
+		# Parámetros de reducción de colores
+		shader_material.set_shader_parameter("reduce_colors", shader_settings.get("reduce_colors", false))
+		shader_material.set_shader_parameter("color_levels", shader_settings.get("color_levels", 16))
+		
+		# Parámetros de dithering
+		shader_material.set_shader_parameter("enable_dithering", shader_settings.get("enable_dithering", false))
+		shader_material.set_shader_parameter("dither_strength", shader_settings.get("dither_strength", 0.1))
+		
+		# Parámetros de borde (NUEVOS)
+		shader_material.set_shader_parameter("enable_outline", shader_settings.get("enable_outline", false))
+		shader_material.set_shader_parameter("outline_thickness", shader_settings.get("outline_thickness", 1.0))
+		shader_material.set_shader_parameter("outline_color", shader_settings.get("outline_color", Color.BLACK))
+		shader_material.set_shader_parameter("outline_pixelated", shader_settings.get("outline_pixelated", true))
+		shader_material.set_shader_parameter("outline_smooth", shader_settings.get("outline_smooth", 0.0))
+		
+		# Efectos avanzados
+		shader_material.set_shader_parameter("contrast_boost", shader_settings.get("contrast_boost", 1.0))
+		shader_material.set_shader_parameter("saturation_mult", shader_settings.get("saturation_mult", 1.0))
+		shader_material.set_shader_parameter("color_tint", shader_settings.get("color_tint", Color.WHITE))
+		shader_material.set_shader_parameter("apply_gamma_correction", shader_settings.get("apply_gamma_correction", false))
+		shader_material.set_shader_parameter("gamma_value", shader_settings.get("gamma_value", 1.0))
+		
+		print("✅ Configuración avanzada aplicada al material")
+	else:
+		print("⚠️ No hay configuración avanzada disponible")
+
+# ========================================================================
+# FUNCIONES DE INFORMACION Y DEBUG
 # ========================================================================
 
 func get_capture_info() -> String:
@@ -840,7 +1045,7 @@ func get_orientation_info() -> String:
 	return "%.0f° (%s)" % [angle, direction]
 
 func get_delay_info() -> String:
-	"""NUEVO: Obtener informacion del delay system"""
+	"""Obtener informacion del delay system"""
 	var delay = current_settings.frame_delay
 	var fps_equiv = current_settings.fps_equivalent
 	
@@ -858,13 +1063,9 @@ func get_delay_info() -> String:
 	
 	return "Delay: %.3fs (%.1f FPS - %s)" % [delay, fps_equiv, quality]
 
-# ========================================================================
-# FUNCIONES DE DEBUG - EXTENDIDAS
-# ========================================================================
-
 func debug_settings():
-	"""Debug de configuracion actual con delay system"""
-	print("\n=== SETTINGS PANEL DEBUG CON DELAY SYSTEM ===")
+	"""Debug de configuracion actual con delay system y shader avanzado"""
+	print("\n=== SETTINGS PANEL DEBUG CON DELAY SYSTEM + SHADER AVANZADO ===")
 	print("Configuracion actual:")
 	for key in current_settings:
 		print("  %s: %s" % [key, str(current_settings[key])])
@@ -872,11 +1073,17 @@ func debug_settings():
 	print("\nDelay System:")
 	print("  Frame delay: %.4fs" % current_settings.frame_delay)
 	print("  FPS equivalent: %.1f" % current_settings.fps_equivalent)
-	print("  Auto-recomendacion: %s" % current_settings.auto_delay_recommendation)
+	
+	print("\nShader Avanzado:")
+	print("  Use advanced shader: %s" % current_settings.use_advanced_shader)
+	print("  Advanced shader settings: %d" % current_shader_settings.size())
+	if not current_shader_settings.is_empty():
+		for key in current_shader_settings:
+			print("    %s: %s" % [key, str(current_shader_settings[key])])
 	print("===============================================\n")
 
 func validate_settings() -> bool:
-	"""Validar que la configuracion sea valida - EXTENDIDA"""
+	"""Validar que la configuracion sea valida - EXTENDIDA CON SHADER"""
 	var valid = true
 	
 	if current_settings.directions < 4 or current_settings.directions > 32:
@@ -895,7 +1102,7 @@ func validate_settings() -> bool:
 		print("❌ Area de captura invalida: %.1f" % current_settings.capture_area_size)
 		valid = false
 	
-	# NUEVAS VALIDACIONES PARA DELAY SYSTEM
+	# VALIDACIONES PARA DELAY SYSTEM
 	if current_settings.frame_delay < 0.001 or current_settings.frame_delay > 1.0:
 		print("❌ Frame delay invalido: %.4fs" % current_settings.frame_delay)
 		valid = false

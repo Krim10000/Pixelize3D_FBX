@@ -55,6 +55,14 @@ var preview_mode_active: bool = false
 var available_units: Array = []
 var current_unit_data: Dictionary = {}
 
+# NUEVAS VARIABLES PARA SHADER AVANZADO
+var advanced_shader_panel: Control = null
+var basic_pixelize_checkbox: CheckBox = null
+var show_shader_panel_button: Button = null
+
+# Estado del panel de shader
+var current_shader_settings: Dictionary = {}
+
 func _ready():
 	_create_ui()
 	_connect_ui_signals()
@@ -307,11 +315,39 @@ func _create_config_panel() -> Control:
 	west_preset.pressed.connect(_on_north_preset_pressed.bind(270.0))
 	preset_container.add_child(west_preset)
 	
-	# Opciones adicionales
-	pixelize_checkbox = CheckBox.new()
-	pixelize_checkbox.text = "Aplicar pixelización"
-	pixelize_checkbox.button_pressed = true
-	camera_section.add_child(pixelize_checkbox)
+	# SECCIÓN CORREGIDA: EFECTOS (antes era Cámara)
+	var effects_section = _create_section("🎨 EFECTOS")
+	vbox.add_child(effects_section)
+	
+	# Container horizontal para checkbox y botón avanzado
+	var pixelize_container = HBoxContainer.new()
+	effects_section.add_child(pixelize_container)
+	
+	# Checkbox básico (mantener compatibilidad)
+	basic_pixelize_checkbox = CheckBox.new()
+	basic_pixelize_checkbox.text = "Aplicar pixelización"
+	basic_pixelize_checkbox.button_pressed = true
+	basic_pixelize_checkbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	basic_pixelize_checkbox.toggled.connect(_on_basic_pixelize_toggled)
+	pixelize_container.add_child(basic_pixelize_checkbox)
+	
+	# Mantener referencia para compatibilidad
+	pixelize_checkbox = basic_pixelize_checkbox
+	
+	# Botón avanzado
+	show_shader_panel_button = Button.new()
+	show_shader_panel_button.text = "⚙️ Avanzado"
+	show_shader_panel_button.custom_minimum_size.x = 100
+	show_shader_panel_button.pressed.connect(_on_show_advanced_shader_panel)
+	pixelize_container.add_child(show_shader_panel_button)
+	
+	# Descripción
+	var desc_label = Label.new()
+	desc_label.text = "Click 'Avanzado' para configuración detallada de efectos"
+	desc_label.add_theme_font_size_override("font_size", 10)
+	desc_label.add_theme_color_override("font_color", Color(0.6, 0.6, 0.6))
+	desc_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	effects_section.add_child(desc_label)
 	
 	# Botones de acción
 	var button_hbox = HBoxContainer.new()
@@ -480,6 +516,9 @@ func _connect_ui_signals():
 	# Conectar slider de orientación norte para actualizar el label
 	if north_offset_slider:
 		north_offset_slider.value_changed.connect(_on_north_offset_changed)
+	
+	if basic_pixelize_checkbox:
+		basic_pixelize_checkbox.toggled.connect(_on_basic_pixelize_toggled)
 
 func _apply_theme():
 	# Aplicar tema personalizado si es necesario
@@ -632,21 +671,6 @@ func enable_animation_selection():
 		preview_button.disabled = false
 	add_export_log("Modelo base cargado correctamente")
 
- #Función para manejar el cambio de orientación norte
-
-#func _on_north_offset_changed(value: float):
-	#if north_offset_label:
-		#north_offset_label.text = "%.0f°" % value
-	#
-	## Emitir cambio de configuración
-	#_on_camera_setting_changed()
-#
-## Función para manejar presets de orientación
-##func _on_north_preset_pressed(angle: float):
-	##if north_offset_slider:
-		##north_offset_slider.value = angle
-		##add_export_log("🧭 Orientación aplicada: %.0f°" % angle)
-
 # Función para habilitar modo preview
 func enable_preview_mode():
 	print("🎬 UI Preview Mode Activado")
@@ -691,19 +715,57 @@ func _find_node_by_name(parent: Node, node_name: String) -> Node:
 	return null
 
 # Función de configuración de cámara que incluye north_offset
-#func _on_camera_setting_changed(_value = null):
-	#var settings = {
-		#"camera_angle": camera_angle_slider.value if camera_angle_slider else 45.0,
-		#"camera_height": camera_height_slider.value if camera_height_slider else 10.0,
-		#"camera_distance": camera_distance_slider.value if camera_distance_slider else 15.0,
-		#"directions": int(directions_spinbox.value) if directions_spinbox else 16,
-		#"sprite_size": int(sprite_size_spinbox.value) if sprite_size_spinbox else 256,
-		#"fps": int(fps_spinbox.value) if fps_spinbox else 12,
-		#"pixelize": pixelize_checkbox.button_pressed if pixelize_checkbox else true,
-		## Incluir orientación norte en la configuración
-		#"north_offset": north_offset_slider.value if north_offset_slider else 0.0
-	#}
-	#emit_signal("render_settings_changed", settings)
+func _on_camera_setting_changed(_value = null):
+	var settings = {
+		"camera_angle": camera_angle_slider.value if camera_angle_slider else 45.0,
+		"camera_height": camera_height_slider.value if camera_height_slider else 10.0,
+		"camera_distance": camera_distance_slider.value if camera_distance_slider else 15.0,
+		"directions": int(directions_spinbox.value) if directions_spinbox else 16,
+		"sprite_size": int(sprite_size_spinbox.value) if sprite_size_spinbox else 256,
+		"fps": int(fps_spinbox.value) if fps_spinbox else 30,
+		"pixelize": pixelize_checkbox.button_pressed if pixelize_checkbox else true,
+		# VERIFICAR que esta línea esté presente:
+		"north_offset": north_offset_slider.value if north_offset_slider else 0.0
+	}
+	emit_signal("render_settings_changed", settings)
+	print("📡 Configuración enviada con north_offset: %.0f°" % settings.north_offset)
+
+func _connect_north_slider_signal():
+	"""Conectar señal del slider de orientación norte correctamente"""
+	if north_offset_slider:
+		# Desconectar si ya estaba conectada para evitar duplicados
+		if north_offset_slider.value_changed.is_connected(_on_north_offset_changed):
+			north_offset_slider.value_changed.disconnect(_on_north_offset_changed)
+		
+		# Reconectar
+		north_offset_slider.value_changed.connect(_on_north_offset_changed)
+		print("✅ Señal de north_offset_slider conectada correctamente")
+
+func _on_north_offset_changed(value: float):
+	print("🧭 Slider norte cambiado: %.0f°" % value)
+	
+	if north_offset_label:
+		north_offset_label.text = "%.0f°" % value
+	
+	# CRÍTICO: Notificar al sistema de cámara
+	_on_camera_setting_changed()
+
+func _on_north_preset_pressed(angle: float):
+	print("🧭 Preset presionado: %.0f°" % angle)
+	
+	if north_offset_slider:
+		# Cambiar valor del slider
+		north_offset_slider.value = angle
+		
+		# IMPORTANTE: Forzar actualización del label
+		if north_offset_label:
+			north_offset_label.text = "%.0f°" % angle
+		
+		# CRÍTICO: Notificar manualmente al sistema de cámara
+		_on_camera_setting_changed()
+		
+		add_export_log("🧭 Orientación aplicada: %.0f°" % angle)
+		print("✅ Preset aplicado y notificado al sistema")
 
 func _on_preview_pressed():
 	if preview_mode_active:
@@ -748,98 +810,245 @@ func add_export_log(message: String):
 func is_preview_active() -> bool:
 	return preview_mode_active
 
+# === FUNCIONES PARA SHADER AVANZADO - VERSIÓN CORREGIDA ===
 
-
- #Función CORREGIDA para manejar presets de orientación
-#func _on_north_preset_pressed(angle: float):
-	#print("🧭 Preset presionado: %.0f°" % angle)
-	#
-	#if north_offset_slider:
-		## Cambiar valor del slider
-		#north_offset_slider.value = angle
-		#
-		## IMPORTANTE: Forzar actualización del label
-		#if north_offset_label:
-			#north_offset_label.text = "%.0f°" % angle
-		#
-		## CRÍTICO: Notificar manualmente al sistema de cámara
-		#_on_camera_setting_changed()
-		#
-		#add_export_log("🧭 Orientación aplicada: %.0f°" % angle)
-		#print("✅ Preset aplicado y notificado al sistema")
-#
-## AGREGAR: Función para conectar la señal del slider correctamente
-##func _connect_north_slider_signal():
-	##"""Conectar señal del slider de orientación norte"""
-	##if north_offset_slider:
-		### Asegurarse de que la señal esté conectada
-		##if not north_offset_slider.value_changed.is_connected(_on_north_offset_changed):
-			##north_offset_slider.value_changed.connect(_on_north_offset_changed)
-			##print("✅ Señal de north_offset_slider conectada")
-#
-## MEJORAR: Función _on_north_offset_changed para que también notifique al camera
-##func _on_north_offset_changed(value: float):
-	##print("🧭 Slider norte cambiado: %.0f°" % value)
-	##
-	##if north_offset_label:
-		##north_offset_label.text = "%.0f°" % value
-	##
-	### CRÍTICO: Notificar al sistema de cámara
-	##_on_camera_setting_changed()
-#
-
-
-func _on_camera_setting_changed(_value = null):
-	var settings = {
-		"camera_angle": camera_angle_slider.value if camera_angle_slider else 45.0,
-		"camera_height": camera_height_slider.value if camera_height_slider else 10.0,
-		"camera_distance": camera_distance_slider.value if camera_distance_slider else 15.0,
-		"directions": int(directions_spinbox.value) if directions_spinbox else 16,
-		"sprite_size": int(sprite_size_spinbox.value) if sprite_size_spinbox else 256,
-		"fps": int(fps_spinbox.value) if fps_spinbox else 30,
-		"pixelize": pixelize_checkbox.button_pressed if pixelize_checkbox else true,
-		# VERIFICAR que esta línea esté presente:
-		"north_offset": north_offset_slider.value if north_offset_slider else 0.0
-	}
-	emit_signal("render_settings_changed", settings)
-	print("📡 Configuración enviada con north_offset: %.0f°" % settings.north_offset)
+func _validate_shader_system() -> bool:
+	"""Validar que el sistema de shader esté correctamente configurado"""
+	var validation_errors = []
 	
+	# 1. Verificar que existe el shader avanzado
+	var shader_path = "res://resources/shaders/pixelize_advanced.gdshader"
+	if not ResourceLoader.exists(shader_path):
+		validation_errors.append("Shader no encontrado en: " + shader_path)
 	
-func _connect_north_slider_signal():
-	"""Conectar señal del slider de orientación norte correctamente"""
+	# 2. Verificar que existe el script del panel
+	var panel_script_path = "res://scripts/ui/advanced_shader_panel.gd"
+	if not ResourceLoader.exists(panel_script_path):
+		validation_errors.append("Script del panel no encontrado en: " + panel_script_path)
+	
+	# 3. Verificar controles UI básicos
+	if not basic_pixelize_checkbox:
+		validation_errors.append("basic_pixelize_checkbox no está inicializado")
+	if not show_shader_panel_button:
+		validation_errors.append("show_shader_panel_button no está inicializado")
+	
+	if validation_errors.size() > 0:
+		print("❌ ERRORES DE VALIDACIÓN DEL SISTEMA DE SHADER:")
+		for error in validation_errors:
+			print("  - " + error)
+		
+		var error_message = "Sistema de shader no configurado correctamente:\n"
+		for error in validation_errors:
+			error_message += "• " + error + "\n"
+		
+		show_error(error_message)
+		return false
+	
+	print("✅ Sistema de shader validado correctamente")
+	return true
+
+func _create_advanced_shader_panel():
+	"""Crear el panel avanzado de shader como ventana modal"""
+	
+	# Crear ventana de configuración avanzada
+	var advanced_window = Window.new()  # CORREGIDO: Window en lugar de AcceptDialog
+	advanced_window.title = "Configuración Avanzada de Shader"
+	advanced_window.size = Vector2i(900, 900)  # CORREGIDO: Tamaño más razonable
+	advanced_window.unresizable = false
+	advanced_window.transient = true
+	advanced_window.exclusive = false
+	add_child(advanced_window)
+	
+	# Container principal con botones
+	var main_vbox = VBoxContainer.new()
+	advanced_window.add_child(main_vbox)
+	
+	# Crear el panel avanzado dentro de la ventana
+	advanced_shader_panel = preload("res://scripts/ui/advanced_shader_panel.gd").new()
+	advanced_shader_panel.name = "AdvancedShaderPanel"
+	advanced_shader_panel.size = Vector2i(600, 600)
+	main_vbox.add_child(advanced_shader_panel)
+	
+	# Botones de acción
+	var button_container = HBoxContainer.new()
+	button_container.size_flags_horizontal = Control.SIZE_FILL
+	main_vbox.add_child(button_container)
+	
+	var apply_button = Button.new()
+	apply_button.text = "Aplicar y Cerrar"
+	apply_button.pressed.connect(func(): _on_advanced_shader_applied(); advanced_window.hide())
+	button_container.add_child(apply_button)
+	
+	var cancel_button = Button.new()
+	cancel_button.text = "Cancelar"
+	cancel_button.pressed.connect(func(): advanced_window.hide())
+	button_container.add_child(cancel_button)
+	
+	# Conectar señales del panel avanzado
+	advanced_shader_panel.shader_settings_changed.connect(_on_advanced_shader_settings_changed)
+	advanced_shader_panel.reset_to_defaults_requested.connect(_on_shader_reset_requested)
+	
+	# Configurar cierre con X
+	advanced_window.close_requested.connect(func(): advanced_window.hide())
+	
+	print("✅ Panel avanzado de shader creado")
+	return advanced_window
+
+func _on_show_advanced_shader_panel():
+	"""Mostrar el panel avanzado de shader con validación"""
+	print("🎨 Mostrando panel avanzado de shader...")
+	
+	if not _validate_shader_system():
+		return
+	
+	if not advanced_shader_panel:
+		var advanced_window = _create_advanced_shader_panel()
+		if not current_shader_settings.is_empty():
+			advanced_shader_panel.apply_settings(current_shader_settings)
+		advanced_window.popup_centered()
+	else:
+		var current_node = advanced_shader_panel.get_parent()
+		while current_node != null and not current_node is Window:
+			current_node = current_node.get_parent()
+		
+		if current_node and current_node is Window:
+			current_node.popup_centered()
+		else:
+			print("⚠️ No se pudo encontrar la ventana padre")
+
+func _on_advanced_shader_settings_changed(settings: Dictionary):
+	"""Manejar cambios en configuración avanzada de shader"""
+	current_shader_settings = settings.duplicate()
+	
+	if basic_pixelize_checkbox and settings.has("pixelize_enabled"):
+		basic_pixelize_checkbox.button_pressed = settings.pixelize_enabled
+	
+	render_settings_changed.emit(_get_enhanced_render_settings())
+
+func _on_basic_pixelize_toggled(enabled: bool):
+	"""Manejar cambio en checkbox básico de pixelización"""
+	if not current_shader_settings.is_empty():
+		current_shader_settings.pixelize_enabled = enabled
+		if advanced_shader_panel:
+			var temp_settings = current_shader_settings.duplicate()
+			advanced_shader_panel.apply_settings(temp_settings)
+	
+	render_settings_changed.emit(_get_enhanced_render_settings())
+
+func _on_advanced_shader_applied():
+	"""Aplicar configuración avanzada y cerrar panel"""
+	if advanced_shader_panel:
+		current_shader_settings = advanced_shader_panel.get_current_settings()
+		print("✅ Configuración avanzada aplicada:")
+		print("  Configuraciones guardadas: %d" % current_shader_settings.size())
+		render_settings_changed.emit(_get_enhanced_render_settings())
+
+func _on_shader_reset_requested():
+	"""Resetear configuración de shader a valores por defecto"""
+	print("🔄 Reseteando configuración de shader...")
+	current_shader_settings.clear()
+	
+	if basic_pixelize_checkbox:
+		basic_pixelize_checkbox.button_pressed = true
+	
+	render_settings_changed.emit(_get_enhanced_render_settings())
+
+func _get_enhanced_render_settings() -> Dictionary:
+	"""Obtener configuración de renderizado mejorada con shader avanzado"""
+	var settings = {}
+	
+	# Configuraciones básicas existentes (mantener compatibilidad)
+	if directions_spinbox:
+		settings["directions"] = int(directions_spinbox.value)
+	if sprite_size_spinbox:
+		settings["sprite_size"] = int(sprite_size_spinbox.value)
+	if camera_angle_slider:
+		settings["camera_angle"] = camera_angle_slider.value
+	if camera_height_slider:
+		settings["camera_height"] = camera_height_slider.value
+	if camera_distance_slider:
+		settings["camera_distance"] = camera_distance_slider.value
+	if fps_spinbox:
+		settings["fps"] = int(fps_spinbox.value)
 	if north_offset_slider:
-		# Desconectar si ya estaba conectada para evitar duplicados
-		if north_offset_slider.value_changed.is_connected(_on_north_offset_changed):
-			north_offset_slider.value_changed.disconnect(_on_north_offset_changed)
+		settings["north_offset"] = north_offset_slider.value
+	
+	# NUEVA FUNCIONALIDAD: Configuración básica de pixelización
+	if basic_pixelize_checkbox:
+		settings["pixelize"] = basic_pixelize_checkbox.button_pressed
+	else:
+		settings["pixelize"] = true  # Default
+	
+	# NUEVA FUNCIONALIDAD: Configuración avanzada de shader
+	if not current_shader_settings.is_empty():
+		# Incluir toda la configuración avanzada
+		settings["advanced_shader"] = current_shader_settings.duplicate()
+		settings["use_advanced_shader"] = true
 		
-		# Reconectar
-		north_offset_slider.value_changed.connect(_on_north_offset_changed)
-		print("✅ Señal de north_offset_slider conectada correctamente")
+		# Sobrescribir pixelización básica con la avanzada
+		settings["pixelize"] = current_shader_settings.get("pixelize_enabled", true)
+	else:
+		settings["use_advanced_shader"] = false
+		settings["advanced_shader"] = {}
+	
+	return settings
 
+func apply_advanced_shader_to_material(material: Material, settings: Dictionary):
+	"""Aplicar configuración avanzada de shader a un material"""
+	
+	if not material is ShaderMaterial:
+		print("⚠️ Material no es ShaderMaterial, no se puede aplicar configuración avanzada")
+		return
+	
+	var shader_material = material as ShaderMaterial
+	
+	# Cargar shader avanzado si no está cargado
+	if not shader_material.shader:
+		var advanced_shader = load("res://resources/shaders/pixelize_advanced.gdshader")
+		if advanced_shader:
+			shader_material.shader = advanced_shader
+			print("✅ Shader avanzado cargado en material")
+		else:
+			print("❌ Error: No se pudo cargar shader avanzado")
+			return
+	
+	# Aplicar todos los parámetros del shader
+	var shader_settings = settings.get("advanced_shader", {})
+	
+	if not shader_settings.is_empty():
+		# Parámetros de pixelización
+		shader_material.set_shader_parameter("pixel_size", shader_settings.get("pixel_size", 4.0))
+		
+		# Parámetros de reducción de colores
+		shader_material.set_shader_parameter("reduce_colors", shader_settings.get("reduce_colors", false))
+		shader_material.set_shader_parameter("color_levels", shader_settings.get("color_levels", 16))
+		
+		# Parámetros de dithering
+		shader_material.set_shader_parameter("enable_dithering", shader_settings.get("enable_dithering", false))
+		shader_material.set_shader_parameter("dither_strength", shader_settings.get("dither_strength", 0.1))
+		
+		# Parámetros de borde (NUEVOS)
+		shader_material.set_shader_parameter("enable_outline", shader_settings.get("enable_outline", false))
+		shader_material.set_shader_parameter("outline_thickness", shader_settings.get("outline_thickness", 1.0))
+		shader_material.set_shader_parameter("outline_color", shader_settings.get("outline_color", Color.BLACK))
+		shader_material.set_shader_parameter("outline_pixelated", shader_settings.get("outline_pixelated", true))
+		shader_material.set_shader_parameter("outline_smooth", shader_settings.get("outline_smooth", 0.0))
+		
+		# Efectos avanzados
+		shader_material.set_shader_parameter("contrast_boost", shader_settings.get("contrast_boost", 1.0))
+		shader_material.set_shader_parameter("saturation_mult", shader_settings.get("saturation_mult", 1.0))
+		shader_material.set_shader_parameter("color_tint", shader_settings.get("color_tint", Color.WHITE))
+		shader_material.set_shader_parameter("apply_gamma_correction", shader_settings.get("apply_gamma_correction", false))
+		shader_material.set_shader_parameter("gamma_value", shader_settings.get("gamma_value", 1.0))
+		
+		print("✅ Configuración avanzada aplicada al material")
+	else:
+		print("⚠️ No hay configuración avanzada disponible")
 
-func _on_north_offset_changed(value: float):
-	print("🧭 Slider norte cambiado: %.0f°" % value)
-	
-	if north_offset_label:
-		north_offset_label.text = "%.0f°" % value
-	
-	# CRÍTICO: Notificar al sistema de cámara
-	_on_camera_setting_changed()
-	
-	
-func _on_north_preset_pressed(angle: float):
-	print("🧭 Preset presionado: %.0f°" % angle)
-	
-	if north_offset_slider:
-		# Cambiar valor del slider
-		north_offset_slider.value = angle
-		
-		# IMPORTANTE: Forzar actualización del label
-		if north_offset_label:
-			north_offset_label.text = "%.0f°" % angle
-		
-		# CRÍTICO: Notificar manualmente al sistema de cámara
-		_on_camera_setting_changed()
-		
-		add_export_log("🧭 Orientación aplicada: %.0f°" % angle)
-		print("✅ Preset aplicado y notificado al sistema")
+func get_current_shader_configuration() -> Dictionary:
+	"""Obtener configuración actual de shader para uso externo"""
+	return current_shader_settings.duplicate()
+
+func has_advanced_shader_settings() -> bool:
+	"""Verificar si hay configuración avanzada de shader"""
+	return not current_shader_settings.is_empty()
