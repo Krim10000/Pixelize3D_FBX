@@ -50,9 +50,9 @@ vec3 quantize_color(vec3 color, float levels) {
 // Función para detectar bordes usando diferencias de color
 float detect_edge(sampler2D tex, vec2 uv, vec2 tex_size, float thickness) {
     vec2 texel_size = 1.0 / tex_size;
-    
+
     vec4 center = texture(tex, uv);
-    
+
     // Muestreo en 8 direcciones para detección de borde
     vec4 n  = texture(tex, uv + vec2(0.0, -thickness) * texel_size);
     vec4 s  = texture(tex, uv + vec2(0.0, thickness) * texel_size);
@@ -62,7 +62,7 @@ float detect_edge(sampler2D tex, vec2 uv, vec2 tex_size, float thickness) {
     vec4 nw = texture(tex, uv + vec2(-thickness, -thickness) * texel_size);
     vec4 se = texture(tex, uv + vec2(thickness, thickness) * texel_size);
     vec4 sw = texture(tex, uv + vec2(-thickness, thickness) * texel_size);
-    
+
     // Calcular diferencias de color
     float max_diff = 0.0;
     max_diff = max(max_diff, length(center.rgb - n.rgb));
@@ -73,7 +73,7 @@ float detect_edge(sampler2D tex, vec2 uv, vec2 tex_size, float thickness) {
     max_diff = max(max_diff, length(center.rgb - nw.rgb));
     max_diff = max(max_diff, length(center.rgb - se.rgb));
     max_diff = max(max_diff, length(center.rgb - sw.rgb));
-    
+
     // Considerar diferencias de alpha para bordes de transparencia
     float alpha_diff = 0.0;
     alpha_diff = max(alpha_diff, abs(center.a - n.a));
@@ -84,7 +84,7 @@ float detect_edge(sampler2D tex, vec2 uv, vec2 tex_size, float thickness) {
     alpha_diff = max(alpha_diff, abs(center.a - nw.a));
     alpha_diff = max(alpha_diff, abs(center.a - se.a));
     alpha_diff = max(alpha_diff, abs(center.a - sw.a));
-    
+
     return max(max_diff, alpha_diff * 2.0);
 }
 
@@ -112,37 +112,37 @@ void vertex() {
 // === FUNCIÓN PRINCIPAL DEL FRAGMENT SHADER ===
 void fragment() {
     vec2 texture_size = vec2(textureSize(main_texture, 0));
-    
+
     // === PASO 1: PIXELIZACIÓN BÁSICA ===
     vec2 pixel_coord = UV * texture_size;
     vec2 pixelated_coord = floor(pixel_coord / pixel_size) * pixel_size;
     vec2 pixelated_uv = pixelated_coord / texture_size;
-    
+
     // Obtener el color base pixelizado
     vec4 base_color = texture(main_texture, pixelated_uv);
     vec4 final_color = base_color;
-    
+
     // === PASO 2: APLICAR DITHERING SI ESTÁ HABILITADO ===
     if (enable_dithering && dither_strength > 0.0) {
         ivec2 dither_pos = ivec2(mod(pixel_coord, 4.0));
         float dither_value = dither_matrix[dither_pos.x][dither_pos.y];
-        
+
         vec3 dithered = base_color.rgb + (dither_value - 0.5) * dither_strength;
         final_color.rgb = clamp(dithered, 0.0, 1.0);
     }
-    
+
     // === PASO 3: REDUCCIÓN DE COLORES SI ESTÁ HABILITADA ===
     if (reduce_colors) {
         final_color.rgb = quantize_color(final_color.rgb, float(color_levels));
     }
-    
+
     // === PASO 4: DETECCIÓN Y APLICACIÓN DE BORDES ===
     float outline_factor = 0.0;
     if (enable_outline && final_color.a > 0.1) {
         // Usar coordenadas pixelizadas o originales según configuración
         vec2 edge_uv = outline_pixelated ? pixelated_uv : UV;
         outline_factor = detect_edge(main_texture, edge_uv, texture_size, outline_thickness);
-        
+
         // Aplicar suavizado al borde si está configurado
         if (outline_smooth > 0.0) {
             outline_factor = smoothstep(0.1, 0.1 + outline_smooth, outline_factor);
@@ -150,40 +150,40 @@ void fragment() {
             outline_factor = step(0.1, outline_factor);
         }
     }
-    
+
     // === PASO 5: APLICAR PATRÓN DE BORDE SI ESTÁ CONFIGURADO ===
     vec4 computed_outline_color = outline_color;
     if (use_outline_pattern && outline_factor > 0.0) {
         vec4 pattern_color = texture(outline_pattern_texture, UV);
         computed_outline_color = mix(outline_color, pattern_color, 0.5);
     }
-    
+
     // === PASO 6: MEZCLAR COLOR BASE CON BORDE ===
     if (outline_factor > 0.0) {
         final_color = mix(final_color, computed_outline_color, outline_factor);
     }
-    
+
     // === PASO 7: APLICAR EFECTOS AVANZADOS DE COLOR ===
     if (contrast_boost != 1.0) {
         final_color.rgb = adjust_contrast(final_color.rgb, contrast_boost);
     }
-    
+
     if (saturation_mult != 1.0) {
         final_color.rgb = adjust_saturation(final_color.rgb, saturation_mult);
     }
-    
+
     if (color_tint != vec3(1.0, 1.0, 1.0)) {
         final_color.rgb *= color_tint;
     }
-    
+
     if (apply_gamma_correction && gamma_value != 1.0) {
         final_color.rgb = apply_gamma(final_color.rgb, gamma_value);
     }
-    
+
     // === PASO 8: APLICAR RESULTADO FINAL ===
     ALBEDO = final_color.rgb;
     ALPHA = final_color.a;
-    
+
     // Asegurar que los bordes sean opacos si se especifica
     if (enable_outline && outline_factor > 0.5) {
         ALPHA = max(ALPHA, outline_color.a);
