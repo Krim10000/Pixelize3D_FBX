@@ -2583,3 +2583,167 @@ func _get_current_animation_name() -> String:
 	
 	print("❌ No se pudo determinar animación actual")
 	return ""
+
+
+
+
+# Agregar a viewer_coordinator.gd - BRIDGE PARA SHADER AVANZADO
+
+# NUEVA FUNCIÓN: Aplicar shader avanzado al preview
+func apply_advanced_shader_to_preview(shader_settings: Dictionary):
+	"""Aplicar configuración de shader avanzado al modelo del preview"""
+	print("🎨 Aplicando shader avanzado al preview...")
+	
+	if not model_preview_panel:
+		print("❌ ModelPreviewPanel no encontrado")
+		return false
+	
+	# Obtener el modelo del preview
+	var preview_model = _get_preview_model_from_panel()
+	if not preview_model:
+		print("❌ No se encontró modelo en el preview")
+		return false
+	
+	# Aplicar shader a todas las mallas del modelo
+	var meshes_updated = _apply_advanced_shader_to_model(preview_model, shader_settings)
+	
+	if meshes_updated > 0:
+		print("✅ Shader avanzado aplicado a %d mesh(es) del preview" % meshes_updated)
+		return true
+	else:
+		print("❌ No se pudieron actualizar meshes del preview")
+		return false
+
+func _get_preview_model_from_panel() -> Node3D:
+	"""Obtener modelo del ModelPreviewPanel"""
+	var model_container = model_preview_panel.get_node_or_null("ViewportContainer/SubViewport/ModelContainer")
+	if not model_container:
+		print("❌ ModelContainer no encontrado en preview panel")
+		return null
+	
+	# Buscar el modelo actual
+	for child in model_container.get_children():
+		if child is Node3D and _has_mesh_instances_recursive(child):
+			print("✅ Modelo encontrado en preview: %s" % child.name)
+			return child
+	
+	return null
+
+func _has_mesh_instances_recursive(node: Node) -> bool:
+	"""Verificar si un nodo tiene MeshInstance3D recursivamente"""
+	if node is MeshInstance3D:
+		return true
+	
+	for child in node.get_children():
+		if _has_mesh_instances_recursive(child):
+			return true
+	
+	return false
+
+func _apply_advanced_shader_to_model(model: Node3D, shader_settings: Dictionary) -> int:
+	"""Aplicar shader avanzado a todas las mallas de un modelo"""
+	var meshes_updated = 0
+	return _apply_shader_recursive(model, shader_settings, meshes_updated)
+
+func _apply_shader_recursive(node: Node, shader_settings: Dictionary, count: int) -> int:
+	"""Aplicar shader recursivamente a todos los MeshInstance3D"""
+	if node is MeshInstance3D:
+		var mesh_instance = node as MeshInstance3D
+		if _apply_advanced_shader_to_mesh(mesh_instance, shader_settings):
+			count += 1
+			print("  ✅ Shader aplicado a: %s" % mesh_instance.name)
+	
+	for child in node.get_children():
+		count = _apply_shader_recursive(child, shader_settings, count)
+	
+	return count
+
+func _apply_advanced_shader_to_mesh(mesh_instance: MeshInstance3D, shader_settings: Dictionary) -> bool:
+	"""Aplicar shader avanzado a una MeshInstance3D específica"""
+	if not mesh_instance or not mesh_instance.mesh:
+		return false
+	
+	# Crear o obtener material con shader avanzado
+	var shader_material = _create_advanced_shader_material(shader_settings)
+	if not shader_material:
+		return false
+	
+	# Aplicar el material a todas las superficies
+	for surface_idx in range(mesh_instance.mesh.get_surface_count()):
+		mesh_instance.set_surface_override_material(surface_idx, shader_material)
+	
+	return true
+
+func _create_advanced_shader_material(shader_settings: Dictionary) -> ShaderMaterial:
+	"""Crear material con shader avanzado y configuración aplicada"""
+	var material = ShaderMaterial.new()
+	
+	# Cargar shader avanzado
+	var shader_path = "res://resources/shaders/pixelize_advanced.gdshader"
+	if ResourceLoader.exists(shader_path):
+		var shader = load(shader_path) as Shader
+		if shader:
+			material.shader = shader
+		else:
+			print("❌ Error cargando shader")
+			return null
+	else:
+		print("❌ Shader no encontrado: %s" % shader_path)
+		return null
+	
+	# Aplicar todos los parámetros del shader
+	_apply_shader_parameters(material, shader_settings)
+	
+	return material
+
+func _apply_shader_parameters(material: ShaderMaterial, settings: Dictionary):
+	"""Aplicar parámetros del shader al material"""
+	# Pixelización
+	material.set_shader_parameter("pixel_size", settings.get("pixel_size", 4.0))
+	
+	# Reducción de colores
+	material.set_shader_parameter("reduce_colors", settings.get("reduce_colors", false))
+	material.set_shader_parameter("color_levels", settings.get("color_levels", 16))
+	
+	# Dithering
+	material.set_shader_parameter("enable_dithering", settings.get("enable_dithering", false))
+	material.set_shader_parameter("dither_strength", settings.get("dither_strength", 0.1))
+	
+	# Bordes
+	material.set_shader_parameter("enable_outline", settings.get("enable_outline", false))
+	material.set_shader_parameter("outline_thickness", settings.get("outline_thickness", 1.0))
+	material.set_shader_parameter("outline_color", settings.get("outline_color", Color.BLACK))
+	material.set_shader_parameter("outline_pixelated", settings.get("outline_pixelated", true))
+	material.set_shader_parameter("outline_smooth", settings.get("outline_smooth", 0.0))
+	
+	# Efectos avanzados
+	material.set_shader_parameter("contrast_boost", settings.get("contrast_boost", 1.0))
+	material.set_shader_parameter("saturation_mult", settings.get("saturation_mult", 1.0))
+	material.set_shader_parameter("color_tint", settings.get("color_tint", Color.WHITE))
+	material.set_shader_parameter("apply_gamma_correction", settings.get("apply_gamma_correction", false))
+	material.set_shader_parameter("gamma_value", settings.get("gamma_value", 1.0))
+
+# MODIFICAR FUNCIÓN EXISTENTE: Conectar señal del shader avanzado
+func _connect_ui_signals():
+	"""Conectar señales de UI - MODIFICADO para incluir shader avanzado"""
+	# ... código existente ...
+	
+	# NUEVA CONEXIÓN: Shader avanzado
+	if settings_panel:
+		# Conectar señal para cuando cambie configuración avanzada de shader
+		if not settings_panel.is_connected("shader_settings_changed", _on_advanced_shader_changed):
+			settings_panel.shader_settings_changed.connect(_on_advanced_shader_changed)
+		
+		print("✅ Señal de shader avanzado conectada")
+
+# NUEVA FUNCIÓN: Manejar cambios en shader avanzado
+func _on_advanced_shader_changed(shader_settings: Dictionary):
+	"""Manejar cambios en configuración avanzada de shader"""
+	print("🎨 Configuración avanzada de shader recibida")
+	
+	# Aplicar inmediatamente al preview
+	apply_advanced_shader_to_preview(shader_settings)
+	
+	# También guardar para el renderizado
+	if spritesheet_pipeline:
+		spritesheet_pipeline.set_advanced_shader_settings(shader_settings)

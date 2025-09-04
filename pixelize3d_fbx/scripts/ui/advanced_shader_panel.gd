@@ -11,7 +11,7 @@ signal preset_applied(preset_name: String)
 signal reset_to_defaults_requested()
 signal save_as_preset_requested(settings: Dictionary, name: String)
 
-# === REFERENCIAS A CONTROLES DE UI - CORREGIDO para Godot 4.4 ===
+# === REFERENCIAS A CONTROLES DE UI ===
 var main_container: VBoxContainer
 var preview_container: HBoxContainer
 var preview_viewport: SubViewport
@@ -35,23 +35,24 @@ var enable_dithering_check: CheckBox
 var dither_strength_slider: HSlider
 var dither_strength_label: Label
 
-# Sección: Efectos de Borde (NUEVO)
+# Sección: Efectos de Borde
 var outline_section: VBoxContainer
 var enable_outline_check: CheckBox
 var outline_thickness_slider: HSlider
 var outline_thickness_label: Label
-var outline_color_picker: ColorPickerButton  # CORREGIDO: ColorPickerButton en lugar de ColorPicker
+var outline_color_picker: ColorPickerButton
 var outline_pixelated_check: CheckBox
 var outline_smooth_slider: HSlider
 var outline_smooth_label: Label
 
 # Sección: Efectos Avanzados de Color
+var advanced_effects: CheckBox
 var advanced_section: VBoxContainer
 var contrast_slider: HSlider
 var contrast_label: Label
 var saturation_slider: HSlider
 var saturation_label: Label
-var color_tint_picker: ColorPickerButton  # CORREGIDO: ColorPickerButton
+var color_tint_picker: ColorPickerButton
 var gamma_check: CheckBox
 var gamma_slider: HSlider
 var gamma_label: Label
@@ -67,6 +68,7 @@ var current_settings: Dictionary = {}
 var preview_material: ShaderMaterial
 var is_updating_ui: bool = false
 var live_preview_enabled: bool = true
+var debug_mode: bool = false  # Control para mensajes de depuración
 
 # === CONFIGURACIÓN INICIAL POR DEFECTO ===
 var default_settings: Dictionary = {
@@ -90,22 +92,23 @@ var default_settings: Dictionary = {
 	"outline_smooth": 0.0,
 	
 	# Efectos avanzados
+	"advanced_effects_enabled": false,
 	"contrast_boost": 1.0,
 	"saturation_mult": 1.0,
-	"color_tint": Color.WHITE,
+	"color_tint": Color(1, 1, 1, 1),
 	"apply_gamma_correction": false,
 	"gamma_value": 1.0
 }
 
 func _ready():
-	print("🎨 AdvancedShaderPanel inicializando...")
+	if debug_mode:
+		print("🎨 AdvancedShaderPanel inicializando...")
 	_initialize_settings()
 	_create_ui_layout()
-	_create_preview_area()
 	_setup_material_and_shader()
-	_connect_all_signals()
 	_apply_current_settings()
-	print("✅ AdvancedShaderPanel completamente inicializado")
+	if debug_mode:
+		print("✅ AdvancedShaderPanel completamente inicializado")
 
 # ========================================================================
 # INICIALIZACIÓN Y CONFIGURACIÓN
@@ -114,11 +117,13 @@ func _ready():
 func _initialize_settings():
 	"""Inicializar configuración con valores por defecto"""
 	current_settings = default_settings.duplicate()
-	print("⚙️ Configuración inicializada con valores por defecto")
+	if debug_mode:
+		print("⚙️ Configuración inicializada con valores por defecto")
 
 func _create_ui_layout():
 	"""Crear layout principal de la interfaz"""
-	print("🎨 Creando layout de interfaz avanzada...")
+	if debug_mode:
+		print("🎨 Creando layout de interfaz avanzada...")
 	
 	# Título principal
 	var title_label = Label.new()
@@ -133,7 +138,7 @@ func _create_ui_layout():
 	# Container principal con scroll
 	var scroll_container = ScrollContainer.new()
 	scroll_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
-	scroll_container.custom_minimum_size.y = 500
+	scroll_container.custom_minimum_size.y = 400
 	add_child(scroll_container)
 	
 	main_container = VBoxContainer.new()
@@ -143,7 +148,7 @@ func _create_ui_layout():
 	_create_pixelization_section()
 	_create_color_reduction_section()
 	_create_dithering_section()
-	_create_outline_section()  # SECCIÓN NUEVA
+	_create_outline_section()
 	_create_advanced_effects_section()
 	_create_actions_section()
 
@@ -226,7 +231,7 @@ func _create_dithering_section():
 	dither_strength_slider.value_changed.connect(_on_dither_strength_changed)
 
 func _create_outline_section():
-	"""Crear sección de efectos de borde - NUEVA FUNCIONALIDAD"""
+	"""Crear sección de efectos de borde"""
 	outline_section = _create_collapsible_section("🖼️ Efectos de Borde", false)
 	main_container.add_child(outline_section)
 	
@@ -260,15 +265,11 @@ func _create_outline_section():
 	color_label.custom_minimum_size.x = 120
 	color_container.add_child(color_label)
 	
-	# ColorPicker compacto para Godot 4.4
-	var color_button = ColorPickerButton.new()
-	color_button.custom_minimum_size = Vector2(80, 30)
-	color_button.color = current_settings.outline_color
-	color_button.color_changed.connect(_on_outline_color_changed)
-	color_container.add_child(color_button)
-	
-	# Guardar referencia como ColorPicker para compatibilidad
-	outline_color_picker = color_button
+	outline_color_picker = ColorPickerButton.new()
+	outline_color_picker.custom_minimum_size = Vector2(80, 30)
+	outline_color_picker.color = current_settings.outline_color
+	outline_color_picker.color_changed.connect(_on_outline_color_changed)
+	color_container.add_child(outline_color_picker)
 	
 	# Borde pixelizado
 	outline_pixelated_check = CheckBox.new()
@@ -295,6 +296,13 @@ func _create_advanced_effects_section():
 	main_container.add_child(advanced_section)
 	
 	var content = advanced_section.get_meta("content_container")
+	
+	# Checkbox para activar/desactivar efectos avanzados
+	advanced_effects = CheckBox.new()
+	advanced_effects.text = "Aplicar Efectos avanzados"
+	advanced_effects.button_pressed = current_settings.advanced_effects_enabled
+	advanced_effects.toggled.connect(_on_advanced_effects_toggled)
+	content.add_child(advanced_effects)
 	
 	# Contraste
 	var contrast_container = _create_labeled_slider_container("Contraste:")
@@ -329,15 +337,11 @@ func _create_advanced_effects_section():
 	tint_label.custom_minimum_size.x = 120
 	tint_container.add_child(tint_label)
 	
-	# ColorPickerButton compacto para Godot 4.4
-	var tint_button = ColorPickerButton.new()
-	tint_button.custom_minimum_size = Vector2(80, 30)
-	tint_button.color = current_settings.color_tint
-	tint_button.color_changed.connect(_on_color_tint_changed)
-	tint_container.add_child(tint_button)
-	
-	# Guardar referencia
-	color_tint_picker = tint_button
+	color_tint_picker = ColorPickerButton.new()
+	color_tint_picker.custom_minimum_size = Vector2(80, 30)
+	color_tint_picker.color = current_settings.color_tint
+	color_tint_picker.color_changed.connect(_on_color_tint_changed)
+	tint_container.add_child(color_tint_picker)
 	
 	# Corrección gamma
 	gamma_check = CheckBox.new()
@@ -357,6 +361,9 @@ func _create_advanced_effects_section():
 	gamma_slider.step = 0.01
 	gamma_slider.value = current_settings.gamma_value
 	gamma_slider.value_changed.connect(_on_gamma_value_changed)
+	
+	# Actualizar estado inicial de controles avanzados
+	_update_advanced_controls_state()
 
 func _create_actions_section():
 	"""Crear sección de acciones"""
@@ -378,16 +385,18 @@ func _create_actions_section():
 	reset_button.pressed.connect(_on_reset_pressed)
 	buttons_container.add_child(reset_button)
 	
-	# Botón exportar
+	# Botón exportar (oculto hasta implementar)
 	export_button = Button.new()
 	export_button.text = "💾 Exportar Config"
 	export_button.pressed.connect(_on_export_pressed)
+	export_button.visible = false  # Ocultar hasta implementar
 	buttons_container.add_child(export_button)
 	
-	# Botón importar
+	# Botón importar (oculto hasta implementar)
 	import_button = Button.new()
 	import_button.text = "📂 Importar Config"
 	import_button.pressed.connect(_on_import_pressed)
+	import_button.visible = false  # Ocultar hasta implementar
 	buttons_container.add_child(import_button)
 
 # ========================================================================
@@ -452,11 +461,6 @@ func _create_labeled_slider_container(label_text: String) -> Dictionary:
 # CONFIGURACIÓN DE MATERIAL Y SHADER
 # ========================================================================
 
-func _create_preview_area():
-	"""Crear área de vista previa en tiempo real"""
-	# Esta función se puede expandir para incluir vista previa 3D
-	print("🔍 Área de vista previa configurada")
-
 func _setup_material_and_shader():
 	"""Configurar material y shader avanzado"""
 	preview_material = ShaderMaterial.new()
@@ -467,12 +471,12 @@ func _setup_material_and_shader():
 		var shader = load(shader_path) as Shader
 		if shader:
 			preview_material.shader = shader
-			print("✅ Shader avanzado cargado exitosamente")
+			if debug_mode:
+				print("✅ Shader avanzado cargado exitosamente")
 		else:
-			print("❌ Error: El archivo existe pero no se pudo cargar como Shader")
+			push_error("❌ Error: El archivo existe pero no se pudo cargar como Shader")
 	else:
-		print("❌ Error: Archivo de shader no encontrado en: %s" % shader_path)
-		print("   Asegúrate de que el shader esté guardado en la ubicación correcta")
+		push_error("❌ Error: Archivo de shader no encontrado en: %s" % shader_path)
 
 # ========================================================================
 # MANEJADORES DE EVENTOS DE UI
@@ -492,7 +496,8 @@ func _on_pixel_size_changed(value: float):
 		return
 	
 	current_settings.pixel_size = value
-	pixel_size_label.text = "%.0f" % value
+	if pixel_size_label:
+		pixel_size_label.text = "%.0f" % value
 	_update_preview_and_emit()
 
 func _on_reduce_colors_changed(enabled: bool):
@@ -509,7 +514,8 @@ func _on_color_levels_changed(value: float):
 		return
 	
 	current_settings.color_levels = int(value)
-	color_levels_label.text = "%d" % int(value)
+	if color_levels_label:
+		color_levels_label.text = "%d" % int(value)
 	_update_preview_and_emit()
 
 func _on_enable_dithering_changed(enabled: bool):
@@ -526,10 +532,9 @@ func _on_dither_strength_changed(value: float):
 		return
 	
 	current_settings.dither_strength = value
-	dither_strength_label.text = "%.2f" % value
+	if dither_strength_label:
+		dither_strength_label.text = "%.2f" % value
 	_update_preview_and_emit()
-
-# === NUEVOS MANEJADORES PARA EFECTOS DE BORDE ===
 
 func _on_enable_outline_changed(enabled: bool):
 	"""Manejar cambio en activación de bordes"""
@@ -545,7 +550,8 @@ func _on_outline_thickness_changed(value: float):
 		return
 	
 	current_settings.outline_thickness = value
-	outline_thickness_label.text = "%.1f" % value
+	if outline_thickness_label:
+		outline_thickness_label.text = "%.1f" % value
 	_update_preview_and_emit()
 
 func _on_outline_color_changed(color: Color):
@@ -570,10 +576,18 @@ func _on_outline_smooth_changed(value: float):
 		return
 	
 	current_settings.outline_smooth = value
-	outline_smooth_label.text = "%.2f" % value
+	if outline_smooth_label:
+		outline_smooth_label.text = "%.2f" % value
 	_update_preview_and_emit()
 
-# === MANEJADORES PARA EFECTOS AVANZADOS ===
+func _on_advanced_effects_toggled(enabled: bool):
+	"""Manejar cambio en activación de efectos avanzados"""
+	if is_updating_ui:
+		return
+	
+	current_settings.advanced_effects_enabled = enabled
+	_update_advanced_controls_state()
+	_update_preview_and_emit()
 
 func _on_contrast_changed(value: float):
 	"""Manejar cambio en contraste"""
@@ -581,7 +595,8 @@ func _on_contrast_changed(value: float):
 		return
 	
 	current_settings.contrast_boost = value
-	contrast_label.text = "%.2f" % value
+	if contrast_label:
+		contrast_label.text = "%.2f" % value
 	_update_preview_and_emit()
 
 func _on_saturation_changed(value: float):
@@ -590,7 +605,8 @@ func _on_saturation_changed(value: float):
 		return
 	
 	current_settings.saturation_mult = value
-	saturation_label.text = "%.2f" % value
+	if saturation_label:
+		saturation_label.text = "%.2f" % value
 	_update_preview_and_emit()
 
 func _on_color_tint_changed(color: Color):
@@ -615,35 +631,48 @@ func _on_gamma_value_changed(value: float):
 		return
 	
 	current_settings.gamma_value = value
-	gamma_label.text = "%.2f" % value
+	if gamma_label:
+		gamma_label.text = "%.2f" % value
 	_update_preview_and_emit()
-
-# === MANEJADORES DE ACCIONES ===
 
 func _on_reset_pressed():
 	"""Resetear a configuración por defecto"""
-	print("🔄 Reseteando configuración a valores por defecto...")
+	if debug_mode:
+		print("🔄 Reseteando configuración a valores por defecto...")
 	current_settings = default_settings.duplicate()
 	_apply_current_settings()
 	reset_to_defaults_requested.emit()
 
 func _on_export_pressed():
 	"""Exportar configuración actual"""
-	print("💾 Exportando configuración...")
-	# Implementar lógica de exportación
-	
+	if debug_mode:
+		print("💾 Exportando configuración...")
+	# TODO: Implementar exportación
+
 func _on_import_pressed():
 	"""Importar configuración"""
-	print("📂 Importando configuración...")
-	# Implementar lógica de importación
+	if debug_mode:
+		print("📂 Importando configuración...")
+	# TODO: Implementar importación
 
 # ========================================================================
 # FUNCIONES PRINCIPALES DE APLICACIÓN
 # ========================================================================
 
-func _connect_all_signals():
-	"""Conectar todas las señales de los controles"""
-	print("🔗 Conectando señales de controles...")
+func _update_advanced_controls_state():
+	"""Actualizar estado de controles avanzados basado en el checkbox"""
+	var enabled = current_settings.advanced_effects_enabled
+	
+	if contrast_slider:
+		contrast_slider.editable = enabled
+	if saturation_slider:
+		saturation_slider.editable = enabled
+	if color_tint_picker:
+		color_tint_picker.disabled = not enabled
+	if gamma_check:
+		gamma_check.disabled = not enabled
+	if gamma_slider:
+		gamma_slider.editable = enabled
 
 func _apply_current_settings():
 	"""Aplicar configuración actual a todos los controles"""
@@ -685,6 +714,8 @@ func _apply_current_settings():
 		outline_smooth_label.text = "%.2f" % current_settings.outline_smooth
 	
 	# Aplicar valores a efectos avanzados
+	if advanced_effects:
+		advanced_effects.button_pressed = current_settings.advanced_effects_enabled
 	if contrast_slider:
 		contrast_slider.value = current_settings.contrast_boost
 		contrast_label.text = "%.2f" % current_settings.contrast_boost
@@ -699,20 +730,66 @@ func _apply_current_settings():
 		gamma_slider.value = current_settings.gamma_value
 		gamma_label.text = "%.2f" % current_settings.gamma_value
 	
+	# Actualizar estado de controles avanzados
+	_update_advanced_controls_state()
+	
 	is_updating_ui = false
-	print("✅ Configuración aplicada a controles")
+	
+	# Aplicar shader al modelo inmediatamente después de cargar configuración
+	call_deferred("_force_preview_update")
 
 func _update_preview_and_emit():
 	"""Actualizar vista previa y emitir señal de cambio"""
 	if not live_preview_enabled:
 		return
 	
-	# Actualizar material de vista previa si existe
+	# Actualizar material de vista previa interno
 	if preview_material and preview_material.shader:
 		_apply_settings_to_material(preview_material)
 	
+	# Forzar actualización del preview en tiempo real
+	call_deferred("_force_preview_update")
+	
 	# Emitir señal con configuración actualizada
 	shader_settings_changed.emit(current_settings.duplicate())
+
+#func _apply_settings_to_material(material: ShaderMaterial):
+	#"""Aplicar configuración actual al material"""
+	#if not material or not material.shader:
+		#return
+	#
+	## Aplicar parámetros de pixelización
+	#material.set_shader_parameter("pixel_size", current_settings.pixel_size)
+	#material.set_shader_parameter("pixelize_enabled", current_settings.pixelize_enabled)
+	#
+	## Aplicar parámetros de reducción de colores
+	#material.set_shader_parameter("reduce_colors", current_settings.reduce_colors)
+	#material.set_shader_parameter("color_levels", current_settings.color_levels)
+	#
+	## Aplicar parámetros de dithering
+	#material.set_shader_parameter("enable_dithering", current_settings.enable_dithering)
+	#material.set_shader_parameter("dither_strength", current_settings.dither_strength)
+	#
+	## Aplicar parámetros de bordes
+	#material.set_shader_parameter("enable_outline", current_settings.enable_outline)
+	#material.set_shader_parameter("outline_thickness", current_settings.outline_thickness)
+	#material.set_shader_parameter("outline_color", current_settings.outline_color)
+	#material.set_shader_parameter("outline_pixelated", current_settings.outline_pixelated)
+	#material.set_shader_parameter("outline_smooth", current_settings.outline_smooth)
+	#
+	## Aplicar efectos avanzados (solo si están habilitados)
+	#var apply_advanced = current_settings.advanced_effects_enabled
+	#
+	#material.set_shader_parameter("contrast_boost", 
+		#current_settings.contrast_boost if apply_advanced else 1.0)
+	#material.set_shader_parameter("saturation_mult", 
+		#current_settings.saturation_mult if apply_advanced else 1.0)
+	#material.set_shader_parameter("color_tint", 
+		#current_settings.color_tint if apply_advanced else Color.WHITE)
+	#material.set_shader_parameter("apply_gamma_correction", 
+		#current_settings.apply_gamma_correction if apply_advanced else false)
+	#material.set_shader_parameter("gamma_value", 
+		#current_settings.gamma_value if apply_advanced else 1.0)
 
 func _apply_settings_to_material(material: ShaderMaterial):
 	"""Aplicar configuración actual al material"""
@@ -721,6 +798,7 @@ func _apply_settings_to_material(material: ShaderMaterial):
 	
 	# Aplicar parámetros de pixelización
 	material.set_shader_parameter("pixel_size", current_settings.pixel_size)
+	material.set_shader_parameter("pixelize_enabled", current_settings.pixelize_enabled)
 	
 	# Aplicar parámetros de reducción de colores
 	material.set_shader_parameter("reduce_colors", current_settings.reduce_colors)
@@ -737,12 +815,277 @@ func _apply_settings_to_material(material: ShaderMaterial):
 	material.set_shader_parameter("outline_pixelated", current_settings.outline_pixelated)
 	material.set_shader_parameter("outline_smooth", current_settings.outline_smooth)
 	
-	# Aplicar efectos avanzados
-	material.set_shader_parameter("contrast_boost", current_settings.contrast_boost)
-	material.set_shader_parameter("saturation_mult", current_settings.saturation_mult)
-	material.set_shader_parameter("color_tint", current_settings.color_tint)
-	material.set_shader_parameter("apply_gamma_correction", current_settings.apply_gamma_correction)
-	material.set_shader_parameter("gamma_value", current_settings.gamma_value)
+	# Aplicar efectos avanzados (solo si están habilitados)
+	var apply_advanced = current_settings.advanced_effects_enabled
+	
+	# Contraste: usar valor configurado si está activado, valor neutro (1.0) si no
+	material.set_shader_parameter("contrast_boost", 
+		current_settings.contrast_boost if apply_advanced else 1.0)
+	
+	# Saturación: usar valor configurado si está activado, valor neutro (1.0) si no
+	material.set_shader_parameter("saturation_mult", 
+		current_settings.saturation_mult if apply_advanced else 1.0)
+	
+	# Tinte de color: usar valor configurado si está activado, color neutro (blanco) si no
+	# El color neutro debe ser (1, 1, 1, 1) para no afectar los colores originales
+	material.set_shader_parameter("color_tint", 
+		current_settings.color_tint if apply_advanced else Color(1, 1, 1, 1))
+	
+	# Corrección gamma: aplicar solo si está activado
+	material.set_shader_parameter("apply_gamma_correction", 
+		current_settings.apply_gamma_correction if apply_advanced else false)
+	
+	# Valor gamma: usar valor configurado si está activado, valor neutro (1.0) si no
+	material.set_shader_parameter("gamma_value", 
+		current_settings.gamma_value if apply_advanced else 1.0)
+# ========================================================================
+# FUNCIONES PARA CONECTAR CON EL MODELO DEL PREVIEW
+# ========================================================================
+
+func _force_preview_update():
+	"""Forzar actualización inmediata del modelo del preview"""
+	if debug_mode:
+		print("🔄 Forzando actualización de preview...")
+	
+	# Intentar múltiples métodos para aplicar al preview
+	var success = false
+	
+	# Método 1: Aplicación directa al modelo
+	if _apply_shader_to_preview_model():
+		success = true
+		if debug_mode:
+			print("✅ Método 1: Aplicación directa exitosa")
+	
+	# Método 2: A través del ViewerCoordinator
+	if not success:
+		success = _apply_through_coordinator()
+		if success and debug_mode:
+			print("✅ Método 2: A través de coordinator exitoso")
+	
+	if not success and debug_mode:
+		print("❌ No se pudo aplicar shader al preview")
+		_debug_preview_state()
+
+func _apply_shader_to_preview_model() -> bool:
+	"""Aplicar shader avanzado al modelo del preview en tiempo real"""
+	var preview_model = _find_preview_model()
+	if not preview_model:
+		if debug_mode:
+			print("⚠️ No se encontró modelo de preview para aplicar shader")
+		return false
+	
+	# Aplicar shader a todas las mallas del modelo
+	var meshes_updated = 0
+	meshes_updated = _apply_shader_to_node_recursive(preview_model, meshes_updated)
+	
+	if meshes_updated > 0:
+		if debug_mode:
+			print("✅ Shader avanzado aplicado a %d mesh(es)" % meshes_updated)
+		return true
+	else:
+		if debug_mode:
+			print("⚠️ No se encontraron meshes para aplicar shader")
+		return false
+
+func _find_preview_model() -> Node3D:
+	"""Buscar el modelo del preview en ModelContainer"""
+	
+	# Ruta exacta confirmada desde viewer_modular.tscn
+	var model_container_path = "/root/ViewerModular/HSplitContainer/RightPanel/ModelPreviewPanel/ViewportContainer/SubViewport/ModelContainer"
+	var model_container = get_node_or_null(model_container_path)
+	
+	if model_container:
+		if debug_mode:
+			print("✅ ModelContainer encontrado en: %s" % model_container_path)
+		
+		# Buscar el modelo dentro de ModelContainer
+		for child in model_container.get_children():
+			if child is Node3D and ("Model" in child.name or "Combined" in child.name or _has_mesh_instance(child)):
+				if debug_mode:
+					print("✅ Modelo encontrado en ModelContainer: %s" % child.name)
+				return child
+	else:
+		if debug_mode:
+			print("❌ ModelContainer no encontrado en la ruta esperada")
+		# Búsqueda alternativa más específica
+		return _search_for_model_in_viewports()
+	
+	return null
+
+func _search_for_model_in_viewports() -> Node3D:
+	"""Búsqueda alternativa en viewports si la ruta principal falla"""
+	var root_scene = get_tree().current_scene
+	
+	# Buscar todos los SubViewport en la escena
+	var viewports = _find_all_nodes_of_type(root_scene, "SubViewport")
+	
+	for viewport in viewports:
+		# Buscar ModelContainer dentro del viewport
+		var model_container = viewport.get_node_or_null("ModelContainer")
+		if model_container:
+			for child in model_container.get_children():
+				if child is Node3D and _has_mesh_instance(child):
+					if debug_mode:
+						print("✅ Modelo encontrado en búsqueda alternativa: %s" % child.name)
+					return child
+	
+	if debug_mode:
+		print("❌ No se encontró modelo en ningún viewport")
+	return null
+
+func _find_all_nodes_of_type(node: Node, type_name: String) -> Array:
+	"""Buscar todos los nodos de un tipo específico recursivamente"""
+	var results = []
+	
+	if node.get_class() == type_name:
+		results.append(node)
+	
+	for child in node.get_children():
+		results.append_array(_find_all_nodes_of_type(child, type_name))
+	
+	return results
+
+func _has_mesh_instance(node: Node) -> bool:
+	"""Verificar si un nodo tiene MeshInstance3D (directamente o en hijos)"""
+	if node is MeshInstance3D:
+		return true
+	
+	for child in node.get_children():
+		if child is MeshInstance3D:
+			return true
+		if _has_mesh_instance(child):
+			return true
+	
+	return false
+
+func _apply_shader_to_node_recursive(node: Node, meshes_updated: int) -> int:
+	"""Aplicar shader a todos los MeshInstance3D de un nodo recursivamente"""
+	if node is MeshInstance3D:
+		var mesh_instance = node as MeshInstance3D
+		if _apply_shader_to_mesh_instance(mesh_instance):
+			meshes_updated += 1
+			if debug_mode:
+				print("  - Shader aplicado a: %s" % mesh_instance.name)
+	
+	for child in node.get_children():
+		meshes_updated = _apply_shader_to_node_recursive(child, meshes_updated)
+	
+	return meshes_updated
+
+func _apply_shader_to_mesh_instance(mesh_instance: MeshInstance3D) -> bool:
+	"""Aplicar shader avanzado a una instancia de mesh específica"""
+	if not mesh_instance or not mesh_instance.mesh:
+		return false
+	
+	# Crear material con shader avanzado si no existe
+	var shader_material = _create_or_get_shader_material(mesh_instance)
+	if not shader_material:
+		return false
+	
+	# Aplicar configuración actual al material
+	_apply_settings_to_material(shader_material)
+	
+	# Aplicar el material a todas las superficies
+	for surface_idx in range(mesh_instance.mesh.get_surface_count()):
+		mesh_instance.set_surface_override_material(surface_idx, shader_material)
+	
+	return true
+
+func _create_or_get_shader_material(mesh_instance: MeshInstance3D) -> ShaderMaterial:
+	"""Crear o obtener material con shader avanzado para una instancia de mesh"""
+	
+	# Verificar si ya tiene un material con nuestro shader
+	var existing_material = mesh_instance.get_surface_override_material(0)
+	if existing_material is ShaderMaterial:
+		var shader_mat = existing_material as ShaderMaterial
+		if shader_mat.shader and shader_mat.shader.resource_path.ends_with("pixelize_advanced.gdshader"):
+			return shader_mat
+	
+	# Crear nuevo material con shader avanzado
+	var shader_material = ShaderMaterial.new()
+	
+	# Cargar shader avanzado
+	var shader_path = "res://resources/shaders/pixelize_advanced.gdshader"
+	if ResourceLoader.exists(shader_path):
+		var shader = load(shader_path) as Shader
+		if shader:
+			shader_material.shader = shader
+			if debug_mode:
+				print("✅ Shader avanzado aplicado a mesh: %s" % mesh_instance.name)
+			return shader_material
+		else:
+			push_error("❌ Error cargando shader desde: %s" % shader_path)
+	else:
+		push_error("❌ Shader no encontrado en: %s" % shader_path)
+	
+	return null
+
+func _apply_through_coordinator() -> bool:
+	"""Aplicar shader a través del ViewerCoordinator"""
+	var coordinator = get_node_or_null("/root/ViewerModular")
+	if not coordinator:
+		return false
+	
+	# Buscar método para actualizar preview
+	if coordinator.has_method("apply_advanced_shader_to_preview"):
+		coordinator.apply_advanced_shader_to_preview(current_settings)
+		return true
+	
+	return false
+
+func _debug_preview_state():
+	"""Debug del estado actual del preview"""
+	if not debug_mode:
+		return
+	
+	print("\n🔍 === DEBUG ESTADO DEL PREVIEW ===")
+	
+	# Verificar modelo
+	var model = _find_preview_model()
+	if model:
+		print("✅ Modelo encontrado: %s" % model.name)
+		print("  Ruta: %s" % model.get_path())
+		
+		# Verificar meshes
+		var mesh_count = 0
+		mesh_count = _count_meshes_recursive(model, mesh_count)
+		print("  MeshInstance3D encontradas: %d" % mesh_count)
+		
+		# Verificar materiales
+		_debug_materials_recursive(model)
+	else:
+		print("❌ No se encontró modelo del preview")
+	
+	print("=====================================\n")
+
+func _count_meshes_recursive(node: Node, count: int) -> int:
+	"""Contar meshes recursivamente"""
+	if node is MeshInstance3D:
+		count += 1
+	
+	for child in node.get_children():
+		count = _count_meshes_recursive(child, count)
+	
+	return count
+
+func _debug_materials_recursive(node: Node):
+	"""Debug de materiales recursivamente"""
+	if node is MeshInstance3D:
+		var mesh_instance = node as MeshInstance3D
+		print("  Mesh: %s" % mesh_instance.name)
+		
+		for i in range(mesh_instance.mesh.get_surface_count() if mesh_instance.mesh else 0):
+			var material = mesh_instance.get_surface_override_material(i)
+			if material:
+				print("    Superficie %d: %s" % [i, material.get_class()])
+				if material is ShaderMaterial:
+					var shader_mat = material as ShaderMaterial
+					print("      Shader: %s" % (shader_mat.shader.resource_path if shader_mat.shader else "null"))
+			else:
+				print("    Superficie %d: sin material override" % i)
+	
+	for child in node.get_children():
+		_debug_materials_recursive(child)
 
 # ========================================================================
 # API PÚBLICA PARA INTEGRACIÓN
@@ -760,3 +1103,11 @@ func apply_settings(settings: Dictionary):
 func get_preview_material() -> ShaderMaterial:
 	"""Obtener material de vista previa configurado"""
 	return preview_material
+
+func set_debug_mode(enabled: bool):
+	"""Activar/desactivar modo de depuración"""
+	debug_mode = enabled
+
+func set_live_preview(enabled: bool):
+	"""Activar/desactivar vista previa en tiempo real"""
+	live_preview_enabled = enabled

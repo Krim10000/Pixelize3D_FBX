@@ -8,7 +8,9 @@ extends VBoxContainer
 # Señales especificas de este panel
 signal settings_changed(settings: Dictionary)
 signal preset_applied(preset_name: String)
-signal request_auto_north_detection() 
+signal request_auto_north_detection()
+# NUEVA SEÑAL: Para shader avanzado
+signal shader_settings_changed(shader_settings: Dictionary)
 
 # UI propia de este panel - EXTENDIDA PARA DELAY SYSTEM
 var section_label: Label
@@ -195,7 +197,7 @@ func _create_basic_settings():
 func _create_delay_settings():
 	"""Crear controles del sistema de delay"""
 	var delay_title = Label.new()
-	delay_title.text = " Sistema de Delay (Avanzado)"
+	delay_title.text = "⏱️ Sistema de Delay (Avanzado)"
 	delay_title.add_theme_font_size_override("font_size", 14)
 	delay_title.add_theme_color_override("font_color", Color(1.0, 0.6, 0.2))
 	add_child(delay_title)
@@ -283,7 +285,7 @@ func _create_delay_settings():
 func _create_camera_settings():
 	"""Crear configuracion de camara"""
 	var camera_title = Label.new()
-	camera_title.text = "Camara"
+	camera_title.text = "📷 Camara"
 	camera_title.add_theme_font_size_override("font_size", 14)
 	camera_title.add_theme_color_override("font_color", Color(0.3, 0.7, 1.0))
 	add_child(camera_title)
@@ -310,17 +312,41 @@ func _create_camera_settings():
 	camera_angle_label.text = "45°"
 	camera_angle_label.custom_minimum_size.x = 40
 	camera_angle_container.add_child(camera_angle_label)
+	
+	# Altura de camara
+	var camera_height_container = HBoxContainer.new()
+	add_child(camera_height_container)
+	
+	var height_label = Label.new()
+	height_label.text = "Altura:"
+	height_label.custom_minimum_size.x = 80
+	camera_height_container.add_child(height_label)
+	
+	camera_height_slider = HSlider.new()
+	camera_height_slider.min_value = 5.0
+	camera_height_slider.max_value = 30.0
+	camera_height_slider.value = 12.0
+	camera_height_slider.step = 0.5
+	camera_height_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	camera_height_slider.value_changed.connect(_on_camera_height_changed)
+	camera_height_container.add_child(camera_height_slider)
+	
+	camera_height_label = Label.new()
+	camera_height_label.text = "12.0"
+	camera_height_label.custom_minimum_size.x = 40
+	camera_height_container.add_child(camera_height_label)
 
 func _on_camera_height_changed(value: float):
 	"""Manejar cambio en altura de camara"""
 	current_settings.camera_height = value
+	camera_height_label.text = "%.1f" % value
 	print("📏 Altura de camara: %.1f" % value)
 	settings_changed.emit(current_settings.duplicate())
 
 func _create_capture_area_settings():
 	"""Crear configuracion de area de captura"""
 	var capture_title = Label.new()
-	capture_title.text = "Area de Captura"
+	capture_title.text = "🖼️ Area de Captura"
 	capture_title.add_theme_font_size_override("font_size", 14)
 	capture_title.add_theme_color_override("font_color", Color(0.3, 0.7, 1.0))
 	add_child(capture_title)
@@ -352,7 +378,7 @@ func _create_capture_area_settings():
 	capture_container.add_child(capture_area_slider)
 	
 	capture_area_label = Label.new()
-	capture_area_label.text = "8.0"
+	capture_area_label.text = "2.3"
 	capture_area_label.custom_minimum_size.x = 40
 	capture_container.add_child(capture_area_label)
 	
@@ -400,7 +426,7 @@ func _create_capture_area_settings():
 func _create_orientation_settings():
 	"""Crear configuracion de orientacion"""
 	var orientation_title = Label.new()
-	orientation_title.text = " Orientacion"
+	orientation_title.text = "🧭 Orientacion"
 	orientation_title.add_theme_font_size_override("font_size", 14)
 	orientation_title.add_theme_color_override("font_color", Color(0.3, 0.7, 1.0))
 	add_child(orientation_title)
@@ -496,23 +522,24 @@ func _apply_current_settings():
 	print("🔧 Aplicando configuracion actual a controles")
 	
 	# Aplicar valores basicos
-	directions_spinbox.value = current_settings.directions
-	sprite_size_spinbox.value = current_settings.sprite_size
-	fps_spinbox.value = current_settings.fps
-	pixelize_check.button_pressed = current_settings.pixelize
+	if directions_spinbox: directions_spinbox.value = current_settings.directions
+	if sprite_size_spinbox: sprite_size_spinbox.value = current_settings.sprite_size
+	if fps_spinbox: fps_spinbox.value = current_settings.fps
+	if pixelize_check: pixelize_check.button_pressed = current_settings.pixelize
 	
 	# Aplicar valores de delay system
-	delay_spinbox.value = current_settings.frame_delay
+	if delay_spinbox: delay_spinbox.value = current_settings.frame_delay
 	
 	# Aplicar valores de camara
-	camera_angle_slider.value = current_settings.camera_angle
+	if camera_angle_slider: camera_angle_slider.value = current_settings.camera_angle
+	if camera_height_slider: camera_height_slider.value = current_settings.camera_height
 	
 	# Aplicar valores de orientacion
-	north_offset_slider.value = current_settings.north_offset
-	auto_north_check.button_pressed = current_settings.auto_north_detection
+	if north_offset_slider: north_offset_slider.value = current_settings.north_offset
+	if auto_north_check: auto_north_check.button_pressed = current_settings.auto_north_detection
 	
 	# Aplicar area de captura
-	capture_area_slider.value = current_settings.capture_area_size
+	if capture_area_slider: capture_area_slider.value = current_settings.capture_area_size
 	
 	# Actualizar labels
 	_on_camera_angle_changed(current_settings.camera_angle)
@@ -528,10 +555,10 @@ func _apply_current_settings():
 func _on_setting_changed(value = null):
 	"""Manejar cambios en configuracion basica"""
 	# Actualizar configuracion interna
-	current_settings.directions = int(directions_spinbox.value)
-	current_settings.sprite_size = int(sprite_size_spinbox.value)
-	current_settings.fps = int(fps_spinbox.value)
-	current_settings.pixelize = pixelize_check.button_pressed
+	if directions_spinbox: current_settings.directions = int(directions_spinbox.value)
+	if sprite_size_spinbox: current_settings.sprite_size = int(sprite_size_spinbox.value)
+	if fps_spinbox: current_settings.fps = int(fps_spinbox.value)
+	if pixelize_check: current_settings.pixelize = pixelize_check.button_pressed
 	
 	print("⚙️ Configuracion basica actualizada")
 	settings_changed.emit(_get_enhanced_settings())
@@ -588,13 +615,13 @@ func _on_delay_changed(new_delay: float):
 	
 func _on_delay_preset_pressed(delay_value: float):
 	"""Aplicar preset de delay"""
-	delay_spinbox.value = delay_value
+	if delay_spinbox: delay_spinbox.value = delay_value
 	print("⏱️ Preset de delay aplicado: %.4fs" % delay_value)
 
 func _on_camera_angle_changed(value: float):
 	"""Manejar cambio en angulo de camara"""
 	current_settings.camera_angle = value
-	camera_angle_label.text = "%.0f°" % value
+	if camera_angle_label: camera_angle_label.text = "%.0f°" % value
 	
 	print("📐 Angulo de camara: %.1f°" % value)
 	settings_changed.emit(_get_enhanced_settings())
@@ -602,7 +629,7 @@ func _on_camera_angle_changed(value: float):
 func _on_north_offset_changed(value: float):
 	"""Manejar cambio en orientacion norte"""
 	current_settings.north_offset = value
-	north_offset_label.text = "%.0f°" % value
+	if north_offset_label: north_offset_label.text = "%.0f°" % value
 	
 	print("🧭 Orientacion norte: %.1f°" % value)
 	settings_changed.emit(_get_enhanced_settings())
@@ -610,7 +637,7 @@ func _on_north_offset_changed(value: float):
 func _on_capture_area_changed(value: float):
 	"""Manejar cambio en area de captura"""
 	current_settings.capture_area_size = value
-	capture_area_label.text = "%.1f" % value
+	if capture_area_label: capture_area_label.text = "%.1f" % value
 	
 	# Convertir a configuracion de camara (para compatibilidad)
 	current_settings.manual_zoom_override = true
@@ -618,7 +645,6 @@ func _on_capture_area_changed(value: float):
 	
 	print("🖼️ Area de captura: %.1f" % value)
 	settings_changed.emit(_get_enhanced_settings())
-
 	_update_capture_area_visual()
 
 func _update_capture_area_visual():
@@ -633,7 +659,7 @@ func _update_capture_area_visual():
 
 func _on_size_preset_pressed(size_value: float):
 	"""Manejar preset de tamaño"""
-	capture_area_slider.value = size_value
+	if capture_area_slider: capture_area_slider.value = size_value
 	print("📐 Preset de tamaño aplicado: %.1f" % size_value)
 
 func _on_auto_north_toggled(enabled: bool):
@@ -646,7 +672,7 @@ func _on_auto_north_toggled(enabled: bool):
 
 func _on_preset_pressed(angle: float):
 	"""Manejar preset de orientacion"""
-	north_offset_slider.value = angle
+	if north_offset_slider: north_offset_slider.value = angle
 	print("🧭 Preset de orientacion aplicado: %.1f°" % angle)
 	preset_applied.emit("orientation_%.0f" % angle)
 
@@ -711,7 +737,7 @@ func _create_advanced_shader_panel():
 	# Crear ventana de configuración avanzada
 	var advanced_window = Window.new()
 	advanced_window.title = "Configuración Avanzada de Shader"
-	advanced_window.size = Vector2i(700, 500)
+	advanced_window.size = Vector2i(600, 500)
 	advanced_window.unresizable = false
 	advanced_window.transient = true
 	advanced_window.exclusive = false
@@ -719,19 +745,17 @@ func _create_advanced_shader_panel():
 	
 	# Container principal con botones
 	var main_vbox = VBoxContainer.new()
-	main_vbox.size_flags_horizontal =Control.SIZE_EXPAND
 	advanced_window.add_child(main_vbox)
 	
 	# Crear el panel avanzado dentro de la ventana
 	advanced_shader_panel = preload("res://scripts/ui/advanced_shader_panel.gd").new()
+	#res://scripts/ui/advanced_shader_panel.gd
 	advanced_shader_panel.name = "AdvancedShaderPanel"
-	#advanced_shader_panel.size = Vector2i(800, 800)
-	#advanced_shader_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	main_vbox.add_child(advanced_shader_panel)
 	
 	# Botones de acción
 	var button_container = HBoxContainer.new()
-	button_container.size_flags_horizontal = Control.SIZE_EXPAND
+	button_container.size_flags_horizontal = Control.SIZE_SHRINK_END
 	main_vbox.add_child(button_container)
 	
 	var apply_button = Button.new()
@@ -783,6 +807,9 @@ func _on_advanced_shader_settings_changed(settings: Dictionary):
 	if pixelize_check and settings.has("pixelize_enabled"):
 		pixelize_check.button_pressed = settings.pixelize_enabled
 		current_settings.pixelize = settings.pixelize_enabled
+	
+	# NUEVA FUNCIONALIDAD: Emitir señal específica para shader avanzado
+	shader_settings_changed.emit(settings.duplicate())
 	
 	settings_changed.emit(_get_enhanced_settings())
 
@@ -859,7 +886,7 @@ func apply_delay_recommendation(recommendation: Dictionary):
 		var recommended_delay = recommendation.recommended_delay
 		print("✅ Aplicando recomendacion: %.4fs delay" % recommended_delay)
 		
-		delay_spinbox.value = recommended_delay
+		if delay_spinbox: delay_spinbox.value = recommended_delay
 		# El cambio en delay_spinbox disparara _on_delay_changed automaticamente
 
 func validate_delay_settings() -> bool:
