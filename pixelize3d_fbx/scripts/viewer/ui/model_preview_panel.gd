@@ -616,3 +616,309 @@ func hide_orientation_cross():
 	"""Ocultar cruz de orientación"""
 	if orientation_overlay:
 		orientation_overlay.visible = false
+
+
+
+# ========================================================================
+# NUEVAS FUNCIONES PARA SHADER AVANZADO - AGREGAR A model_preview_panel.gd
+# ========================================================================
+
+# AGREGAR ESTAS VARIABLES AL INICIO DE LA CLASE (después de var current_model)
+var current_shader_settings: Dictionary = {}
+var shader_applied_to_model: bool = false
+
+# FUNCIÓN PRINCIPAL: Aplicar shader avanzado al modelo actual
+func apply_advanced_shader(shader_settings: Dictionary):
+	"""Aplicar configuración de shader avanzado al modelo actual en el preview"""
+	print("🎨 Aplicando shader avanzado al modelo en preview...")
+	print("   Modelo actual: %s" % (current_model.name if current_model else "NINGUNO"))
+	
+	if not current_model:
+		print("   ❌ No hay modelo actual para aplicar shader")
+		return
+	
+	# Guardar configuración
+	current_shader_settings = shader_settings.duplicate()
+	
+	# Buscar todas las MeshInstance3D en el modelo
+	var mesh_instances = _find_all_mesh_instances_in_model(current_model)
+	print("   📦 Encontradas %d mesh instances en el modelo" % mesh_instances.size())
+	
+	var applied_count = 0
+	var total_surfaces = 0
+	
+	for mesh_instance in mesh_instances:
+		var surfaces_processed = _apply_shader_to_mesh_instance(mesh_instance, shader_settings)
+		if surfaces_processed > 0:
+			applied_count += 1
+			total_surfaces += surfaces_processed
+			print("   ✅ Shader aplicado a: %s (%d superficies)" % [mesh_instance.name, surfaces_processed])
+		else:
+			print("   ⚠️ No se pudo aplicar shader a: %s" % mesh_instance.name)
+	
+	shader_applied_to_model = applied_count > 0
+	
+	if shader_applied_to_model:
+		print("   🎉 Shader avanzado aplicado exitosamente!")
+		print("   📊 Resumen: %d mesh instances, %d superficies procesadas" % [applied_count, total_surfaces])
+	else:
+		print("   ❌ No se pudo aplicar shader a ninguna mesh instance")
+
+# FUNCIÓN AUXILIAR: Encontrar todas las MeshInstance3D en el modelo
+func _find_all_mesh_instances_in_model(model: Node3D) -> Array:
+	"""Encontrar recursivamente todas las MeshInstance3D en el modelo"""
+	var mesh_instances = []
+	
+	# Si el nodo actual es MeshInstance3D, agregarlo
+	if model is MeshInstance3D:
+		mesh_instances.append(model)
+	
+	# Buscar recursivamente en todos los hijos
+	for child in model.get_children():
+		if child is Node3D:
+			mesh_instances.append_array(_find_all_mesh_instances_in_model(child))
+	
+	return mesh_instances
+
+# FUNCIÓN AUXILIAR: Aplicar shader a una MeshInstance3D específica
+func _apply_shader_to_mesh_instance(mesh_instance: MeshInstance3D, shader_settings: Dictionary) -> int:
+	"""Aplicar shader a todas las superficies de una MeshInstance3D"""
+	if not mesh_instance or not mesh_instance.mesh:
+		return 0
+	
+	var surfaces_processed = 0
+	var surface_count = mesh_instance.mesh.get_surface_count()
+	
+	print("     Procesando %s con %d superficies..." % [mesh_instance.name, surface_count])
+	
+	for surface_idx in range(surface_count):
+		if _apply_shader_to_surface(mesh_instance, surface_idx, shader_settings):
+			surfaces_processed += 1
+	
+	return surfaces_processed
+
+# FUNCIÓN AUXILIAR: Aplicar shader a una superficie específica
+func _apply_shader_to_surface(mesh_instance: MeshInstance3D, surface_idx: int, shader_settings: Dictionary) -> bool:
+	"""Aplicar shader avanzado a una superficie específica de la mesh"""
+	var target_material = null
+	var material_source = ""
+	
+	# 1. Verificar si ya tiene surface override material
+	var surface_override = mesh_instance.get_surface_override_material(surface_idx)
+	if surface_override:
+		target_material = surface_override
+		material_source = "surface_override"
+	
+	# 2. Si no tiene override, crear uno desde el material original
+	elif mesh_instance.mesh.surface_get_material(surface_idx):
+		var original_material = mesh_instance.mesh.surface_get_material(surface_idx)
+		target_material = original_material.duplicate()
+		mesh_instance.set_surface_override_material(surface_idx, target_material)
+		material_source = "created_from_original"
+		print("       Creado material override para superficie %d" % surface_idx)
+	
+	# 3. Si no hay material, crear uno nuevo
+	else:
+		target_material = StandardMaterial3D.new()
+		mesh_instance.set_surface_override_material(surface_idx, target_material)
+		material_source = "created_new"
+		print("       Creado material nuevo para superficie %d" % surface_idx)
+	
+	if not target_material:
+		print("       ❌ No se pudo obtener material para superficie %d" % surface_idx)
+		return false
+	
+	# 4. Convertir a ShaderMaterial si es necesario
+	var shader_material = _convert_to_shader_material(target_material, mesh_instance, surface_idx)
+	if not shader_material:
+		print("       ❌ No se pudo convertir a ShaderMaterial superficie %d" % surface_idx)
+		return false
+	
+	# 5. Cargar y aplicar el shader avanzado
+	if not _ensure_advanced_shader_loaded(shader_material):
+		print("       ❌ No se pudo cargar shader avanzado para superficie %d" % surface_idx)
+		return false
+	
+	# 6. Aplicar todos los parámetros del shader
+	_apply_shader_parameters(shader_material, shader_settings)
+	
+	print("       ✅ Superficie %d: shader aplicado (%s)" % [surface_idx, material_source])
+	return true
+
+# FUNCIÓN AUXILIAR: Convertir material a ShaderMaterial
+func _convert_to_shader_material(material: Material, mesh_instance: MeshInstance3D, surface_idx: int) -> ShaderMaterial:
+	"""Convertir un material a ShaderMaterial preservando propiedades"""
+	
+	# Si ya es ShaderMaterial, devolverlo directamente
+	if material is ShaderMaterial:
+		return material as ShaderMaterial
+	
+	# Crear nuevo ShaderMaterial
+	var shader_material = ShaderMaterial.new()
+	
+	# Preservar propiedades importantes si es StandardMaterial3D
+	if material is StandardMaterial3D:
+		var std_material = material as StandardMaterial3D
+		
+		# Preservar textura principal (albedo)
+		if std_material.albedo_texture:
+			shader_material.set_shader_parameter("main_texture", std_material.albedo_texture)
+		
+		# Preservar color albedo
+		if std_material.albedo_color != Color.WHITE:
+			shader_material.set_shader_parameter("base_color", std_material.albedo_color)
+		
+		print("       🔄 Material convertido de StandardMaterial3D a ShaderMaterial")
+	else:
+		print("       🔄 Material convertido de %s a ShaderMaterial" % material.get_class())
+	
+	# Asignar el nuevo ShaderMaterial a la superficie
+	mesh_instance.set_surface_override_material(surface_idx, shader_material)
+	
+	return shader_material
+
+# FUNCIÓN AUXILIAR: Asegurar que el shader avanzado esté cargado
+func _ensure_advanced_shader_loaded(shader_material: ShaderMaterial) -> bool:
+	"""Asegurar que el shader avanzado esté cargado en el material"""
+	var shader_path = "res://resources/shaders/pixelize_advanced.gdshader"
+	
+	# Si ya tiene el shader correcto, retornar true
+	if shader_material.shader and shader_material.shader.resource_path == shader_path:
+		return true
+	
+	# Cargar el shader avanzado
+	if ResourceLoader.exists(shader_path):
+		var advanced_shader = load(shader_path) as Shader
+		if advanced_shader:
+			shader_material.shader = advanced_shader
+			print("       🔧 Shader avanzado cargado desde: %s" % shader_path)
+			return true
+		else:
+			print("       ❌ Error: No se pudo cargar como Shader: %s" % shader_path)
+			return false
+	else:
+		print("       ❌ Error: Archivo de shader no encontrado: %s" % shader_path)
+		return false
+
+# FUNCIÓN AUXILIAR: Aplicar parámetros del shader
+func _apply_shader_parameters(shader_material: ShaderMaterial, shader_settings: Dictionary):
+	"""Aplicar todos los parámetros del shader avanzado al material"""
+	
+	# Parámetros de pixelización
+	shader_material.set_shader_parameter("pixel_size", shader_settings.get("pixel_size", 4.0))
+	
+	# Parámetros de reducción de colores
+	shader_material.set_shader_parameter("reduce_colors", shader_settings.get("reduce_colors", false))
+	shader_material.set_shader_parameter("color_levels", shader_settings.get("color_levels", 16))
+	
+	# Parámetros de dithering
+	shader_material.set_shader_parameter("enable_dithering", shader_settings.get("enable_dithering", false))
+	shader_material.set_shader_parameter("dither_strength", shader_settings.get("dither_strength", 0.1))
+	
+	# Parámetros de bordes
+	shader_material.set_shader_parameter("enable_outline", shader_settings.get("enable_outline", false))
+	shader_material.set_shader_parameter("outline_thickness", shader_settings.get("outline_thickness", 1.0))
+	shader_material.set_shader_parameter("outline_color", shader_settings.get("outline_color", Color.BLACK))
+	shader_material.set_shader_parameter("outline_pixelated", shader_settings.get("outline_pixelated", true))
+	shader_material.set_shader_parameter("outline_smooth", shader_settings.get("outline_smooth", 0.0))
+	
+	# Efectos avanzados - aplicar solo si están habilitados
+	var contrast_value = 1.0
+	if shader_settings.get("contrast_enabled", false):
+		contrast_value = shader_settings.get("contrast_boost", 1.0)
+	shader_material.set_shader_parameter("contrast_boost", contrast_value)
+	
+	var saturation_value = 1.0
+	if shader_settings.get("saturation_enabled", false):
+		saturation_value = shader_settings.get("saturation_mult", 1.0)
+	shader_material.set_shader_parameter("saturation_mult", saturation_value)
+	
+	var tint_color = Color.WHITE
+	if shader_settings.get("tint_enabled", false):
+		tint_color = shader_settings.get("color_tint", Color.WHITE)
+	shader_material.set_shader_parameter("color_tint", tint_color)
+	
+	var apply_gamma = shader_settings.get("gamma_enabled", false)
+	shader_material.set_shader_parameter("apply_gamma_correction", apply_gamma)
+	shader_material.set_shader_parameter("gamma_value", shader_settings.get("gamma_value", 1.0))
+
+# FUNCIÓN PÚBLICA: Re-aplicar shader cuando cambie el modelo
+func _on_model_changed_reapply_shader():
+	"""Re-aplicar shader cuando el modelo cambia (llamar en show_model)"""
+	if not current_shader_settings.is_empty() and current_model:
+		print("🔄 Re-aplicando shader al nuevo modelo...")
+		apply_advanced_shader(current_shader_settings)
+
+# FUNCIÓN PÚBLICA: Limpiar shader del modelo
+func clear_advanced_shader():
+	"""Limpiar shader avanzado del modelo actual"""
+	if not current_model:
+		return
+	
+	print("🧹 Limpiando shader avanzado del modelo...")
+	
+	var mesh_instances = _find_all_mesh_instances_in_model(current_model)
+	var cleared_count = 0
+	
+	for mesh_instance in mesh_instances:
+		for surface_idx in range(mesh_instance.mesh.get_surface_count() if mesh_instance.mesh else 0):
+			# Remover surface override material para volver al original
+			mesh_instance.set_surface_override_material(surface_idx, null)
+			cleared_count += 1
+	
+	current_shader_settings.clear()
+	shader_applied_to_model = false
+	
+	print("✅ Shader limpiado de %d superficies" % cleared_count)
+
+# FUNCIÓN PÚBLICA: Obtener estado del shader
+func get_shader_status() -> Dictionary:
+	"""Obtener información del estado actual del shader"""
+	return {
+		"shader_applied": shader_applied_to_model,
+		"settings_count": current_shader_settings.size(),
+		"has_model": current_model != null,
+		"model_name": current_model.name if current_model else ""
+	}
+
+# MODIFICAR LA FUNCIÓN EXISTENTE show_model PARA RE-APLICAR SHADER
+# AGREGAR AL FINAL DE LA FUNCIÓN show_model EXISTENTE:
+func _reapply_shader_after_model_change():
+	"""Llamar al final de show_model para re-aplicar shader"""
+	if not current_shader_settings.is_empty():
+		# Usar call_deferred para asegurar que el modelo esté completamente cargado
+		call_deferred("_on_model_changed_reapply_shader")
+
+# FUNCIÓN DE DEBUG (OPCIONAL): Debug del estado del shader
+func debug_shader_state():
+	"""Debug del estado actual del shader en el modelo"""
+	print("\n🔍 === DEBUG SHADER EN MODEL PREVIEW ===")
+	print("Modelo actual: %s" % (current_model.name if current_model else "NINGUNO"))
+	print("Shader aplicado: %s" % shader_applied_to_model)
+	print("Configuración: %d parámetros" % current_shader_settings.size())
+	
+	if current_model:
+		var mesh_instances = _find_all_mesh_instances_in_model(current_model)
+		print("Mesh instances encontradas: %d" % mesh_instances.size())
+		
+		for mesh_instance in mesh_instances:
+			print("  • %s:" % mesh_instance.name)
+			if mesh_instance.mesh:
+				for surface_idx in range(mesh_instance.mesh.get_surface_count()):
+					var override_mat = mesh_instance.get_surface_override_material(surface_idx)
+					if override_mat:
+						var is_shader_mat = override_mat is ShaderMaterial
+						var has_advanced_shader = false
+						if is_shader_mat and override_mat.shader:
+							has_advanced_shader = "pixelize_advanced" in override_mat.shader.resource_path
+						print("    Superficie %d: %s %s" % [
+							surface_idx,
+							"ShaderMaterial" if is_shader_mat else override_mat.get_class(),
+							"(shader avanzado)" if has_advanced_shader else ""
+						])
+					else:
+						print("    Superficie %d: sin override" % surface_idx)
+			else:
+				print("    Sin mesh")
+	
+	print("=========================================\n")

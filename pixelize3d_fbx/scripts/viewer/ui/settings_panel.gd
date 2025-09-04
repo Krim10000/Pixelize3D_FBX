@@ -67,6 +67,7 @@ func _ready():
 	print("⚙️ SettingsPanel con DELAY SYSTEM + SHADER AVANZADO inicializado")
 	_create_ui()
 	_apply_current_settings()
+	_initialize_shader_system()
 
 func _create_ui():
 	# Titulo de seccion
@@ -731,55 +732,187 @@ func _validate_shader_system() -> bool:
 	print("✅ Sistema de shader validado correctamente")
 	return true
 
-func _create_advanced_shader_panel():
-	"""Crear el panel avanzado de shader como ventana modal"""
-	
-	# Crear ventana de configuración avanzada
-	var advanced_window = Window.new()
-	advanced_window.title = "Configuración Avanzada de Shader"
-	advanced_window.size = Vector2i(600, 500)
-	advanced_window.unresizable = false
-	advanced_window.transient = true
-	advanced_window.exclusive = false
-	get_tree().current_scene.add_child(advanced_window)
-	
-	# Container principal con botones
-	var main_vbox = VBoxContainer.new()
-	advanced_window.add_child(main_vbox)
-	
-	# Crear el panel avanzado dentro de la ventana
-	advanced_shader_panel = preload("res://scripts/ui/advanced_shader_panel.gd").new()
-	#res://scripts/ui/advanced_shader_panel.gd
-	advanced_shader_panel.name = "AdvancedShaderPanel"
-	main_vbox.add_child(advanced_shader_panel)
-	
-	# Botones de acción
-	var button_container = HBoxContainer.new()
-	button_container.size_flags_horizontal = Control.SIZE_SHRINK_END
-	main_vbox.add_child(button_container)
-	
-	var apply_button = Button.new()
-	apply_button.text = "Aplicar y Cerrar"
-	apply_button.pressed.connect(func(): _on_advanced_shader_applied(); advanced_window.hide())
-	button_container.add_child(apply_button)
-	
-	var cancel_button = Button.new()
-	cancel_button.text = "Cancelar"
-	cancel_button.pressed.connect(func(): advanced_window.hide())
-	button_container.add_child(cancel_button)
-	
-	# Conectar señales del panel avanzado
-	advanced_shader_panel.shader_settings_changed.connect(_on_advanced_shader_settings_changed)
-	advanced_shader_panel.reset_to_defaults_requested.connect(_on_shader_reset_requested)
-	
-	# Configurar cierre con X
-	advanced_window.close_requested.connect(func(): advanced_window.hide())
-	
-	print("✅ Panel avanzado de shader creado")
-	return advanced_window
 
+#func _create_advanced_shader_panel():
+	#"""Crear el panel avanzado de shader como ventana modal - POSICIONAMIENTO CORREGIDO"""
+	#
+	#var advanced_window = Window.new()
+	#advanced_window.title = "Configuración Avanzada de Shader"
+	#advanced_window.size = Vector2i(650, 700)
+	#advanced_window.min_size = Vector2i(600, 650)
+	#advanced_window.unresizable = false
+	#advanced_window.transient = true
+	#advanced_window.exclusive = false
+	#
+	## CORREGIDO: Posicionar 300px más a la derecha
+	#var screen_size = DisplayServer.screen_get_size()
+	#var viewport_right_edge = screen_size.x * 0.6  # Asumiendo que el viewport ocupa ~60% de la pantalla
+	#advanced_window.position = Vector2i(
+		#int(viewport_right_edge + 320),  # CAMBIADO: +320px en lugar de +20px (300px más)
+		#50  # Posición vertical desde arriba
+	#)
+	#
+	## Si la ventana se sale de la pantalla, ajustar posición
+	#if advanced_window.position.x + advanced_window.size.x > screen_size.x:
+		#advanced_window.position.x = screen_size.x - advanced_window.size.x - 20
+	#
+	#get_tree().current_scene.add_child(advanced_window)
+	#
+	## Container principal con márgenes más pequeños
+	#var window_margin = MarginContainer.new()
+	#window_margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	#window_margin.add_theme_constant_override("margin_left", 10)
+	#window_margin.add_theme_constant_override("margin_right", 10)
+	#window_margin.add_theme_constant_override("margin_top", 10)
+	#window_margin.add_theme_constant_override("margin_bottom", 60)  # Espacio para botones
+	#advanced_window.add_child(window_margin)
+	#
+	## El panel avanzado ocupa todo el espacio disponible
+	#advanced_shader_panel = preload("res://scripts/ui/advanced_shader_panel.gd").new()
+	#advanced_shader_panel.name = "AdvancedShaderPanel"
+	#advanced_shader_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	#advanced_shader_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	#window_margin.add_child(advanced_shader_panel)
+	#
+	## Botones FIJOS en la parte inferior de la ventana
+	#var button_background = Panel.new()
+	#button_background.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	#button_background.size.y = 50
+	#button_background.position.y = advanced_window.size.y - 50
+	#advanced_window.add_child(button_background)
+	#
+	#var button_container = HBoxContainer.new()
+	#button_container.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	#button_container.alignment = BoxContainer.ALIGNMENT_CENTER
+	#button_container.add_theme_constant_override("separation", 15)
+	#button_background.add_child(button_container)
+	#
+	#var apply_button = Button.new()
+	#apply_button.text = "✅ Aplicar y Cerrar"
+	#apply_button.custom_minimum_size = Vector2(140, 35)
+	#apply_button.pressed.connect(func(): 
+		#_on_advanced_shader_applied()
+		#advanced_window.hide()
+	#)
+	#button_container.add_child(apply_button)
+	#
+	#var cancel_button = Button.new()
+	#cancel_button.text = "❌ Cancelar"
+	#cancel_button.custom_minimum_size = Vector2(90, 35)
+	#cancel_button.pressed.connect(func(): 
+		#if advanced_shader_panel and not current_shader_settings.is_empty():
+			#advanced_shader_panel.apply_settings(current_shader_settings)
+		#advanced_window.hide()
+	#)
+	#button_container.add_child(cancel_button)
+	#
+	## Conectar señales
+	#if advanced_shader_panel.has_signal("shader_settings_changed"):
+		#advanced_shader_panel.shader_settings_changed.connect(_on_advanced_shader_settings_changed)
+	#
+	#if advanced_shader_panel.has_signal("reset_to_defaults_requested"):
+		#advanced_shader_panel.reset_to_defaults_requested.connect(_on_shader_reset_requested)
+	#
+	## Configurar cierre con X
+	#advanced_window.close_requested.connect(func(): 
+		#if advanced_shader_panel and not current_shader_settings.is_empty():
+			#advanced_shader_panel.apply_settings(current_shader_settings)
+		#advanced_window.hide()
+	#)
+	#
+	## Aplicar configuración actual si existe
+	#if not current_shader_settings.is_empty() and advanced_shader_panel.has_method("apply_settings"):
+		#advanced_shader_panel.apply_settings(current_shader_settings)
+	#
+	#print("✅ Panel avanzado de shader creado correctamente - Posicionado a la derecha")
+	#return advanced_window
+
+
+
+
+# FUNCIÓN MEJORADA: Manejar la aplicación de configuración
+func _on_advanced_shader_applied():
+	"""Aplicar configuración avanzada y actualizar sistema - MEJORADA"""
+	if advanced_shader_panel:
+		var new_settings = advanced_shader_panel.get_current_settings()
+		current_shader_settings = new_settings.duplicate()
+		
+		# Log detallado de la configuración aplicada
+		print("✅ Configuración avanzada aplicada:")
+		print("   • Configuraciones totales: %d" % current_shader_settings.size())
+		
+		# Detalles específicos del tinte
+		var tint_enabled = current_shader_settings.get("enable_color_tint", false)
+		var tint_color = current_shader_settings.get("color_tint", Color.WHITE)
+		print("   • Tinte de color: %s" % ("Habilitado (%s)" % tint_color if tint_enabled else "Deshabilitado"))
+		
+		# Detalles de otros efectos importantes
+		print("   • Pixelización: %.0f px" % current_shader_settings.get("pixel_size", 4.0))
+		print("   • Bordes: %s (grosor: %.1f)" % [
+			"Habilitados" if current_shader_settings.get("enable_outline", false) else "Deshabilitados",
+			current_shader_settings.get("outline_thickness", 1.0)
+		])
+		print("   • Reducción de colores: %s" % (
+			"Sí (%d niveles)" % current_shader_settings.get("color_levels", 16) 
+			if current_shader_settings.get("reduce_colors", false) 
+			else "No"
+		))
+		
+		# Actualizar el checkbox básico de pixelización si existe
+		if pixelize_check and current_shader_settings.has("pixelize_enabled"):
+			pixelize_check.button_pressed = current_shader_settings.pixelize_enabled
+			current_settings.pixelize = current_shader_settings.pixelize_enabled
+		
+		# Emitir señal con configuración actualizada
+		settings_changed.emit(_get_enhanced_settings())
+		
+		# Aplicar a material actual si existe un modelo cargado
+		_apply_shader_to_current_model()
+
+# FUNCIÓN ADICIONAL: Aplicar shader al modelo actual
+func _apply_shader_to_current_model():
+	"""Aplicar configuración de shader al modelo actual en el viewport"""
+	# Buscar el ViewerCoordinator
+	var viewer_coordinator = get_node_or_null("/root/ViewerModular")
+	if not viewer_coordinator:
+		return
+	
+	# Buscar el preview panel
+	var preview_panel = viewer_coordinator.get_node_or_null("HSplitContainer/RightPanel/ModelPreviewPanel")
+	if not preview_panel:
+		return
+	
+	# Buscar el viewport y el modelo
+	var viewport_container = preview_panel.get_node_or_null("ViewportContainer")
+	if not viewport_container:
+		return
+		
+	var subviewport = viewport_container.get_node_or_null("SubViewport")
+	if not subviewport:
+		return
+	
+	# Buscar todos los MeshInstance3D en el viewport
+	var meshes = _find_all_mesh_instances(subviewport)
+	
+	for mesh_inst in meshes:
+		if mesh_inst.material_override and mesh_inst.material_override is ShaderMaterial:
+			apply_advanced_shader_to_material(mesh_inst.material_override, _get_enhanced_settings())
+			print("   • Shader aplicado a: %s" % mesh_inst.name)
+
+func _find_all_mesh_instances(node: Node) -> Array:
+	"""Buscar recursivamente todos los MeshInstance3D"""
+	var meshes = []
+	if node is MeshInstance3D:
+		meshes.append(node)
+	
+	for child in node.get_children():
+		meshes.append_array(_find_all_mesh_instances(child))
+	
+	return meshes
+
+# MANTENER LA FUNCIÓN EXISTENTE _on_show_advanced_shader_panel sin cambios
 func _on_show_advanced_shader_panel():
-	"""Mostrar el panel avanzado de shader con validación"""
+	"""Mostrar el panel avanzado de shader con validación - SIN CAMBIOS"""
 	print("🎨 Mostrando panel avanzado de shader...")
 	
 	if not _validate_shader_system():
@@ -800,26 +933,45 @@ func _on_show_advanced_shader_panel():
 		else:
 			print("⚠️ No se pudo encontrar la ventana padre")
 
-func _on_advanced_shader_settings_changed(settings: Dictionary):
-	"""Manejar cambios en configuración avanzada de shader"""
-	current_shader_settings = settings.duplicate()
-	
-	if pixelize_check and settings.has("pixelize_enabled"):
-		pixelize_check.button_pressed = settings.pixelize_enabled
-		current_settings.pixelize = settings.pixelize_enabled
-	
-	# NUEVA FUNCIONALIDAD: Emitir señal específica para shader avanzado
-	shader_settings_changed.emit(settings.duplicate())
-	
-	settings_changed.emit(_get_enhanced_settings())
 
-func _on_advanced_shader_applied():
-	"""Aplicar configuración avanzada y cerrar panel"""
-	if advanced_shader_panel:
-		current_shader_settings = advanced_shader_panel.get_current_settings()
-		print("✅ Configuración avanzada aplicada:")
-		print("  Configuraciones guardadas: %d" % current_shader_settings.size())
-		settings_changed.emit(_get_enhanced_settings())
+
+
+# FUNCIÓN AUXILIAR: Crear estilo para botones
+func _create_button_style(color: Color) -> StyleBoxFlat:
+	"""Crear estilo visual para botones"""
+	var style = StyleBoxFlat.new()
+	style.bg_color = color
+	style.corner_radius_top_left = 4
+	style.corner_radius_top_right = 4
+	style.corner_radius_bottom_left = 4
+	style.corner_radius_bottom_right = 4
+	style.content_margin_left = 10
+	style.content_margin_right = 10
+	style.content_margin_top = 5
+	style.content_margin_bottom = 5
+	return style
+
+
+#func _on_advanced_shader_settings_changed(settings: Dictionary):
+	#"""Manejar cambios en configuración avanzada de shader"""
+	#current_shader_settings = settings.duplicate()
+	#
+	#if pixelize_check and settings.has("pixelize_enabled"):
+		#pixelize_check.button_pressed = settings.pixelize_enabled
+		#current_settings.pixelize = settings.pixelize_enabled
+	#
+	## NUEVA FUNCIONALIDAD: Emitir señal específica para shader avanzado
+	#shader_settings_changed.emit(settings.duplicate())
+	#
+	#settings_changed.emit(_get_enhanced_settings())
+#
+##func _on_advanced_shader_applied():
+	##"""Aplicar configuración avanzada y cerrar panel"""
+	##if advanced_shader_panel:
+		##current_shader_settings = advanced_shader_panel.get_current_settings()
+		##print("✅ Configuración avanzada aplicada:")
+		##print("  Configuraciones guardadas: %d" % current_shader_settings.size())
+		##settings_changed.emit(_get_enhanced_settings())
 
 func _on_shader_reset_requested():
 	"""Resetear configuración de shader a valores por defecto"""
@@ -1139,3 +1291,191 @@ func validate_settings() -> bool:
 		valid = false
 	
 	return valid
+
+
+
+
+# ========================================================================
+# NUEVAS FUNCIONES PARA SHADER AVANZADO - AGREGAR A settings_panel.gd
+# ========================================================================
+
+# AGREGAR ESTA VARIABLE AL INICIO DE LA CLASE (después de var current_shader_settings)
+var model_preview_panel: Control = null
+
+# NUEVA FUNCIÓN: Conectar señales del shader avanzado (llamar en _ready)
+func _connect_advanced_shader_signals():
+	"""Conectar señales del panel avanzado de shader"""
+	if advanced_shader_panel and advanced_shader_panel.has_signal("shader_settings_changed"):
+		# Conectar la señal del panel avanzado
+		advanced_shader_panel.shader_settings_changed.connect(_on_advanced_shader_settings_changed)
+		print("✅ Señal shader_settings_changed conectada desde advanced_shader_panel")
+	
+	# Obtener referencia al model preview panel para aplicar shader
+	_get_model_preview_panel_reference()
+
+# NUEVA FUNCIÓN: Obtener referencia al model preview panel
+func _get_model_preview_panel_reference():
+	"""Obtener referencia al ModelPreviewPanel"""
+	var viewer_coordinator = get_node_or_null("/root/ViewerModular")
+	if viewer_coordinator:
+		model_preview_panel = viewer_coordinator.get_node_or_null("HSplitContainer/RightPanel/ModelPreviewPanel")
+		if model_preview_panel:
+			print("✅ ModelPreviewPanel encontrado para aplicación de shader")
+		else:
+			print("❌ ModelPreviewPanel no encontrado")
+	else:
+		print("❌ ViewerModular no encontrado")
+
+# FUNCIÓN MEJORADA: Reemplazar la función _on_advanced_shader_settings_changed existente
+func _on_advanced_shader_settings_changed(settings: Dictionary):
+	"""Manejar cambios en configuración avanzada de shader - MEJORADA"""
+	print("📡 Configuración de shader avanzado recibida desde panel:")
+	print("   • Pixelización: %s (tamaño: %.0f)" % [settings.get("pixelize_enabled", false), settings.get("pixel_size", 4.0)])
+	print("   • Reducción colores: %s (%d niveles)" % [settings.get("reduce_colors", false), settings.get("color_levels", 16)])
+	print("   • Dithering: %s (fuerza: %.2f)" % [settings.get("enable_dithering", false), settings.get("dither_strength", 0.1)])
+	print("   • Bordes: %s (grosor: %.1f)" % [settings.get("enable_outline", false), settings.get("outline_thickness", 1.0)])
+	
+	# Actualizar configuración interna
+	current_shader_settings = settings.duplicate()
+	
+	# Sincronizar checkbox básico si existe
+	if pixelize_check and settings.has("pixelize_enabled"):
+		pixelize_check.button_pressed = settings.pixelize_enabled
+		current_settings.pixelize = settings.pixelize_enabled
+	
+	# CRÍTICO: Aplicar shader al modelo en el preview
+	_apply_shader_to_preview_model(settings)
+	
+	# Emitir señal general de configuración actualizada (sin efectos de cámara)
+	settings_changed.emit(_get_enhanced_settings())
+	print("   ✅ Configuración de shader aplicada y propagada")
+
+# NUEVA FUNCIÓN: Aplicar shader al modelo en el preview
+func _apply_shader_to_preview_model(shader_settings: Dictionary):
+	"""Aplicar configuración de shader al modelo en el ModelPreviewPanel"""
+	if not model_preview_panel:
+		print("   ⚠️ No hay referencia al ModelPreviewPanel")
+		return
+	
+	if model_preview_panel.has_method("apply_advanced_shader"):
+		model_preview_panel.apply_advanced_shader(shader_settings)
+		print("   ✅ Shader aplicado al modelo en preview")
+	else:
+		print("   ❌ ModelPreviewPanel no tiene método apply_advanced_shader")
+
+# FUNCIÓN MEJORADA: Actualizar _create_advanced_shader_panel para conectar señales
+func _create_advanced_shader_panel():
+	"""Crear el panel avanzado de shader como ventana modal - CON CONEXIONES"""
+	
+	var advanced_window = Window.new()
+	advanced_window.title = "Configuración Avanzada de Shader"
+	advanced_window.size = Vector2i(650, 700)
+	advanced_window.min_size = Vector2i(600, 650)
+	advanced_window.unresizable = false
+	advanced_window.transient = true
+	advanced_window.exclusive = false
+	
+	# Posicionar 300px más a la derecha
+	var screen_size = DisplayServer.screen_get_size()
+	var viewport_right_edge = screen_size.x * 0.6
+	advanced_window.position = Vector2i(
+		int(viewport_right_edge + 320),
+		50
+	)
+	
+	# Si la ventana se sale de la pantalla, ajustar posición
+	if advanced_window.position.x + advanced_window.size.x > screen_size.x:
+		advanced_window.position.x = screen_size.x - advanced_window.size.x - 20
+	
+	get_tree().current_scene.add_child(advanced_window)
+	
+	# Container principal con márgenes
+	var window_margin = MarginContainer.new()
+	window_margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	window_margin.add_theme_constant_override("margin_left", 10)
+	window_margin.add_theme_constant_override("margin_right", 10)
+	window_margin.add_theme_constant_override("margin_top", 10)
+	window_margin.add_theme_constant_override("margin_bottom", 60)
+	advanced_window.add_child(window_margin)
+	
+	# El panel avanzado ocupa todo el espacio disponible
+	advanced_shader_panel = preload("res://scripts/ui/advanced_shader_panel.gd").new()
+	advanced_shader_panel.name = "AdvancedShaderPanel"
+	advanced_shader_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	advanced_shader_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	window_margin.add_child(advanced_shader_panel)
+	
+	# Botones FIJOS en la parte inferior de la ventana
+	var button_background = Panel.new()
+	button_background.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	button_background.size.y = 50
+	button_background.position.y = advanced_window.size.y - 50
+	advanced_window.add_child(button_background)
+	
+	var button_container = HBoxContainer.new()
+	button_container.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	button_container.alignment = BoxContainer.ALIGNMENT_CENTER
+	button_container.add_theme_constant_override("separation", 15)
+	button_background.add_child(button_container)
+	
+	var apply_button = Button.new()
+	apply_button.text = "✅ Aplicar y Cerrar"
+	apply_button.custom_minimum_size = Vector2(140, 35)
+	apply_button.pressed.connect(func(): 
+		_on_advanced_shader_applied()
+		advanced_window.hide()
+	)
+	button_container.add_child(apply_button)
+	
+	var cancel_button = Button.new()
+	cancel_button.text = "❌ Cancelar"
+	cancel_button.custom_minimum_size = Vector2(90, 35)
+	cancel_button.pressed.connect(func(): 
+		if advanced_shader_panel and not current_shader_settings.is_empty():
+			advanced_shader_panel.apply_settings(current_shader_settings)
+		advanced_window.hide()
+	)
+	button_container.add_child(cancel_button)
+	
+	# NUEVO: Conectar señales inmediatamente después de crear el panel
+	_connect_advanced_shader_signals()
+	
+	# Conectar otras señales existentes
+	if advanced_shader_panel.has_signal("reset_to_defaults_requested"):
+		advanced_shader_panel.reset_to_defaults_requested.connect(_on_shader_reset_requested)
+	
+	# Configurar cierre con X
+	advanced_window.close_requested.connect(func(): 
+		if advanced_shader_panel and not current_shader_settings.is_empty():
+			advanced_shader_panel.apply_settings(current_shader_settings)
+		advanced_window.hide()
+	)
+	
+	# Aplicar configuración actual si existe
+	if not current_shader_settings.is_empty() and advanced_shader_panel.has_method("apply_settings"):
+		advanced_shader_panel.apply_settings(current_shader_settings)
+	
+	print("✅ Panel avanzado de shader creado correctamente con conexiones")
+	return advanced_window
+
+# AGREGAR AL FINAL DE _ready() O EN NUEVA FUNCIÓN DE INICIALIZACIÓN:
+func _initialize_shader_system():
+	"""Inicializar sistema de shader avanzado"""
+	_get_model_preview_panel_reference()
+	
+	# Si el panel ya existe, conectar señales
+	if advanced_shader_panel:
+		_connect_advanced_shader_signals()
+
+# FUNCIÓN AUXILIAR: Verificar estado del sistema de shader (OPCIONAL - para debug)
+func debug_shader_system():
+	"""Debug del estado del sistema de shader"""
+	print("\n🔍 === DEBUG SISTEMA DE SHADER ===")
+	print("advanced_shader_panel: %s" % ("✅" if advanced_shader_panel else "❌"))
+	print("model_preview_panel: %s" % ("✅" if model_preview_panel else "❌"))
+	print("current_shader_settings: %d elementos" % current_shader_settings.size())
+	
+	if model_preview_panel:
+		print("model_preview_panel.current_model: %s" % ("✅" if model_preview_panel.current_model else "❌"))
+	
+	print("================================\n")

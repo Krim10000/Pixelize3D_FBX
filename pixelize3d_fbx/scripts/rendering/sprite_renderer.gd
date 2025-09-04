@@ -192,6 +192,7 @@ func _prepare_viewport_for_rendering(settings: Dictionary):
 	#print("  Modo actual: %d" % viewport.render_target_update_mode)
 	
 	# Configurar para renderizado óptimo
+	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS  # CRÍTICO
 	viewport.render_target_clear_mode = SubViewport.CLEAR_MODE_ALWAYS
 	
 	# No cambiar el tamaño para mantener consistencia con preview
