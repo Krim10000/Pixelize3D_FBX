@@ -5,12 +5,20 @@
 
 extends VBoxContainer
 
+
+
 # Señales especificas de este panel
 signal settings_changed(settings: Dictionary)
 signal preset_applied(preset_name: String)
 signal request_auto_north_detection()
 # NUEVA SEÑAL: Para shader avanzado
 signal shader_settings_changed(shader_settings: Dictionary)
+
+#tamaño captura
+var capture_resolution_buttons: Array[Button] = []
+var current_sprite_resolution: int = 128
+var resolution_info_label: Label
+
 
 # UI propia de este panel - EXTENDIDA PARA DELAY SYSTEM
 var section_label: Label
@@ -174,7 +182,7 @@ func _create_basic_settings():
 	# Pixelizado básico
 	pixelize_check = CheckBox.new()
 	pixelize_check.text = "Aplicar pixelizacion"
-	pixelize_check.button_pressed = true
+	pixelize_check.button_pressed = false
 	pixelize_check.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	pixelize_check.toggled.connect(_on_pixelize_changed)
 	pixelize_container.add_child(pixelize_check)
@@ -344,25 +352,178 @@ func _on_camera_height_changed(value: float):
 	print("📏 Altura de camara: %.1f" % value)
 	settings_changed.emit(current_settings.duplicate())
 
+#func _create_capture_area_settings():
+	#"""Crear configuracion de area de captura"""
+	#var capture_title = Label.new()
+	#capture_title.text = "🖼️ Area de Captura"
+	#capture_title.add_theme_font_size_override("font_size", 14)
+	#capture_title.add_theme_color_override("font_color", Color(0.3, 0.7, 1.0))
+	#add_child(capture_title)
+	#
+	## Descripcion del area de captura
+	#var capture_desc = Label.new()
+	#capture_desc.text = "Controla que tan grande se ve el modelo en el sprite final"
+	#capture_desc.add_theme_font_size_override("font_size", 10)
+	#capture_desc.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	#capture_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	#add_child(capture_desc)
+	#
+	## Slider de area de captura
+	#var capture_container = HBoxContainer.new()
+	#add_child(capture_container)
+	#
+	#var capture_label = Label.new()
+	#capture_label.text = "Tamaño:"
+	#capture_label.custom_minimum_size.x = 80
+	#capture_container.add_child(capture_label)
+	#
+	#capture_area_slider = HSlider.new()
+	#capture_area_slider.min_value = 0.5    # Modelo MUY grande (area pequeña)
+	#capture_area_slider.max_value = 20.0   # Modelo pequeño (area grande)
+	#capture_area_slider.value = 2.3        # Tamaño normal
+	#capture_area_slider.step = 0.1
+	#capture_area_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	#capture_area_slider.value_changed.connect(_on_capture_area_changed)
+	#capture_container.add_child(capture_area_slider)
+	#
+	#capture_area_label = Label.new()
+	#capture_area_label.text = "2.3"
+	#capture_area_label.custom_minimum_size.x = 40
+	#capture_container.add_child(capture_area_label)
+	#
+	## Botones de presets de tamaño
+	#var size_presets_container = HBoxContainer.new()
+	#add_child(size_presets_container)
+	#
+	#var size_presets_label = Label.new()
+	#size_presets_label.text = "Presets:"
+	#size_presets_label.custom_minimum_size.x = 80
+	#size_presets_container.add_child(size_presets_label)
+	#
+	#var size_huge_btn = Button.new()
+	#size_huge_btn.text = "Gigante"
+	#size_huge_btn.custom_minimum_size.x = 55
+	#size_huge_btn.pressed.connect(_on_size_preset_pressed.bind(4.0))
+	#size_huge_btn.tooltip_text = "Modelo muy grande en el sprite"
+	#size_presets_container.add_child(size_huge_btn)
+	#
+	#var size_big_btn = Button.new()
+	#size_big_btn.text = "Grande"
+	#size_big_btn.custom_minimum_size.x = 55
+	#size_big_btn.pressed.connect(_on_size_preset_pressed.bind(6.0))
+	#size_presets_container.add_child(size_big_btn)
+	#
+	#var size_normal_btn = Button.new()
+	#size_normal_btn.text = "Normal"
+	#size_normal_btn.custom_minimum_size.x = 55
+	#size_normal_btn.pressed.connect(_on_size_preset_pressed.bind(8.0))
+	#size_presets_container.add_child(size_normal_btn)
+	#
+	#var size_small_btn = Button.new()
+	#size_small_btn.text = "Pequeño"
+	#size_small_btn.custom_minimum_size.x = 55
+	#size_small_btn.pressed.connect(_on_size_preset_pressed.bind(12.0))
+	#size_presets_container.add_child(size_small_btn)
+	#
+	## Informacion adicional
+	#var info_label = Label.new()
+	#info_label.text = "💡 Valores menores = modelo mas grande en sprite"
+	#info_label.add_theme_font_size_override("font_size", 9)
+	#info_label.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
+	#add_child(info_label)
+
 func _create_capture_area_settings():
-	"""Crear configuracion de area de captura"""
+	"""Crear configuración COMPLETA: resolución de sprite + tamaño del modelo - CON DEBUG"""
+	print("🔧 Iniciando creación de capture area settings...")
+	
+	# ===== SECCIÓN 1: RESOLUCIÓN DE SPRITE =====
+	var resolution_title = Label.new()
+	resolution_title.text = "🖼️ Resolución de Sprite"
+	resolution_title.add_theme_font_size_override("font_size", 14)
+	resolution_title.add_theme_color_override("font_color", Color(0.3, 0.7, 1.0))
+	add_child(resolution_title)
+	print("✅ Título de resolución agregado")
+	
+	# Descripción de resolución
+	var resolution_desc = Label.new()
+	resolution_desc.text = "Resolución del sprite final y viewport de preview"
+	resolution_desc.add_theme_font_size_override("font_size", 10)
+	resolution_desc.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
+	resolution_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	add_child(resolution_desc)
+	print("✅ Descripción de resolución agregada")
+	
+	# Contenedor para botones de resolución
+	var resolution_container = HBoxContainer.new()
+	resolution_container.alignment = BoxContainer.ALIGNMENT_CENTER
+	add_child(resolution_container)
+	print("✅ Container de resolución agregado")
+	
+	# Definir opciones de resolución
+	var resolution_options = [32, 64, 128, 256, 512]
+	
+	# Inicializar array si no existe
+	if capture_resolution_buttons == null:
+		capture_resolution_buttons = []
+	
+	# Crear botones radio para cada resolución
+	for resolution in resolution_options:
+		var button = Button.new()
+		button.text = str(resolution)
+		button.custom_minimum_size.x = 50
+		button.toggle_mode = true
+		button.button_group = ButtonGroup.new() if capture_resolution_buttons.is_empty() else capture_resolution_buttons[0].button_group
+		
+		# Configurar estado por defecto (128)
+		if resolution == 128:
+			button.button_pressed = true
+			current_sprite_resolution = 128
+		
+		# Conectar señal
+		button.pressed.connect(_on_resolution_selected.bind(resolution))
+		
+		# Tooltip informativo
+		button.tooltip_text = "%dx%d píxeles" % [resolution, resolution]
+		
+		capture_resolution_buttons.append(button)
+		resolution_container.add_child(button)
+	
+	print("✅ %d botones de resolución creados" % capture_resolution_buttons.size())
+	
+	# Label informativo de resolución actual
+	resolution_info_label = Label.new()
+	resolution_info_label.text = "Resolución actual: 128x128 píxeles"
+	resolution_info_label.add_theme_font_size_override("font_size", 10)
+	resolution_info_label.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
+	resolution_info_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	add_child(resolution_info_label)
+	print("✅ Label de info de resolución agregado")
+	
+	# ===== SEPARADOR =====
+	add_child(HSeparator.new())
+	print("✅ Separador agregado")
+	
+	# ===== SECCIÓN 2: TAMAÑO DEL MODELO (ÁREA DE CAPTURA) =====
 	var capture_title = Label.new()
-	capture_title.text = "🖼️ Area de Captura"
+	capture_title.text = "📏 Tamaño del Modelo"
 	capture_title.add_theme_font_size_override("font_size", 14)
 	capture_title.add_theme_color_override("font_color", Color(0.3, 0.7, 1.0))
 	add_child(capture_title)
+	print("✅ Título de tamaño agregado")
 	
-	# Descripcion del area de captura
+	# Descripción del área de captura
 	var capture_desc = Label.new()
-	capture_desc.text = "Controla que tan grande se ve el modelo en el sprite final"
+	capture_desc.text = "Controla qué tan grande se ve el modelo en el sprite final"
 	capture_desc.add_theme_font_size_override("font_size", 10)
 	capture_desc.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
 	capture_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	add_child(capture_desc)
+	print("✅ Descripción de tamaño agregada")
 	
-	# Slider de area de captura
+	# Slider de área de captura
 	var capture_container = HBoxContainer.new()
 	add_child(capture_container)
+	print("✅ Container de slider agregado")
 	
 	var capture_label = Label.new()
 	capture_label.text = "Tamaño:"
@@ -370,18 +531,20 @@ func _create_capture_area_settings():
 	capture_container.add_child(capture_label)
 	
 	capture_area_slider = HSlider.new()
-	capture_area_slider.min_value = 0.5    # Modelo MUY grande (area pequeña)
-	capture_area_slider.max_value = 20.0   # Modelo pequeño (area grande)
+	capture_area_slider.min_value = 0.5    # Modelo MUY grande (área pequeña)
+	capture_area_slider.max_value = 20.0   # Modelo pequeño (área grande)
 	capture_area_slider.value = 2.3        # Tamaño normal
 	capture_area_slider.step = 0.1
 	capture_area_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	capture_area_slider.value_changed.connect(_on_capture_area_changed)
 	capture_container.add_child(capture_area_slider)
+	print("✅ Slider de área de captura creado")
 	
 	capture_area_label = Label.new()
 	capture_area_label.text = "2.3"
 	capture_area_label.custom_minimum_size.x = 40
 	capture_container.add_child(capture_area_label)
+	print("✅ Label de valor de área agregado")
 	
 	# Botones de presets de tamaño
 	var size_presets_container = HBoxContainer.new()
@@ -416,14 +579,140 @@ func _create_capture_area_settings():
 	size_small_btn.custom_minimum_size.x = 55
 	size_small_btn.pressed.connect(_on_size_preset_pressed.bind(12.0))
 	size_presets_container.add_child(size_small_btn)
+	print("✅ 4 botones de preset creados")
 	
-	# Informacion adicional
+	# Información adicional
 	var info_label = Label.new()
-	info_label.text = "💡 Valores menores = modelo mas grande en sprite"
+	info_label.text = "💡 Valores menores = modelo más grande en sprite"
 	info_label.add_theme_font_size_override("font_size", 9)
 	info_label.add_theme_color_override("font_color", Color(0.6, 0.8, 1.0))
 	add_child(info_label)
+	print("✅ Label de información agregado")
+	
+	print("🎯 _create_capture_area_settings() COMPLETADO EXITOSAMENTE")
 
+
+
+# REEMPLAZAR ESTA FUNCIÓN en settings_panel.gd
+
+# ========================================================================
+# FUNCIÓN A REEMPLAZAR: _on_resolution_selected() - CON WIGGLE FIX
+# ========================================================================
+func _on_resolution_selected(resolution: int):
+	"""Manejar selección de resolución de sprite - CON WIGGLE PARA CENTRADO"""
+	print("🖼️ Resolución seleccionada: %d - aplicando con wiggle fix..." % resolution)
+	
+	current_sprite_resolution = resolution
+	current_settings.sprite_size = resolution
+	
+	# Actualizar label informativo
+	if resolution_info_label:
+		resolution_info_label.text = "Resolución actual: %dx%d píxeles" % [resolution, resolution]
+	
+	print("  ✅ Configuración de resolución actualizada")
+	
+	# Emitir señal con configuración actualizada (SIN wiggle aún)
+	settings_changed.emit(_get_enhanced_settings())
+	_update_capture_area_visual()
+	
+	# ✅ WIGGLE FIX: Forzar re-centrado con micro-cambio del slider
+	_perform_centering_wiggle()
+
+# ========================================================================
+# FUNCIÓN NUEVA: _perform_centering_wiggle()
+# ========================================================================
+func _perform_centering_wiggle():
+	"""Realizar wiggle del slider para forzar re-centrado"""
+	if not capture_area_slider:
+		print("❌ No hay capture_area_slider para wiggle")
+		return
+	
+	print("🔄 Iniciando wiggle fix para centrado...")
+	
+	# Guardar valor original
+	var original_value = capture_area_slider.value
+	print("  💾 Valor original del slider: %.3f" % original_value)
+	
+	# Calcular valores para wiggle (asegurar que estén en rango válido)
+	var wiggle_up = min(original_value + 0.1, capture_area_slider.max_value)
+	var wiggle_down = max(original_value - 0.1, capture_area_slider.min_value)
+	
+	# Si el wiggle no hace diferencia (valor muy cerca del límite), usar diferente estrategia
+	if abs(wiggle_up - original_value) < 0.05:
+		wiggle_up = max(original_value - 0.1, capture_area_slider.min_value)
+	if abs(wiggle_down - original_value) < 0.05:
+		wiggle_down = min(original_value + 0.1, capture_area_slider.max_value)
+	
+	print("  📈 Wiggle up: %.3f" % wiggle_up)
+	print("  📉 Wiggle down: %.3f" % wiggle_down)
+	
+	# Realizar wiggle con delays
+	_execute_wiggle_sequence(original_value, wiggle_up, wiggle_down)
+
+# ========================================================================
+# FUNCIÓN NUEVA: _execute_wiggle_sequence()
+# ========================================================================
+func _execute_wiggle_sequence(original: float, up: float, down: float):
+	"""Ejecutar secuencia de wiggle con timing correcto"""
+	
+	# Paso 1: Subir +0.1
+	print("  🔄 Paso 1: Aplicando +0.1...")
+	capture_area_slider.value = up
+	await get_tree().process_frame
+	await get_tree().process_frame  # Esperar que se procese completamente
+	
+	# Paso 2: Bajar -0.1 del original (no del valor up)
+	print("  🔄 Paso 2: Aplicando -0.1...")
+	capture_area_slider.value = down
+	await get_tree().process_frame
+	await get_tree().process_frame  # Esperar que se procese completamente
+	
+	# Paso 3: Volver al valor original
+	print("  🔄 Paso 3: Restaurando valor original...")
+	capture_area_slider.value = original
+	await get_tree().process_frame
+	
+	print("  ✅ Wiggle fix completado - modelo debería estar centrado")
+
+# ========================================================================
+# FUNCIÓN ALTERNATIVA: wiggle_immediate() - Para casos extremos
+# ========================================================================
+func _perform_immediate_wiggle():
+	"""Wiggle inmediato sin delays (alternativa más rápida)"""
+	if not capture_area_slider:
+		return
+	
+	print("⚡ Wiggle inmediato...")
+	var original = capture_area_slider.value
+	
+	# Cambio rápido sin esperas
+	capture_area_slider.value = original + 0.1
+	capture_area_slider.value = original - 0.1  
+	capture_area_slider.value = original
+	
+	print("  ✅ Wiggle inmediato completado")
+
+# ========================================================================
+# FUNCIÓN DE DEBUG: test_wiggle_manually()
+# ========================================================================
+func test_wiggle_manually():
+	"""Función para probar el wiggle manualmente desde consola"""
+	print("🧪 === TESTING WIGGLE MANUAL ===")
+	
+	if capture_area_slider:
+		print("Valor actual del slider: %.3f" % capture_area_slider.value)
+		_perform_centering_wiggle()
+	else:
+		print("❌ No hay slider disponible")
+
+# ========================================================================
+# COMANDOS PARA PROBAR DESDE CONSOLA:
+# ========================================================================
+# var settings = get_node("/root/ViewerModular/HSplitContainer/LeftPanel/SettingsPanel")
+# settings.test_wiggle_manually()
+#
+# # O para wiggle inmediato:
+# settings._perform_immediate_wiggle()
 func _create_orientation_settings():
 	"""Crear configuracion de orientacion"""
 	var orientation_title = Label.new()
@@ -540,7 +829,19 @@ func _apply_current_settings():
 	if auto_north_check: auto_north_check.button_pressed = current_settings.auto_north_detection
 	
 	# Aplicar area de captura
-	if capture_area_slider: capture_area_slider.value = current_settings.capture_area_size
+	#if capture_area_slider: capture_area_slider.value = current_settings.capture_area_size
+	if not capture_resolution_buttons.is_empty():
+		var target_resolution = current_settings.sprite_size
+		for button in capture_resolution_buttons:
+			button.button_pressed = (int(button.text) == target_resolution)
+		
+		if resolution_info_label:
+			resolution_info_label.text = "Resolución actual: %dx%d píxeles" % [target_resolution, target_resolution]
+	
+	# Aplicar área de captura al slider (RESTAURADO)
+	if capture_area_slider: 
+		capture_area_slider.value = current_settings.capture_area_size
+	
 	
 	# Actualizar labels
 	_on_camera_angle_changed(current_settings.camera_angle)
@@ -565,19 +866,59 @@ func _on_setting_changed(value = null):
 	settings_changed.emit(_get_enhanced_settings())
 
 func _on_pixelize_changed(enabled: bool):
-	"""Manejar cambio específico en pixelización"""
+	"""Manejar cambio específico en pixelización - SIN MOVER CAMARA"""
+	print("🎨 Pixelización cambiada: %s" % enabled)
+	
+	# Actualizar configuración interna básica
 	current_settings.pixelize = enabled
 	
 	# Sincronizar con shader avanzado si existe
 	if not current_shader_settings.is_empty():
 		current_shader_settings.pixelize_enabled = enabled
-		if advanced_shader_panel:
+		if advanced_shader_panel and advanced_shader_panel.has_method("apply_settings"):
 			var temp_settings = current_shader_settings.duplicate()
 			advanced_shader_panel.apply_settings(temp_settings)
 	
-	print("🎨 Pixelización cambiada: %s" % enabled)
-	settings_changed.emit(_get_enhanced_settings())
+	# CRÍTICO: SOLO aplicar shader al modelo en preview - SIN EMITIR SEÑALES GLOBALES
+	_apply_pixelize_to_preview_only(enabled)
+	
+	# ❌ NO EMITIR settings_changed.emit() QUE MUEVE LA CAMARA
+	print("✅ Pixelización aplicada SOLO al preview (sin mover cámara)")
 
+
+
+
+func _apply_pixelize_to_preview_only(enabled: bool):
+	"""Aplicar pixelización SOLO al preview sin emitir señales que muevan cámara"""
+	
+	# Obtener referencia al ModelPreviewPanel si no la tenemos
+	if not model_preview_panel:
+		_get_model_preview_panel_reference()
+	
+	if not model_preview_panel:
+		print("   ⚠️ No hay referencia al ModelPreviewPanel")
+		return
+	
+	# Crear configuración mínima para pixelización básica
+	var pixelize_settings = {
+		"pixelize_enabled": enabled,
+		"pixel_size": 4.0,  # Valor por defecto
+		"reduce_colors": false,
+		"enable_dithering": false,
+		"enable_outline": false
+	}
+	
+	# Si hay configuración avanzada, usarla en su lugar
+	if not current_shader_settings.is_empty():
+		pixelize_settings = current_shader_settings.duplicate()
+		pixelize_settings["pixelize_enabled"] = enabled
+	
+	# Aplicar al modelo en preview usando método aislado
+	if model_preview_panel.has_method("apply_advanced_shader"):
+		model_preview_panel.apply_advanced_shader(pixelize_settings)
+		print("   ✅ Pixelización aplicada al preview: %s" % enabled)
+	else:
+		print("   ❌ ModelPreviewPanel no tiene método apply_advanced_shader")
 # NUEVO: Manejador especifico para cambios en FPS
 func _on_fps_changed(new_fps: float):
 	"""Manejar cambio de FPS y sincronizar con delay"""
@@ -635,18 +976,18 @@ func _on_north_offset_changed(value: float):
 	print("🧭 Orientacion norte: %.1f°" % value)
 	settings_changed.emit(_get_enhanced_settings())
 
-func _on_capture_area_changed(value: float):
-	"""Manejar cambio en area de captura"""
-	current_settings.capture_area_size = value
-	if capture_area_label: capture_area_label.text = "%.1f" % value
-	
-	# Convertir a configuracion de camara (para compatibilidad)
-	current_settings.manual_zoom_override = true
-	current_settings.fixed_orthographic_size = value
-	
-	print("🖼️ Area de captura: %.1f" % value)
-	settings_changed.emit(_get_enhanced_settings())
-	_update_capture_area_visual()
+#func _on_capture_area_changed(value: float):
+	#"""Manejar cambio en area de captura"""
+	#current_settings.capture_area_size = value
+	#if capture_area_label: capture_area_label.text = "%.1f" % value
+	#
+	## Convertir a configuracion de camara (para compatibilidad)
+	#current_settings.manual_zoom_override = true
+	#current_settings.fixed_orthographic_size = value
+	#
+	#print("🖼️ Area de captura: %.1f" % value)
+	#settings_changed.emit(_get_enhanced_settings())
+	#_update_capture_area_visual()
 
 func _update_capture_area_visual():
 	"""Actualizar indicador visual del area de captura"""
@@ -658,10 +999,10 @@ func _update_capture_area_visual():
 			preview_panel.update_capture_area_indicator()
 			print("🔄 Indicador de area de captura actualizado")
 
-func _on_size_preset_pressed(size_value: float):
-	"""Manejar preset de tamaño"""
-	if capture_area_slider: capture_area_slider.value = size_value
-	print("📐 Preset de tamaño aplicado: %.1f" % size_value)
+#func _on_size_preset_pressed(size_value: float):
+	#"""Manejar preset de tamaño"""
+	#if capture_area_slider: capture_area_slider.value = size_value
+	#print("📐 Preset de tamaño aplicado: %.1f" % size_value)
 
 func _on_auto_north_toggled(enabled: bool):
 	"""Manejar deteccion automatica de norte"""
@@ -733,7 +1074,7 @@ func _validate_shader_system() -> bool:
 	return true
 
 
-#func _create_advanced_shader_panel():
+#func __advanced_shader_panel():
 	#"""Crear el panel avanzado de shader como ventana modal - POSICIONAMIENTO CORREGIDO"""
 	#
 	#var advanced_window = Window.new()
@@ -1295,6 +1636,303 @@ func validate_settings() -> bool:
 
 
 
+
+
+# ========================================================================
+# scripts/viewer/ui/settings_panel.gd
+# FUNCIONES CORREGIDAS PARA SHADER AVANZADO - AGREGAR A settings_panel.gd
+# ❌ ESTAS FUNCIONES NO DEBEN EMITIR SEÑALES QUE MUEVAN LA CAMARA O MODELO ❌
+# ✅ SOLO MANEJAN LA CONFIGURACION DE SHADER DE FORMA AISLADA
+# ========================================================================
+
+# AGREGAR ESTA VARIABLE AL INICIO DE LA CLASE (después de var current_shader_settings)
+#var model_preview_panel: Control = null
+#
+## NUEVA FUNCIÓN: Conectar señales del shader avanzado (llamar en _ready)
+#func _connect_advanced_shader_signals():
+	#"""Conectar señales del panel avanzado de shader"""
+	#if advanced_shader_panel and advanced_shader_panel.has_signal("shader_settings_changed"):
+		## Conectar la señal del panel avanzado
+		#advanced_shader_panel.shader_settings_changed.connect(_on_advanced_shader_settings_changed_isolated)
+		#print("✅ Señal shader_settings_changed conectada desde advanced_shader_panel")
+	#
+	## Obtener referencia al model preview panel para aplicar shader
+	#_get_model_preview_panel_reference()
+#
+## NUEVA FUNCIÓN: Obtener referencia al model preview panel
+#func _get_model_preview_panel_reference():
+	#"""Obtener referencia al ModelPreviewPanel"""
+	#var viewer_coordinator = get_node_or_null("/root/ViewerModular")
+	#if viewer_coordinator:
+		#model_preview_panel = viewer_coordinator.get_node_or_null("HSplitContainer/RightPanel/ModelPreviewPanel")
+		#if model_preview_panel:
+			#print("✅ ModelPreviewPanel encontrado para aplicación de shader")
+		#else:
+			#print("❌ ModelPreviewPanel no encontrado")
+	#else:
+		#print("❌ ViewerModular no encontrado")
+
+# FUNCIÓN CORREGIDA: Manejar cambios en configuración avanzada de shader - SIN EMISIONES PROBLEMÁTICAS
+func _on_advanced_shader_settings_changed_isolated(settings: Dictionary):
+	"""Manejar cambios en configuración avanzada de shader - COMPLETAMENTE AISLADO"""
+	print("📡 Configuración de shader avanzado recibida desde panel:")
+	print("   • Pixelización: %s (tamaño: %.0f)" % [settings.get("pixelize_enabled", false), settings.get("pixel_size", 4.0)])
+	print("   • Reducción colores: %s (%d niveles)" % [settings.get("reduce_colors", false), settings.get("color_levels", 16)])
+	print("   • Dithering: %s (fuerza: %.2f)" % [settings.get("enable_dithering", false), settings.get("dither_strength", 0.1)])
+	print("   • Bordes: %s (grosor: %.1f)" % [settings.get("enable_outline", false), settings.get("outline_thickness", 1.0)])
+	
+	# Actualizar configuración interna
+	current_shader_settings = settings.duplicate()
+	
+	# Sincronizar checkbox básico si existe (sin emitir señales)
+	if pixelize_check and settings.has("pixelize_enabled"):
+		# Desconectar temporalmente la señal para evitar bucles
+		if pixelize_check.toggled.is_connected(_on_pixelize_changed):
+			pixelize_check.toggled.disconnect(_on_pixelize_changed)
+		
+		pixelize_check.button_pressed = settings.pixelize_enabled
+		current_settings.pixelize = settings.pixelize_enabled
+		
+		# Reconectar la señal
+		pixelize_check.toggled.connect(_on_pixelize_changed)
+	
+	# CRÍTICO: Aplicar shader al modelo en el preview - SIN EMITIR SEÑALES GLOBALES
+	_apply_shader_to_preview_model_isolated(settings)
+	
+	# ❌ NO EMITIR settings_changed.emit() QUE MUEVE LA CAMARA
+	print("   ✅ Configuración de shader aplicada (AISLADA - sin efectos de cámara)")
+
+# NUEVA FUNCIÓN: Aplicar shader al modelo en el preview - COMPLETAMENTE AISLADO
+func _apply_shader_to_preview_model_isolated(shader_settings: Dictionary):
+	"""Aplicar configuración de shader al modelo en el ModelPreviewPanel - SIN EFECTOS GLOBALES"""
+	if not model_preview_panel:
+		print("   ⚠️ No hay referencia al ModelPreviewPanel")
+		return
+	
+	if model_preview_panel.has_method("apply_advanced_shader"):
+		model_preview_panel.apply_advanced_shader(shader_settings)
+		print("   ✅ Shader aplicado al modelo en preview (AISLADO)")
+	else:
+		print("   ❌ ModelPreviewPanel no tiene método apply_advanced_shader")
+
+	if model_preview_panel.has_method("apply_advanced_shader_with_3d_outline"):
+		model_preview_panel.apply_advanced_shader_with_3d_outline(shader_settings)
+	else:
+		model_preview_panel.apply_advanced_shader(shader_settings)
+
+
+# FUNCIÓN CORREGIDA: Crear el panel avanzado de shader - CON CONEXIONES AISLADAS
+#func _create_advanced_shader_panel():
+	#"""Crear el panel avanzado de shader como ventana modal - CON CONEXIONES AISLADAS"""
+	#
+	#var advanced_window = Window.new()
+	#advanced_window.title = "Configuración Avanzada de Shader"
+	#advanced_window.size = Vector2i(650, 700)
+	#advanced_window.min_size = Vector2i(600, 650)
+	#advanced_window.unresizable = false
+	#advanced_window.transient = true
+	#advanced_window.exclusive = false
+	#
+	## Posicionar 300px más a la derecha
+	#var screen_size = DisplayServer.screen_get_size()
+	#var viewport_right_edge = screen_size.x * 0.6
+	#advanced_window.position = Vector2i(
+		#int(viewport_right_edge + 320),
+		#50
+	#)
+	#
+	## Si la ventana se sale de la pantalla, ajustar posición
+	#if advanced_window.position.x + advanced_window.size.x > screen_size.x:
+		#advanced_window.position.x = screen_size.x - advanced_window.size.x - 20
+	#
+	#get_tree().current_scene.add_child(advanced_window)
+	#
+	## Container principal con márgenes
+	#var window_margin = MarginContainer.new()
+	#window_margin.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	#window_margin.add_theme_constant_override("margin_left", 10)
+	#window_margin.add_theme_constant_override("margin_right", 10)
+	#window_margin.add_theme_constant_override("margin_top", 10)
+	#window_margin.add_theme_constant_override("margin_bottom", 60)
+	#advanced_window.add_child(window_margin)
+	#
+	## El panel avanzado ocupa todo el espacio disponible
+	#advanced_shader_panel = preload("res://scripts/ui/advanced_shader_panel.gd").new()
+	#advanced_shader_panel.name = "AdvancedShaderPanel"
+	#advanced_shader_panel.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	#advanced_shader_panel.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	#window_margin.add_child(advanced_shader_panel)
+	#
+	## Botones FIJOS en la parte inferior de la ventana
+	#var button_background = Panel.new()
+	#button_background.set_anchors_and_offsets_preset(Control.PRESET_BOTTOM_WIDE)
+	#button_background.size.y = 50
+	#button_background.position.y = advanced_window.size.y - 50
+	#advanced_window.add_child(button_background)
+	#
+	#var button_container = HBoxContainer.new()
+	#button_container.set_anchors_and_offsets_preset(Control.PRESET_CENTER)
+	#button_container.alignment = BoxContainer.ALIGNMENT_CENTER
+	#button_container.add_theme_constant_override("separation", 15)
+	#button_background.add_child(button_container)
+	#
+	#var apply_button = Button.new()
+	#apply_button.text = "✅ Aplicar y Cerrar"
+	#apply_button.custom_minimum_size = Vector2(140, 35)
+	#apply_button.pressed.connect(func(): 
+		#_on_advanced_shader_applied_isolated()
+		#advanced_window.hide()
+	#)
+	#button_container.add_child(apply_button)
+	#
+	#var cancel_button = Button.new()
+	#cancel_button.text = "❌ Cancelar"
+	#cancel_button.custom_minimum_size = Vector2(90, 35)
+	#cancel_button.pressed.connect(func(): 
+		#if advanced_shader_panel and not current_shader_settings.is_empty():
+			#advanced_shader_panel.apply_settings(current_shader_settings)
+		#advanced_window.hide()
+	#)
+	#button_container.add_child(cancel_button)
+	#
+	## NUEVO: Conectar señales inmediatamente después de crear el panel - USANDO FUNCIONES AISLADAS
+	#_connect_advanced_shader_signals()
+	#
+	## Conectar otras señales existentes
+	#if advanced_shader_panel.has_signal("reset_to_defaults_requested"):
+		#advanced_shader_panel.reset_to_defaults_requested.connect(_on_shader_reset_requested)
+	#
+	## Configurar cierre con X
+	#advanced_window.close_requested.connect(func(): 
+		#if advanced_shader_panel and not current_shader_settings.is_empty():
+			#advanced_shader_panel.apply_settings(current_shader_settings)
+		#advanced_window.hide()
+	#)
+	#
+	## Aplicar configuración actual si existe
+	#if not current_shader_settings.is_empty() and advanced_shader_panel.has_method("apply_settings"):
+		#advanced_shader_panel.apply_settings(current_shader_settings)
+	#
+	#print("✅ Panel avanzado de shader creado correctamente con conexiones AISLADAS")
+	#return advanced_window
+
+# FUNCIÓN CORREGIDA: Aplicar configuración avanzada - SIN EMISIONES GLOBALES
+func _on_advanced_shader_applied_isolated():
+	"""Aplicar configuración avanzada y actualizar sistema - COMPLETAMENTE AISLADO"""
+	if advanced_shader_panel:
+		var new_settings = advanced_shader_panel.get_current_settings()
+		current_shader_settings = new_settings.duplicate()
+		
+		# Sincronizar solo el checkbox básico sin emitir señales globales
+		if pixelize_check and new_settings.has("pixelize_enabled"):
+			# Desconectar temporalmente para evitar bucles
+			if pixelize_check.toggled.is_connected(_on_pixelize_changed):
+				pixelize_check.toggled.disconnect(_on_pixelize_changed)
+			
+			pixelize_check.button_pressed = new_settings.pixelize_enabled
+			current_settings.pixelize = new_settings.pixelize_enabled
+			
+			# Reconectar
+			pixelize_check.toggled.connect(_on_pixelize_changed)
+		
+		# Aplicar al modelo sin emisiones globales
+		_apply_shader_to_preview_model_isolated(new_settings)
+		
+		print("🎨 Shader avanzado aplicado y guardado (SIN efectos de cámara)")
+		# ❌ NO EMITIR settings_changed.emit() QUE MUEVE LA CAMARA
+
+# FUNCIÓN CORREGIDA: Manejar cambio en pixelización básica - SIN PROPAGACIÓN PROBLEMÁTICA  
+func _on_pixelize_changed_isolated(enabled: bool):
+	"""Manejar cambio específico en pixelización - SIN EMITIR SEÑALES GLOBALES"""
+	current_settings.pixelize = enabled
+	
+	# Sincronizar con shader avanzado si existe, pero SIN emitir señales globales
+	if not current_shader_settings.is_empty():
+		current_shader_settings.pixelize_enabled = enabled
+		if advanced_shader_panel:
+			var temp_settings = current_shader_settings.duplicate()
+			advanced_shader_panel.apply_settings(temp_settings)
+		
+		# Aplicar al modelo sin emitir señales globales
+		_apply_shader_to_preview_model_isolated(current_shader_settings)
+	
+	print("🎨 Pixelización cambiada: %s (SIN efectos de cámara)" % enabled)
+	# ❌ NO EMITIR settings_changed.emit(_get_enhanced_settings()) QUE MUEVE LA CAMARA
+
+# AGREGAR AL FINAL DE _ready() O EN NUEVA FUNCIÓN DE INICIALIZACIÓN:
+func _initialize_shader_system_isolated():
+	"""Inicializar sistema de shader avanzado - COMPLETAMENTE AISLADO"""
+	_get_model_preview_panel_reference()
+	
+	# Si el panel ya existe, conectar señales aisladas
+	if advanced_shader_panel:
+		_connect_advanced_shader_signals()
+
+# FUNCIÓN AUXILIAR: Verificar estado del sistema de shader (OPCIONAL - para debug)
+func debug_shader_system_isolated():
+	"""Debug del estado del sistema de shader - VERSIÓN AISLADA"""
+	print("\n🔍 === DEBUG SISTEMA DE SHADER (AISLADO) ===")
+	print("advanced_shader_panel: %s" % ("✅" if advanced_shader_panel else "❌"))
+	print("model_preview_panel: %s" % ("✅" if model_preview_panel else "❌"))
+	print("current_shader_settings: %d elementos" % current_shader_settings.size())
+	
+	if model_preview_panel:
+		print("model_preview_panel.current_model: %s" % ("✅" if model_preview_panel.current_model else "❌"))
+	
+	# Verificar que NO hay conexiones problemáticas
+	if advanced_shader_panel and advanced_shader_panel.has_signal("shader_settings_changed"):
+		var connections = advanced_shader_panel.get_signal_connection_list("shader_settings_changed")
+		print("Conexiones de shader_settings_changed: %d" % connections.size())
+		for conn in connections:
+			var method_name = conn["callable"].get_method() if conn.has("callable") else "unknown"
+			print("  -> %s" % method_name)
+			# Verificar que solo está conectado a funciones aisladas
+			if not ("isolated" in method_name):
+				print("  ⚠️ ADVERTENCIA: Conexión no aislada detectada!")
+	
+	print("============================================\n")
+
+# FUNCIÓN IMPORTANTE: Reemplazar conexiones problemáticas existentes
+func _fix_existing_shader_connections():
+	"""Corregir conexiones existentes del shader que causan movimiento de cámara"""
+	
+	# Si hay conexiones problemáticas existentes, desconectarlas
+	if advanced_shader_panel and advanced_shader_panel.has_signal("shader_settings_changed"):
+		var connections = advanced_shader_panel.get_signal_connection_list("shader_settings_changed")
+		
+		for conn in connections:
+			var method_name = conn["callable"].get_method() if conn.has("callable") else "unknown"
+			
+			# Desconectar métodos problemáticos que no son aislados
+			if not ("isolated" in method_name) and ("shader_settings_changed" in method_name):
+				print("🔧 Desconectando método problemático: %s" % method_name)
+				advanced_shader_panel.shader_settings_changed.disconnect(conn["callable"])
+		
+		# Conectar solo la versión aislada
+		if not advanced_shader_panel.shader_settings_changed.is_connected(_on_advanced_shader_settings_changed_isolated):
+			advanced_shader_panel.shader_settings_changed.connect(_on_advanced_shader_settings_changed_isolated)
+			print("✅ Conectada versión aislada del manejador de shader")
+
+# FUNCIÓN DE EMERGENCIA: Limpiar todas las conexiones problemáticas del shader
+func emergency_clean_shader_connections():
+	"""Limpiar todas las conexiones problemáticas del shader - USAR SOLO EN EMERGENCIA"""
+	print("🚨 LIMPIEZA DE EMERGENCIA: Desconectando todas las señales problemáticas del shader")
+	
+	if advanced_shader_panel and advanced_shader_panel.has_signal("shader_settings_changed"):
+		# Desconectar TODAS las conexiones
+		var connections = advanced_shader_panel.get_signal_connection_list("shader_settings_changed")
+		for conn in connections:
+			advanced_shader_panel.shader_settings_changed.disconnect(conn["callable"])
+			print("  🔌 Desconectado: %s" % conn["callable"].get_method())
+		
+		# Reconectar solo la versión aislada
+		advanced_shader_panel.shader_settings_changed.connect(_on_advanced_shader_settings_changed_isolated)
+		print("  ✅ Reconectada solo versión aislada")
+	
+	print("🚨 Limpieza de emergencia completada")
+
+
+
 # ========================================================================
 # NUEVAS FUNCIONES PARA SHADER AVANZADO - AGREGAR A settings_panel.gd
 # ========================================================================
@@ -1479,3 +2117,81 @@ func debug_shader_system():
 		print("model_preview_panel.current_model: %s" % ("✅" if model_preview_panel.current_model else "❌"))
 	
 	print("================================\n")
+
+
+
+
+
+# AGREGAR ESTAS FUNCIONES FALTANTES en settings_panel.gd
+
+# ========================================================================
+# FUNCIÓN FALTANTE: _on_size_preset_pressed()
+# ========================================================================
+func _on_size_preset_pressed(size_value: float):
+	"""Manejar preset de tamaño"""
+	if capture_area_slider: 
+		capture_area_slider.value = size_value
+		print("📐 Preset de tamaño aplicado: %.1f" % size_value)
+	else:
+		print("❌ capture_area_slider no existe para aplicar preset")
+
+# ========================================================================
+# FUNCIÓN MEJORADA: _on_capture_area_changed() con debug
+# ========================================================================
+func _on_capture_area_changed(value: float):
+	"""Manejar cambio en area de captura (CON DEBUG)"""
+	print("📏 _on_capture_area_changed llamado con valor: %.1f" % value)
+	
+	current_settings.capture_area_size = value
+	if capture_area_label: 
+		capture_area_label.text = "%.1f" % value
+		print("  ✅ Label actualizado: %s" % capture_area_label.text)
+	else:
+		print("  ❌ capture_area_label no existe")
+	
+	# Convertir a configuración de cámara (para compatibilidad)
+	current_settings.manual_zoom_override = true
+	current_settings.fixed_orthographic_size = value
+	
+	print("  ✅ Settings actualizados:")
+	print("    capture_area_size: %.1f" % current_settings.capture_area_size)
+	print("    manual_zoom_override: %s" % current_settings.manual_zoom_override)
+	
+	settings_changed.emit(_get_enhanced_settings())
+	_update_capture_area_visual()
+	print("  ✅ Señales emitidas")
+
+# ========================================================================
+# FUNCIÓN DE VERIFICACIÓN: validate_ui_elements()
+# ========================================================================
+func validate_ui_elements():
+	"""Validar que todos los elementos de UI existen"""
+	print("\n🔍 === VALIDACIÓN ELEMENTOS UI ===")
+	
+	var validation = {
+		"capture_area_slider": capture_area_slider != null,
+		"capture_area_label": capture_area_label != null,
+		"capture_resolution_buttons": capture_resolution_buttons != null and capture_resolution_buttons.size() > 0,
+		"resolution_info_label": resolution_info_label != null
+	}
+	
+	for element in validation:
+		var status = "✅" if validation[element] else "❌"
+		print("%s %s: %s" % [status, element, validation[element]])
+	
+	var all_valid = true
+	for value in validation.values():
+		if not value:
+			all_valid = false
+			break
+	
+	print("🎯 Estado general: %s" % ("✅ TODOS VÁLIDOS" if all_valid else "❌ FALTAN ELEMENTOS"))
+	print("===================================\n")
+	
+	return all_valid
+
+
+func trigger_centering_wiggle():
+	"""Función pública para ejecutar wiggle de centrado desde otros scripts"""
+	print("📡 Wiggle de centrado solicitado externamente...")
+	_perform_centering_wiggle()

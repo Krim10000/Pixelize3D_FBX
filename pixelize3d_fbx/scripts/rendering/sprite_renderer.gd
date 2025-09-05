@@ -175,28 +175,73 @@ func initialize(settings: Dictionary):
 	
 	#print("✅ SpriteRenderer inicializado con viewport compartido")
 
+#func _prepare_viewport_for_rendering(settings: Dictionary):
+	#"""Preparar viewport compartido para renderizado"""
+	#if not viewport:
+		#return
+	#
+	## Guardar configuración original del viewport
+	#original_viewport_mode = viewport.render_target_update_mode
+	#
+	## Configurar tamaño para renderizado
+	#var sprite_size = settings.get("sprite_size", 128)
+	#
+	## ✅ CRÍTICO: Respetar el tamaño del preview pero preparar para captura
+	##print("🔧 Preparando viewport para renderizado:")
+	##print("  Tamaño actual: %s" % str(viewport.size))	
+	##print("  Modo actual: %d" % viewport.render_target_update_mode)
+	#
+	## Configurar para renderizado óptimo
+	#viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS  # CRÍTICO
+	#viewport.render_target_clear_mode = SubViewport.CLEAR_MODE_ALWAYS
+	#
+	## No cambiar el tamaño para mantener consistencia con preview
+	## El tamaño se mantendrá igual al preview para garantizar WYSIWYG
+
+
 func _prepare_viewport_for_rendering(settings: Dictionary):
-	"""Preparar viewport compartido para renderizado"""
+	"""Preparar viewport compartido para renderizado - CON CAMBIO DE RESOLUCIÓN"""
 	if not viewport:
 		return
 	
 	# Guardar configuración original del viewport
 	original_viewport_mode = viewport.render_target_update_mode
 	
-	# Configurar tamaño para renderizado
+	# ✅ CAMBIO CRÍTICO: Ahora SÍ cambiamos el tamaño para renderizado
 	var sprite_size = settings.get("sprite_size", 128)
+	var target_size = Vector2i(sprite_size, sprite_size)
 	
-	# ✅ CRÍTICO: Respetar el tamaño del preview pero preparar para captura
-	#print("🔧 Preparando viewport para renderizado:")
-	#print("  Tamaño actual: %s" % str(viewport.size))	
-	#print("  Modo actual: %d" % viewport.render_target_update_mode)
+	print("🔧 Preparando viewport para renderizado:")
+	print("  Tamaño anterior: %s" % str(viewport.size))
+	print("  Tamaño objetivo: %s" % str(target_size))
+	print("  Modo anterior: %d" % viewport.render_target_update_mode)
+	
+	# Cambiar tamaño del viewport para renderizado
+	viewport.size = target_size
 	
 	# Configurar para renderizado óptimo
-	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS  # CRÍTICO
+	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	viewport.render_target_clear_mode = SubViewport.CLEAR_MODE_ALWAYS
 	
-	# No cambiar el tamaño para mantener consistencia con preview
-	# El tamaño se mantendrá igual al preview para garantizar WYSIWYG
+	print("✅ Viewport configurado para renderizado en %dx%d" % [target_size.x, target_size.y])
+
+
+func _restore_viewport_after_rendering():
+	"""Restaurar viewport a configuración de preview después del renderizado"""
+	if not viewport:
+		return
+	
+	# Restaurar modo de actualización original
+	if original_viewport_mode >= 0:
+		viewport.render_target_update_mode = original_viewport_mode
+	
+	# IMPORTANTE: El tamaño del viewport debe coincidir con el preview
+	# Obtener tamaño actual de la configuración para coherencia
+	var preview_size = render_settings.get("sprite_size", 128)
+	viewport.size = Vector2i(preview_size, preview_size)
+	
+	print("🔄 Viewport restaurado a modo preview: %dx%d" % [viewport.size.x, viewport.size.y])
+
 
 func _configure_camera_for_rendering(settings: Dictionary):
 	"""Configurar cámara compartida para renderizado"""
@@ -349,20 +394,35 @@ func _restore_preview_mode():
 	"""Restaurar modo preview después del renderizado"""
 	#print("🔄 Restaurando modo preview...")
 	
-	# Restaurar modelo original del preview si existe
+	## Restaurar modelo original del preview si existe
+	#if render_backup_model and is_instance_valid(render_backup_model):
+		#_safe_switch_model_in_container(render_backup_model)
+		#render_backup_model = null
+		##print("✅ Modelo del preview restaurado")
+	#
+	## Restaurar configuración original del viewport
+	#if original_viewport_mode >= 0:
+		#viewport.render_target_update_mode = original_viewport_mode
+	#
+	## Limpiar referencias del renderizado
+	#current_model = null
+	#
+	##print("✅ Modo preview restaurado")
+
+		# Restaurar modelo original del preview si existe
 	if render_backup_model and is_instance_valid(render_backup_model):
 		_safe_switch_model_in_container(render_backup_model)
 		render_backup_model = null
-		#print("✅ Modelo del preview restaurado")
+		print("✅ Modelo del preview restaurado")
 	
-	# Restaurar configuración original del viewport
-	if original_viewport_mode >= 0:
-		viewport.render_target_update_mode = original_viewport_mode
+	# ✅ NUEVO: Restaurar configuración del viewport
+	_restore_viewport_after_rendering()
 	
 	# Limpiar referencias del renderizado
 	current_model = null
 	
-	#print("✅ Modo preview restaurado")
+	print("✅ Modo preview completamente restaurado")
+
 
 # ========================================================================
 # RENDERIZADO DE FRAMES - MANTIENE LÓGICA EXISTENTE
@@ -718,3 +778,32 @@ func _get_current_user_delay() -> float:
 	
 	#print("⚠️ No se pudo obtener delay del usuario, usando default: 0.033333")
 	return 0.0321
+
+
+
+func validate_viewport_resolution_sync() -> Dictionary:
+	"""Validar que la resolución del viewport esté sincronizada"""
+	var validation = {
+		"is_synced": false,
+		"viewport_size": Vector2i.ZERO,
+		"expected_size": Vector2i.ZERO,
+		"needs_update": false
+	}
+	
+	if not viewport:
+		validation.needs_update = true
+		return validation
+	
+	validation.viewport_size = viewport.size
+	validation.expected_size = Vector2i(
+		render_settings.get("sprite_size", 128),
+		render_settings.get("sprite_size", 128)
+	)
+	
+	validation.is_synced = (validation.viewport_size == validation.expected_size)
+	validation.needs_update = not validation.is_synced
+	
+	if not validation.is_synced:
+		print("⚠️ Viewport no sincronizado: %s vs %s" % [validation.viewport_size, validation.expected_size])
+	
+	return validation

@@ -241,6 +241,191 @@ func _on_auto_north_requested():
 	#
 	#log_panel.add_log("🧭 Orientación automática aplicada: %.1f°" % result.get("suggested_north", 0.0))
 
+
+
+
+# pixelize3d_fbx/scripts/viewer/viewer_coordinator.gd
+# Funciones para MODIFICAR en viewer_coordinator.gd
+
+# ========================================================================
+# FUNCIÓN A REEMPLAZAR: _on_render_settings_changed()
+# ========================================================================
+func _on_render_settings_changed(settings: Dictionary):
+	"""Manejar cambios en configuración de renderizado - CON SINCRONIZACIÓN DE RESOLUCIÓN"""
+	print("\n📡 === CONFIGURACIÓN CON RESOLUCIÓN SINCRONIZADA ===")
+	print("  directions: %d" % settings.get("directions", 16))
+	print("  sprite_size: %d" % settings.get("sprite_size", 128))
+	print("  capture_area_size: %.1f" % settings.get("capture_area_size", 8.0))
+	print("  camera_height: %.1f" % settings.get("camera_height", 12.0))
+	print("  camera_angle: %.1f°" % settings.get("camera_angle", 45.0))
+	print("  north_offset: %.0f°" % settings.get("north_offset", 0.0))
+	print("==================================================")
+
+	# ✅ CRÍTICO: Procesar configuración completa (resolución + área)
+	var enhanced_settings = settings.duplicate()
+	
+	if settings.has("capture_area_size"):
+		var capture_area = settings.capture_area_size
+		
+		# Convertir a camera_distance
+		enhanced_settings["camera_distance"] = capture_area * 2.0
+		enhanced_settings["orthographic_size"] = capture_area
+		enhanced_settings["manual_zoom_override"] = true
+		enhanced_settings["fixed_orthographic_size"] = capture_area
+		
+		print("🔄 Parámetros de cámara calculados:")
+		print("  camera_distance: %.1f" % enhanced_settings["camera_distance"])
+		print("  orthographic_size: %.1f" % enhanced_settings["orthographic_size"])
+	
+	# ✅ NUEVO: Sincronizar resolución en preview primero
+	if model_preview_panel:
+		var sprite_size = enhanced_settings.get("sprite_size", 128)
+		var capture_area = enhanced_settings.get("capture_area_size", 4.0)
+		
+		# Actualizar preview con nueva resolución
+		if model_preview_panel.has_method("update_for_resolution_change"):
+			model_preview_panel.update_for_resolution_change(sprite_size, capture_area)
+			print("✅ Preview actualizado a resolución: %dx%d" % [sprite_size, sprite_size])
+		
+		# Actualizar configuración de cámara del preview
+		var preview_camera = model_preview_panel.get_node_or_null("ViewportContainer/SubViewport/CameraController")
+		if preview_camera and preview_camera.has_method("set_camera_settings"):
+			preview_camera.set_camera_settings(enhanced_settings)
+			
+			if preview_camera.has_method("update_camera_position"):
+				preview_camera.update_camera_position()
+			
+			print("✅ Cámara de preview configurada")
+	
+	# 2. Configurar Sprite Renderer con la misma resolución
+	if sprite_renderer:
+		if sprite_renderer.has_method("update_render_settings"):
+			sprite_renderer.update_render_settings(enhanced_settings)
+			print("✅ Sprite renderer sincronizado")
+		
+		# Validar sincronización
+		if sprite_renderer.has_method("validate_viewport_resolution_sync"):
+			var sync_status = sprite_renderer.validate_viewport_resolution_sync()
+			if sync_status.needs_update:
+				print("⚠️ Sincronización pendiente en sprite renderer")
+	
+	# 3. Configurar pipeline con configuración completa
+	if spritesheet_pipeline and spritesheet_pipeline.has_method("update_pipeline_settings"):
+		spritesheet_pipeline.update_pipeline_settings(enhanced_settings)
+		print("✅ Pipeline configurado")
+	
+	# 4. Guardar configuración actual
+	current_render_settings = enhanced_settings
+	
+	print("🎯 Sincronización completa - Resolución: %dx%d, Área: %.1f" % [
+		enhanced_settings.get("sprite_size", 128),
+		enhanced_settings.get("sprite_size", 128),
+		enhanced_settings.get("capture_area_size", 4.0)
+	])
+
+# ========================================================================
+# FUNCIÓN A AGREGAR: validate_preview_render_sync()
+# ========================================================================
+func validate_preview_render_sync() -> Dictionary:
+	"""Validar que preview y renderizado estén sincronizados"""
+	var validation = {
+		"preview_size": Vector2i.ZERO,
+		"render_size": Vector2i.ZERO,
+		"is_synced": false,
+		"preview_valid": false,
+		"render_valid": false
+	}
+	
+	# Validar preview
+	if model_preview_panel and model_preview_panel.has_method("get_current_viewport_info"):
+		var preview_info = model_preview_panel.get_current_viewport_info()
+		validation.preview_size = preview_info.viewport_size
+		validation.preview_valid = preview_info.is_valid
+	
+	# Validar renderer
+	if sprite_renderer and sprite_renderer.has_method("validate_viewport_resolution_sync"):
+		var render_info = sprite_renderer.validate_viewport_resolution_sync()
+		validation.render_size = render_info.viewport_size
+		validation.render_valid = not render_info.needs_update
+	
+	# Verificar sincronización
+	validation.is_synced = (
+		validation.preview_valid and 
+		validation.render_valid and 
+		validation.preview_size == validation.render_size
+	)
+	
+	print("🔍 Validación de sincronización:")
+	print("  Preview: %s (%s)" % [validation.preview_size, "✅" if validation.preview_valid else "❌"])
+	print("  Render: %s (%s)" % [validation.render_size, "✅" if validation.render_valid else "❌"])
+	print("  Sincronizado: %s" % ("✅" if validation.is_synced else "❌"))
+	
+	return validation
+
+# ========================================================================
+# FUNCIÓN A AGREGAR: force_resolution_sync()
+# ========================================================================
+func force_resolution_sync(target_resolution: int):
+	"""Forzar sincronización de resolución en todos los componentes"""
+	print("🔧 Forzando sincronización a resolución: %dx%d" % [target_resolution, target_resolution])
+	
+	# Crear configuración de sincronización
+	var sync_settings = current_render_settings.duplicate()
+	sync_settings["sprite_size"] = target_resolution
+	
+	# Aplicar a todos los componentes
+	_on_render_settings_changed(sync_settings)
+	
+	# Validar resultado
+	await get_tree().process_frame
+	var validation = validate_preview_render_sync()
+	
+	if validation.is_synced:
+		print("✅ Sincronización forzada exitosa")
+	else:
+		print("❌ Sincronización forzada falló")
+		
+	return validation.is_synced
+
+# ========================================================================
+# FUNCIÓN A MODIFICAR: debug_resolution_state()
+# ========================================================================
+func debug_resolution_state():
+	"""Debug completo del estado de resolución y área de captura"""
+	print("\n🔍 === DEBUG RESOLUCIÓN Y ÁREA DE CAPTURA ===")
+	
+	# Estado de configuración actual
+	print("📋 Configuración actual:")
+	print("  sprite_size (resolución): %d" % current_render_settings.get("sprite_size", 0))
+	print("  capture_area_size (tamaño modelo): %.1f" % current_render_settings.get("capture_area_size", 0.0))
+	print("  orthographic_size: %.1f" % current_render_settings.get("orthographic_size", 0.0))
+	
+	# Estado del preview
+	if model_preview_panel and model_preview_panel.has_method("get_current_viewport_info"):
+		var preview_info = model_preview_panel.get_current_viewport_info()
+		print("🎬 Preview Panel:")
+		print("  Viewport size: %s" % preview_info.viewport_size)
+		print("  Container size: %s" % preview_info.container_size)
+		print("  Valid: %s" % preview_info.is_valid)
+		print("  Match: %s" % ("✅" if preview_info.viewport_size == preview_info.container_size else "❌"))
+	
+	# Estado del renderer
+	if sprite_renderer and sprite_renderer.has_method("validate_viewport_resolution_sync"):
+		var render_info = sprite_renderer.validate_viewport_resolution_sync()
+		print("🎨 Sprite Renderer:")
+		print("  Viewport size: %s" % render_info.viewport_size)
+		print("  Expected size: %s" % render_info.expected_size)
+		print("  Synced: %s" % render_info.is_synced)
+	
+	# Validación general
+	var validation = validate_preview_render_sync()
+	print("🎯 Estado general: %s" % ("✅ COHERENTE" if validation.is_synced else "❌ INCOHERENTE"))
+	print("=============================================\n")
+
+
+
+
+
 func _on_orientation_analysis_complete(result: Dictionary):
 	print("🧭 Análisis completado: Norte sugerido = %.1f°" % result.suggested_north)
 	
@@ -1910,6 +2095,9 @@ func _initialize_spritesheet_pipeline():
 
 
 
+
+
+
 # scripts/viewer/viewer_coordinator.gd
 # FUNCIÓN CORREGIDA - Sin errores de conexión duplicada
 # Input: spritesheet_pipeline con señales disponibles
@@ -2291,72 +2479,6 @@ func _get_current_render_settings_with_capture_area() -> Dictionary:
 	
 	return settings
 
-# ========================================================================
-# ✅ FUNCIÓN CORREGIDA: CONFIGURACIÓN DE RENDERIZADO CON DEBUG EXTENDIDO
-# ========================================================================
-
-func _on_render_settings_changed(settings: Dictionary):
-	#"""Manejar cambios en configuración de renderizado - VERSIÓN CON DEBUG EXTENDIDO"""
-	#print("\n📡 === CONFIGURACIÓN RECIBIDA DESDE SETTINGS_PANEL ===")
-	#print("  directions: %d" % settings.get("directions", 16))
-	#print("  camera_height: %.1f" % settings.get("camera_height", 12.0))
-	#print("  camera_angle: %.1f°" % settings.get("camera_angle", 45.0))
-	#print("  sprite_size: %d" % settings.get("sprite_size", 128))
-	#print("  capture_area_size: %.1f" % settings.get("capture_area_size", 8.0))
-	#print("  north_offset: %.0f°" % settings.get("north_offset", 0.0))
-	#print("====================================================")
-
-	# ✅ CRÍTICO: Convertir capture_area_size a configuración de cámara
-	var enhanced_settings = settings.duplicate()
-	
-	if settings.has("capture_area_size"):
-		var capture_area = settings.capture_area_size
-		
-		# Convertir a camera_distance
-		enhanced_settings["camera_distance"] = capture_area * 2.0
-		enhanced_settings["orthographic_size"] = capture_area
-		enhanced_settings["manual_zoom_override"] = true
-		enhanced_settings["fixed_orthographic_size"] = capture_area
-		
-		#print("🔄 Parámetros de cámara calculados:")
-		#print("  camera_distance: %.1f" % enhanced_settings["camera_distance"])
-		#print("  orthographic_size: %.1f" % enhanced_settings["orthographic_size"])
-	
-	# 1. Enviar al Model Preview Panel (para preview en tiempo real)
-	if model_preview_panel:
-		var preview_camera = model_preview_panel.get_node_or_null("ViewportContainer/SubViewport/CameraController")
-		if preview_camera and preview_camera.has_method("set_camera_settings"):
-			preview_camera.set_camera_settings(enhanced_settings)
-			#print("✅ Configuración MEJORADA enviada al preview camera")
-			
-			if preview_camera.has_method("update_camera_position"):
-				preview_camera.update_camera_position()
-		else:
-			#print("❌ Preview camera controller no encontrado")
-			pass
-	
-	# 2. Enviar al Sprite Renderer (para renderizado) - CON CONFIGURACIÓN MEJORADA
-	if sprite_renderer:
-		if sprite_renderer.has_method("initialize"):
-			sprite_renderer.initialize(enhanced_settings)
-			#print("✅ Configuración MEJORADA enviada al sprite renderer")
-		
-		if sprite_renderer.has_method("update_render_settings"):
-			sprite_renderer.update_render_settings(enhanced_settings)
-			#print("✅ Configuración MEJORADA actualizada en sprite renderer")
-	
-	# 3. Aplicar al pipeline - CON CONFIGURACIÓN MEJORADA
-	if spritesheet_pipeline and spritesheet_pipeline.has_method("update_pipeline_settings"):
-		spritesheet_pipeline.update_pipeline_settings(enhanced_settings)
-		print("✅ Configuración MEJORADA enviada al pipeline")
-	
-	# 4. Guardar configuración actual - CON MEJORAS
-	current_render_settings = enhanced_settings
-	
-	#log_panel.add_log("⚙️ Configuración actualizada - área: %.1f, distancia: %.1f" % [
-		#enhanced_settings.get("capture_area_size", 8.0), 
-		#enhanced_settings.get("camera_distance", 16.0)
-	#])
 
 # ========================================================================
 # ✅ FUNCIÓN CORREGIDA: RENDERIZADO CON CONFIGURACIÓN MEJORADA

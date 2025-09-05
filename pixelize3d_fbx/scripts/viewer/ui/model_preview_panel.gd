@@ -91,86 +91,419 @@ func _create_capture_area_indicator():
 	
 	print("✅ Indicador de área de captura creado")
 
+# pixelize3d_fbx/scripts/viewer/ui/model_preview_panel.gd
+# Funciones para AGREGAR/MODIFICAR en model_preview_panel.gd
+
+# ========================================================================
+# FUNCIÓN A AGREGAR: set_viewport_resolution()
+# ========================================================================
+#func set_viewport_resolution(resolution: int):
+	#"""Cambiar resolución del viewport de preview"""
+	#if not viewport:
+		#print("❌ No hay viewport disponible")
+		#return
+	#
+	#var new_size = Vector2i(resolution, resolution)
+	#print("🖼️ Cambiando viewport de preview a: %dx%d" % [new_size.x, new_size.y])
+	#
+	## Cambiar tamaño del viewport
+	#viewport.size = new_size
+	#
+	## Actualizar viewport container para ajustarse al nuevo tamaño
+	#if viewport_container:
+		#viewport_container.custom_minimum_size = Vector2(resolution, resolution)
+	#
+	## Actualizar indicador de área de captura
+	#update_capture_area_indicator()
+	#
+	#print("✅ Resolución de viewport actualizada")
+#
+## ========================================================================
+## FUNCIÓN A MODIFICAR: _draw_capture_area()
+## REEMPLAZAR la función existente
+## ========================================================================
+##func _draw_capture_area():
+	##"""Dibujar borde del área de captura - MEJORADO para resolución variable"""
+	##if not viewport or not capture_area_indicator:
+		##return
+	##
+	### Obtener tamaño actual del viewport
+	##var viewport_size = viewport_container.size
+	##var actual_viewport_size = viewport.size
+	##
+	### El área de captura es siempre todo el viewport (coherencia total)
+	##var capture_rect = Rect2(Vector2.ZERO, viewport_size)
+	##
+	### Configuración visual
+	##var border_color = Color(1.0, 1.0, 0.0, 0.9)  # Amarillo más opaco
+	##var border_width = 3.0  # Más grueso para mejor visibilidad
+	##
+	### Dibujar marco principal
+	##capture_area_indicator.draw_rect(capture_rect, border_color, false, border_width)
+	##
+	### Dibujar esquinas para mejor visibilidad
+	##var corner_size = min(20.0, viewport_size.x * 0.15)  # Proporcional al tamaño
+	##var corner_color = Color(1.0, 0.5, 0.0, 1.0)  # Naranja
+	##var corner_width = 4.0
+	##
+	### Esquina superior izquierda
+	##capture_area_indicator.draw_line(
+		##capture_rect.position,
+		##capture_rect.position + Vector2(corner_size, 0),
+		##corner_color, corner_width
+	##)
+	##capture_area_indicator.draw_line(
+		##capture_rect.position,
+		##capture_rect.position + Vector2(0, corner_size),
+		##corner_color, corner_width
+	##)
+	##
+	### Esquina superior derecha
+	##var top_right = Vector2(capture_rect.position.x + capture_rect.size.x, capture_rect.position.y)
+	##capture_area_indicator.draw_line(
+		##top_right,
+		##top_right + Vector2(-corner_size, 0),
+		##corner_color, corner_width
+	##)
+	##capture_area_indicator.draw_line(
+		##top_right,
+		##top_right + Vector2(0, corner_size),
+		##corner_color, corner_width
+	##)
+	##
+	### Esquina inferior izquierda
+	##var bottom_left = Vector2(capture_rect.position.x, capture_rect.position.y + capture_rect.size.y)
+	##capture_area_indicator.draw_line(
+		##bottom_left,
+		##bottom_left + Vector2(corner_size, 0),
+		##corner_color, corner_width
+	##)
+	##capture_area_indicator.draw_line(
+		##bottom_left,
+		##bottom_left + Vector2(0, -corner_size),
+		##corner_color, corner_width
+	##)
+	##
+	### Esquina inferior derecha
+	##var bottom_right = capture_rect.position + capture_rect.size
+	##capture_area_indicator.draw_line(
+		##bottom_right,
+		##bottom_right + Vector2(-corner_size, 0),
+		##corner_color, corner_width
+	##)
+	##capture_area_indicator.draw_line(
+		##bottom_right,
+		##bottom_right + Vector2(0, -corner_size),
+		##corner_color, corner_width
+	##)
+	##
+	### Agregar texto informativo de resolución
+	##if actual_viewport_size.x > 0:
+		##var font = ThemeDB.fallback_font
+		##var font_size = max(8, actual_viewport_size.x / 16)  # Tamaño proporcional
+		##var resolution_text = "%dx%d" % [actual_viewport_size.x, actual_viewport_size.y]
+		##var text_pos = capture_rect.position + Vector2(5, font_size + 5)
+		##
+		### Fondo semi-transparente para el texto
+		##var text_size = font.get_string_size(resolution_text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
+		##var text_bg_rect = Rect2(text_pos - Vector2(2, font_size), text_size + Vector2(4, 2))
+		##capture_area_indicator.draw_rect(text_bg_rect, Color(0, 0, 0, 0.7))
+		##
+		### Texto de resolución
+		##capture_area_indicator.draw_string(
+			##font, 
+			##text_pos, 
+			##resolution_text, 
+			##HORIZONTAL_ALIGNMENT_LEFT, 
+			##-1, 
+			##font_size, 
+			##Color.WHITE
+		##)
+#
+
+
 func _draw_capture_area():
-	"""Dibujar borde del área de captura"""
+	"""Dibujar borde del área de captura - CORREGIDO COMPLETAMENTE"""
 	if not viewport or not capture_area_indicator:
 		return
 	
-	var viewport_size = viewport_container.size
-	var capture_size = min(viewport_size.x, viewport_size.y)
+	# ✅ CRÍTICO: Obtener el tamaño real del viewport interno, NO del container
+	var actual_viewport_size = viewport.size
 	
-	# Calcular área cuadrada centrada
-	var offset_x = (viewport_size.x - capture_size) / 2.0
-	print("viewport_size.x ")
-	print(viewport_size.x )
-	print("capture_size")
-	print(capture_size)
-	print("offset_x")
-	print(offset_x)
-	var offset_y = (viewport_size.y - capture_size) / 2.0
-	print("offset_y")
-	print(offset_y)
-#	var rect = Rect2(offset_x, offset_y, capture_size, capture_size)
-	var rect = Rect2(0, offset_y, capture_size, capture_size)
+	# ✅ DEBUG: Mostrar información de tamaños
+	print("🔍 DEBUG _draw_capture_area:")
+	print("  viewport.size: %s" % actual_viewport_size)
+	print("  viewport_container.size: %s" % viewport_container.size)
+	print("  capture_area_indicator.size: %s" % capture_area_indicator.size)
 	
-	# Dibujar borde del área de captura
-	var border_color = Color(1.0, 1.0, 0.0, 0.8)  # Amarillo semi-transparente
-	var border_width = 2.0
+	# ✅ CORRECCIÓN: El área de captura debe coincidir exactamente con el viewport
+	# NO usar el viewport_container.size porque puede estar mal escalado
+	var indicator_size = capture_area_indicator.size
 	
-	# Dibujar marco
+	# Calcular área cuadrada centrada en el indicador
+	var square_size = min(indicator_size.x, indicator_size.y)
+	var offset_x = (indicator_size.x - square_size) / 2.0
+	var offset_y = (indicator_size.y - square_size) / 2.0
+	
+	var rect = Rect2(offset_x, offset_y, square_size, square_size)
+	
+	print("  square_size calculado: %.1f" % square_size)
+	print("  rect final: %s" % rect)
+	
+	# Configuración visual mejorada
+	var border_color = Color(1.0, 1.0, 0.0, 0.9)  # Amarillo más opaco
+	var border_width = 3.0  # Más grueso para mejor visibilidad
+	
+	# Dibujar marco principal
 	capture_area_indicator.draw_rect(rect, border_color, false, border_width)
 	
-	# Dibujar esquinas más visibles
-	var corner_size = 20.0
+	# Dibujar esquinas para mejor visibilidad
+	var corner_size = min(20.0, square_size * 0.15)  # Proporcional al tamaño real
 	var corner_color = Color(1.0, 0.5, 0.0, 1.0)  # Naranja
+	var corner_width = 4.0
 	
 	# Esquina superior izquierda
 	capture_area_indicator.draw_line(
-		Vector2(rect.position.x, rect.position.y),
-		Vector2(rect.position.x + corner_size, rect.position.y),
-		corner_color, 3.0
+		rect.position,
+		rect.position + Vector2(corner_size, 0),
+		corner_color, corner_width
 	)
 	capture_area_indicator.draw_line(
-		Vector2(rect.position.x, rect.position.y),
-		Vector2(rect.position.x, rect.position.y + corner_size),
-		corner_color, 3.0
+		rect.position,
+		rect.position + Vector2(0, corner_size),
+		corner_color, corner_width
 	)
 	
 	# Esquina superior derecha
+	var top_right = Vector2(rect.position.x + rect.size.x, rect.position.y)
 	capture_area_indicator.draw_line(
-		Vector2(rect.position.x + rect.size.x, rect.position.y),
-		Vector2(rect.position.x + rect.size.x - corner_size, rect.position.y),
-		corner_color, 3.0
+		top_right,
+		top_right + Vector2(-corner_size, 0),
+		corner_color, corner_width
 	)
 	capture_area_indicator.draw_line(
-		Vector2(rect.position.x + rect.size.x, rect.position.y),
-		Vector2(rect.position.x + rect.size.x, rect.position.y + corner_size),
-		corner_color, 3.0
+		top_right,
+		top_right + Vector2(0, corner_size),
+		corner_color, corner_width
 	)
 	
 	# Esquina inferior izquierda
+	var bottom_left = Vector2(rect.position.x, rect.position.y + rect.size.y)
 	capture_area_indicator.draw_line(
-		Vector2(rect.position.x, rect.position.y + rect.size.y),
-		Vector2(rect.position.x + corner_size, rect.position.y + rect.size.y),
-		corner_color, 3.0
+		bottom_left,
+		bottom_left + Vector2(corner_size, 0),
+		corner_color, corner_width
 	)
 	capture_area_indicator.draw_line(
-		Vector2(rect.position.x, rect.position.y + rect.size.y),
-		Vector2(rect.position.x, rect.position.y + rect.size.y - corner_size),
-		corner_color, 3.0
+		bottom_left,
+		bottom_left + Vector2(0, -corner_size),
+		corner_color, corner_width
 	)
 	
 	# Esquina inferior derecha
+	var bottom_right = rect.position + rect.size
 	capture_area_indicator.draw_line(
-		Vector2(rect.position.x + rect.size.x, rect.position.y + rect.size.y),
-		Vector2(rect.position.x + rect.size.x - corner_size, rect.position.y + rect.size.y),
-		corner_color, 3.0
+		bottom_right,
+		bottom_right + Vector2(-corner_size, 0),
+		corner_color, corner_width
 	)
 	capture_area_indicator.draw_line(
-		Vector2(rect.position.x + rect.size.x, rect.position.y + rect.size.y),
-		Vector2(rect.position.x + rect.size.x, rect.position.y + rect.size.y - corner_size),
-		corner_color, 3.0
+		bottom_right,
+		bottom_right + Vector2(0, -corner_size),
+		corner_color, corner_width
 	)
+
+# ========================================================================
+# FUNCIÓN MEJORADA: set_viewport_resolution() 
+# ========================================================================
+func set_viewport_resolution(resolution: int):
+	"""Cambiar resolución del viewport de preview - COMPLETAMENTE CORREGIDO"""
+	if not viewport:
+		print("❌ No hay viewport disponible")
+		return
+	
+	var new_size = Vector2i(resolution, resolution)
+	print("🖼️ Cambiando viewport de preview a: %dx%d" % [new_size.x, new_size.y])
+	
+	# 1. Cambiar tamaño del viewport interno
+	viewport.size = new_size
+	print("  ✅ viewport.size = %s" % viewport.size)
+	
+	# 2. ✅ CRÍTICO: Actualizar el viewport container para que coincida EXACTAMENTE
+	if viewport_container:
+		viewport_container.custom_minimum_size = Vector2(resolution, resolution)
+		viewport_container.size = Vector2(resolution, resolution)  # ← AGREGAR ESTO
+		# Forzar actualización del layout
+		viewport_container.queue_sort()
+		print("  ✅ viewport_container.custom_minimum_size = %s" % viewport_container.custom_minimum_size)
+	
+	# 3. Esperar frames para que se apliquen los cambios de layout
+	await get_tree().process_frame
+	await get_tree().process_frame  # Doble frame para asegurar
+	
+	# 4. ✅ VERIFICAR que los tamaños coincidan
+	print("🔍 VERIFICACIÓN POST-CAMBIO:")
+	print("  viewport.size final: %s" % viewport.size)
+	print("  viewport_container.size final: %s" % viewport_container.size)
+	
+	# 5. Actualizar indicador de área de captura
+	update_capture_area_indicator()
+	
+	print("✅ Resolución de viewport actualizada y verificada")
+
+# ========================================================================
+# FUNCIÓN NUEVA: debug_viewport_sizes()
+# ========================================================================
+func debug_viewport_sizes():
+	"""Debug completo de tamaños de viewport"""
+	print("\n🔍 === DEBUG TAMAÑOS VIEWPORT ===")
+	print("viewport existe: %s" % (viewport != null))
+	print("viewport_container existe: %s" % (viewport_container != null))
+	
+	if viewport:
+		print("viewport.size: %s" % viewport.size)
+		print("viewport.render_target_update_mode: %d" % viewport.render_target_update_mode)
+	
+	if viewport_container:
+		print("viewport_container.size: %s" % viewport_container.size)
+		print("viewport_container.custom_minimum_size: %s" % viewport_container.custom_minimum_size)
+	
+	if capture_area_indicator:
+		print("capture_area_indicator.size: %s" % capture_area_indicator.size)
+	
+	print("===================================\n")
+# ========================================================================
+# FUNCIÓN A MODIFICAR: update_for_resolution_change()
+# ========================================================================
+func update_for_resolution_change(resolution: int, capture_area: float):
+	"""Actualizar preview para cambio de resolución y área de captura"""
+	print("🔄 Actualizando preview - Resolución: %dx%d, Área: %.1f" % [resolution, resolution, capture_area])
+	
+	# 1. Cambiar resolución del viewport
+	await set_viewport_resolution(resolution)
+	
+	# 2. Actualizar configuración de cámara si existe (área de captura)
+	if camera_controller and camera_controller.has_method("set_camera_settings"):
+		var camera_settings = {
+			"orthographic_size": capture_area,
+			"manual_zoom_override": true,
+			"fixed_orthographic_size": capture_area
+		}
+		camera_controller.set_camera_settings(camera_settings)
+		
+		if camera_controller.has_method("update_camera_position"):
+			camera_controller.update_camera_position()
+	
+	# 3. Actualizar indicador visual (después de que todo esté aplicado)
+	await get_tree().process_frame
+	update_capture_area_indicator()
+	
+	print("✅ Preview completamente actualizado")
+
+# ========================================================================
+# FUNCIÓN A AGREGAR: get_current_viewport_info()
+# ========================================================================
+func get_current_viewport_info() -> Dictionary:
+	"""Obtener información actual del viewport"""
+	var info = {
+		"viewport_size": Vector2i.ZERO,
+		"container_size": Vector2.ZERO,
+		"is_valid": false
+	}
+	
+	if viewport:
+		info.viewport_size = viewport.size
+		info.is_valid = true
+	
+	if viewport_container:
+		info.container_size = Vector2i(viewport_container.size)
+	
+	return info
+
+
+#func _draw_capture_area():
+	#"""Dibujar borde del área de captura"""
+	#if not viewport or not capture_area_indicator:
+		#return
+	#
+	#var viewport_size = viewport_container.size
+	#var capture_size = min(viewport_size.x, viewport_size.y)
+	#
+	## Calcular área cuadrada centrada
+	#var offset_x = (viewport_size.x - capture_size) / 2.0
+	#print("viewport_size.x ")
+	#print(viewport_size.x )
+	#print("capture_size")
+	#print(capture_size)
+	#print("offset_x")
+	#print(offset_x)
+	#var offset_y = (viewport_size.y - capture_size) / 2.0
+	#print("offset_y")
+	#print(offset_y)
+##	var rect = Rect2(offset_x, offset_y, capture_size, capture_size)
+	#var rect = Rect2(0, offset_y, capture_size, capture_size)
+	#
+	## Dibujar borde del área de captura
+	#var border_color = Color(1.0, 1.0, 0.0, 0.8)  # Amarillo semi-transparente
+	#var border_width = 2.0
+	#
+	## Dibujar marco
+	#capture_area_indicator.draw_rect(rect, border_color, false, border_width)
+	#
+	## Dibujar esquinas más visibles
+	#var corner_size = 20.0
+	#var corner_color = Color(1.0, 0.5, 0.0, 1.0)  # Naranja
+	#
+	## Esquina superior izquierda
+	#capture_area_indicator.draw_line(
+		#Vector2(rect.position.x, rect.position.y),
+		#Vector2(rect.position.x + corner_size, rect.position.y),
+		#corner_color, 3.0
+	#)
+	#capture_area_indicator.draw_line(
+		#Vector2(rect.position.x, rect.position.y),
+		#Vector2(rect.position.x, rect.position.y + corner_size),
+		#corner_color, 3.0
+	#)
+	#
+	## Esquina superior derecha
+	#capture_area_indicator.draw_line(
+		#Vector2(rect.position.x + rect.size.x, rect.position.y),
+		#Vector2(rect.position.x + rect.size.x - corner_size, rect.position.y),
+		#corner_color, 3.0
+	#)
+	#capture_area_indicator.draw_line(
+		#Vector2(rect.position.x + rect.size.x, rect.position.y),
+		#Vector2(rect.position.x + rect.size.x, rect.position.y + corner_size),
+		#corner_color, 3.0
+	#)
+	#
+	## Esquina inferior izquierda
+	#capture_area_indicator.draw_line(
+		#Vector2(rect.position.x, rect.position.y + rect.size.y),
+		#Vector2(rect.position.x + corner_size, rect.position.y + rect.size.y),
+		#corner_color, 3.0
+	#)
+	#capture_area_indicator.draw_line(
+		#Vector2(rect.position.x, rect.position.y + rect.size.y),
+		#Vector2(rect.position.x, rect.position.y + rect.size.y - corner_size),
+		#corner_color, 3.0
+	#)
+	#
+	## Esquina inferior derecha
+	#capture_area_indicator.draw_line(
+		#Vector2(rect.position.x + rect.size.x, rect.position.y + rect.size.y),
+		#Vector2(rect.position.x + rect.size.x - corner_size, rect.position.y + rect.size.y),
+		#corner_color, 3.0
+	#)
+	#capture_area_indicator.draw_line(
+		#Vector2(rect.position.x + rect.size.x, rect.position.y + rect.size.y),
+		#Vector2(rect.position.x + rect.size.x, rect.position.y + rect.size.y - corner_size),
+		#corner_color, 3.0
+	#)
+
+
+
 
 func update_capture_area_indicator():
 	"""Actualizar indicador cuando cambie la configuración"""
@@ -190,8 +523,70 @@ func _connect_signals():
 
 # === GESTIÓN DEL MODELO ===
 
+#func set_model(model: Node3D):
+	#"""✅ MEJORADO: Configurar modelo para preview"""
+	#print("🎬 Configurando modelo para preview: %s" % model.name)
+	#
+	#if not model_container:
+		#print("❌ model_container no disponible")
+		#return
+	#
+	## Limpiar modelo anterior
+	#_clear_current_model_safe()
+	#
+	#if not model:
+		#status_label.text = "No hay modelo cargado"
+		#controls_help_label.visible = false
+		#return
+	#
+	## Duplicar modelo para preview
+	#current_model = model.duplicate()
+	#current_model.name = "Preview_" + model.name
+	#model_container.add_child(current_model)
+	#
+	## Buscar AnimationPlayer
+	#animation_player = _find_animation_player(current_model)
+	#
+	#if capture_area_indicator:
+		#capture_area_indicator.visible = true
+		#update_capture_area_indicator()
+	#
+	#
+	#if animation_player:
+		#print("✅ AnimationPlayer encontrado con %d animaciones" % animation_player.get_animation_list().size())
+		#_setup_animation_loops()
+		#
+		## Conectar señales del AnimationPlayer
+		#if not animation_player.animation_finished.is_connected(_on_animation_finished):
+			#animation_player.animation_finished.connect(_on_animation_finished)
+	#else:
+		#print("⚠️ No se encontró AnimationPlayer")
+	#
+	## Calcular bounds
+	#current_bounds = _calculate_model_bounds_safe(current_model)
+	#emit_signal("bounds_calculated", current_bounds)
+	#
+	## Configurar cámara
+	#if camera_controller and camera_controller.has_method("setup_for_model"):
+		#camera_controller.setup_for_model(current_bounds)
+	#
+	## Actualizar UI
+	#status_label.text = "Modelo: " + model.name
+	#controls_help_label.visible = true
+	##preview_active = true
+	#
+	#emit_signal("preview_ready")
+#
+	#show_orientation_cross()
+	#
+	#print("✅ Preview configurado completamente con cruz de orientación")
+
+
+
+# REEMPLAZAR ESTAS FUNCIONES en model_preview_panel.gd para arreglar el centrado inicial
+
 func set_model(model: Node3D):
-	"""✅ MEJORADO: Configurar modelo para preview"""
+	"""✅ MEJORADO: Configurar modelo para preview con wiggle fix de centrado"""
 	print("🎬 Configurando modelo para preview: %s" % model.name)
 	
 	if not model_container:
@@ -218,7 +613,6 @@ func set_model(model: Node3D):
 		capture_area_indicator.visible = true
 		update_capture_area_indicator()
 	
-	
 	if animation_player:
 		print("✅ AnimationPlayer encontrado con %d animaciones" % animation_player.get_animation_list().size())
 		_setup_animation_loops()
@@ -237,17 +631,203 @@ func set_model(model: Node3D):
 	if camera_controller and camera_controller.has_method("setup_for_model"):
 		camera_controller.setup_for_model(current_bounds)
 	
-	# Actualizar UI
-	status_label.text = "Modelo: " + model.name
+	# Actualizar status
+	status_label.text = "Modelo cargado: " + model.name
 	controls_help_label.visible = true
-	#preview_active = true
 	
-	emit_signal("preview_ready")
+	# ✅ WIGGLE FIX: Ejecutar wiggle de centrado después de cargar modelo
+	call_deferred("_trigger_initial_centering_wiggle")
 
-	show_orientation_cross()
+# ========================================================================
+# FUNCIÓN NUEVA: _trigger_initial_centering_wiggle() - en model_preview_panel.gd
+# ========================================================================
+func _trigger_initial_centering_wiggle():
+	"""Ejecutar wiggle de centrado después de cargar modelo inicial"""
+	print("🎯 Ejecutando wiggle de centrado para modelo inicial...")
 	
-	print("✅ Preview configurado completamente con cruz de orientación")
+	# Esperar frames adicionales para asegurar que todo esté estabilizado
+	await get_tree().process_frame
+	await get_tree().process_frame
+	
+	# Buscar el settings panel
+	var viewer_coordinator = get_node("/root/ViewerModular")
+	if not viewer_coordinator:
+		print("❌ ViewerModular no encontrado para wiggle")
+		return
+	
+	var settings_panel = viewer_coordinator.get_node("HSplitContainer/LeftPanel/VBoxContainer/SettingsPanel")
+	if not settings_panel:
+		print("❌ SettingsPanel no encontrado para wiggle")
+		return
+	
+	# Ejecutar wiggle de centrado
+	if settings_panel.has_method("trigger_centering_wiggle"):
+		print("🔄 Ejecutando wiggle de centrado inicial...")
+		settings_panel.trigger_centering_wiggle()
+		print("✅ Wiggle de centrado inicial completado")
+	else:
+		print("❌ Método trigger_centering_wiggle no encontrado en SettingsPanel")
 
+# ========================================================================
+# FUNCIÓN ALTERNATIVA: force_initial_wiggle() - en model_preview_panel.gd
+# ========================================================================
+func force_initial_wiggle():
+	"""Función de debug para forzar wiggle inicial manualmente"""
+	print("🧪 === FORZANDO WIGGLE INICIAL MANUAL ===")
+	_trigger_initial_centering_wiggle()
+
+# ========================================================================
+# FUNCIÓN NUEVA: _setup_initial_camera_centering()
+# ========================================================================
+func _setup_initial_camera_centering():
+	"""Configuración inicial de cámara con centrado forzado"""
+	print("🎯 Configurando centrado inicial de cámara...")
+	
+	if not current_model:
+		print("❌ No hay modelo para centrar")
+		return
+	
+	# 1. Esperar a que el modelo esté completamente en el árbol
+	await get_tree().process_frame
+	await get_tree().process_frame  # Doble frame para asegurar
+	
+	# 2. Calcular bounds del modelo
+	current_bounds = _calculate_model_bounds_safe(current_model)
+	print("📐 Bounds calculados: %s" % current_bounds)
+	
+	# 3. Emitir señal de bounds calculados
+	emit_signal("bounds_calculated", current_bounds)
+	
+	# 4. Configurar cámara para el modelo
+	if camera_controller and camera_controller.has_method("setup_for_model"):
+		print("📸 Configurando cámara para modelo...")
+		camera_controller.setup_for_model(current_bounds)
+		
+		# ✅ CRÍTICO: Forzar actualización inmediata de posición
+		if camera_controller.has_method("update_camera_position"):
+			camera_controller.update_camera_position()
+			print("🔄 Posición de cámara actualizada inmediatamente")
+	
+	# 5. ✅ NUEVO: Aplicar configuración actual del settings panel si existe
+	_apply_current_settings_to_camera()
+	
+	# 6. Esperar otro frame y verificar resultado
+	await get_tree().process_frame
+	_verify_initial_centering()
+	
+	print("✅ Centrado inicial completado")
+
+# ========================================================================
+# FUNCIÓN NUEVA: _apply_current_settings_to_camera()
+# ========================================================================
+func _apply_current_settings_to_camera():
+	"""Aplicar configuración actual del settings panel a la cámara"""
+	print("⚙️ Aplicando configuración actual a cámara...")
+	
+	# Buscar el settings panel para obtener configuración actual
+	var viewer_coordinator = get_node_or_null("/root/ViewerModular")
+	if not viewer_coordinator:
+		print("❌ ViewerModular no encontrado")
+		return
+	
+	var settings_panel = viewer_coordinator.get_node_or_null("HSplitContainer/LeftPanel/SettingsPanel")
+	if not settings_panel:
+		print("❌ SettingsPanel no encontrado")
+		return
+	
+	# Obtener configuración actual
+	var current_settings = {}
+	if settings_panel.has_method("_get_enhanced_settings"):
+		current_settings = settings_panel._get_enhanced_settings()
+	elif settings_panel.has_method("get_settings"):
+		current_settings = settings_panel.get_settings()
+	else:
+		print("❌ No se puede obtener configuración del settings panel")
+		return
+	
+	print("📋 Configuración obtenida: %s claves" % current_settings.size())
+	
+	# Aplicar a la cámara
+	if camera_controller and camera_controller.has_method("set_camera_settings"):
+		camera_controller.set_camera_settings(current_settings)
+		print("✅ Configuración aplicada a cámara")
+		
+		# Forzar actualización
+		if camera_controller.has_method("update_camera_position"):
+			camera_controller.update_camera_position()
+
+# ========================================================================
+# FUNCIÓN NUEVA: _verify_initial_centering()
+# ========================================================================
+func _verify_initial_centering():
+	"""Verificar que el centrado inicial funcionó correctamente"""
+	print("🔍 Verificando centrado inicial...")
+	
+	if not camera_controller:
+		print("❌ No hay camera_controller para verificar")
+		return
+	
+	# Obtener información de la cámara
+	var camera_info = {}
+	if camera_controller.has_method("get_current_zoom_info"):
+		camera_info = camera_controller.get_current_zoom_info()
+	
+	print("📸 Estado de cámara:")
+	for key in camera_info:
+		print("  %s: %s" % [key, camera_info[key]])
+	
+	# Verificar si el modelo está visible
+	if current_bounds != AABB():
+		var bounds_center = current_bounds.get_center()
+		print("📐 Centro del modelo: %s" % bounds_center)
+		
+		# Si el centro está muy lejos del origen, puede estar descentrado
+		var distance_from_origin = bounds_center.length()
+		if distance_from_origin > 10.0:  # Umbral arbitrario
+			print("⚠️ Modelo parece estar lejos del centro (distancia: %.2f)" % distance_from_origin)
+			_force_recenter_model()
+		else:
+			print("✅ Modelo parece estar bien centrado")
+
+# ========================================================================
+# FUNCIÓN NUEVA: _force_recenter_model()
+# ========================================================================
+func _force_recenter_model():
+	"""Forzar re-centrado del modelo si parece estar mal posicionado"""
+	print("🔧 Forzando re-centrado del modelo...")
+	
+	if not current_model or not camera_controller:
+		return
+	
+	# Re-calcular bounds
+	current_bounds = _calculate_model_bounds_safe(current_model)
+	
+	# Re-configurar cámara
+	if camera_controller.has_method("setup_for_model"):
+		camera_controller.setup_for_model(current_bounds)
+		
+		if camera_controller.has_method("update_camera_position"):
+			camera_controller.update_camera_position()
+	
+	print("🎯 Re-centrado forzado completado")
+
+# ========================================================================
+# FUNCIÓN NUEVA: force_immediate_centering() - Para debugging
+# ========================================================================
+func force_immediate_centering():
+	"""Función de debug para forzar centrado inmediato - llamar desde consola"""
+	print("🧪 === FORZANDO CENTRADO INMEDIATO ===")
+	
+	if current_model:
+		_setup_initial_camera_centering()
+	else:
+		print("❌ No hay modelo cargado para centrar")
+
+# ========================================================================
+# COMANDO PARA EJECUTAR DESDE CONSOLA SI HAY PROBLEMAS:
+# ========================================================================
+# var preview = get_node("/root/ViewerModular/HSplitContainer/RightPanel/ModelPreviewPanel")
+# preview.force_immediate_centering()
 
 # === CONTROL DE ANIMACIONES ===
 
@@ -617,19 +1197,20 @@ func hide_orientation_cross():
 	if orientation_overlay:
 		orientation_overlay.visible = false
 
-
-
 # ========================================================================
-# NUEVAS FUNCIONES PARA SHADER AVANZADO - AGREGAR A model_preview_panel.gd
+# scripts/viewer/ui/model_preview_panel.gd
+# FUNCIONES CORREGIDAS PARA SHADER AVANZADO - AGREGAR A model_preview_panel.gd
+# ❌ ESTAS FUNCIONES NO DEBEN MOVER LA CAMARA O EL MODELO ❌
+# ✅ SOLO APLICAN EFECTOS DE SHADER A LOS MATERIALES
 # ========================================================================
 
 # AGREGAR ESTAS VARIABLES AL INICIO DE LA CLASE (después de var current_model)
 var current_shader_settings: Dictionary = {}
 var shader_applied_to_model: bool = false
 
-# FUNCIÓN PRINCIPAL: Aplicar shader avanzado al modelo actual
+# FUNCIÓN PRINCIPAL: Aplicar shader avanzado al modelo actual - SIN MOVER NADA
 func apply_advanced_shader(shader_settings: Dictionary):
-	"""Aplicar configuración de shader avanzado al modelo actual en el preview"""
+	"""Aplicar configuración de shader avanzado al modelo actual en el preview - SOLO MATERIALES"""
 	print("🎨 Aplicando shader avanzado al modelo en preview...")
 	print("   Modelo actual: %s" % (current_model.name if current_model else "NINGUNO"))
 	
@@ -660,7 +1241,10 @@ func apply_advanced_shader(shader_settings: Dictionary):
 	
 	if shader_applied_to_model:
 		print("   🎉 Shader avanzado aplicado exitosamente!")
+		print("o0o0o0o0oooooooooooooooshader_settings")
+		print(shader_settings)
 		print("   📊 Resumen: %d mesh instances, %d superficies procesadas" % [applied_count, total_surfaces])
+		# ❌ NO EMITIR SEÑALES QUE MUEVAN LA CAMARA
 	else:
 		print("   ❌ No se pudo aplicar shader a ninguna mesh instance")
 
@@ -780,7 +1364,7 @@ func _convert_to_shader_material(material: Material, mesh_instance: MeshInstance
 # FUNCIÓN AUXILIAR: Asegurar que el shader avanzado esté cargado
 func _ensure_advanced_shader_loaded(shader_material: ShaderMaterial) -> bool:
 	"""Asegurar que el shader avanzado esté cargado en el material"""
-	var shader_path = "res://resources/shaders/pixelize_advanced.gdshader"
+	var shader_path = "res://resources/shaders/pixelize_advanced_improved.gdshader"
 	
 	# Si ya tiene el shader correcto, retornar true
 	if shader_material.shader and shader_material.shader.resource_path == shader_path:
@@ -842,12 +1426,13 @@ func _apply_shader_parameters(shader_material: ShaderMaterial, shader_settings: 
 	shader_material.set_shader_parameter("apply_gamma_correction", apply_gamma)
 	shader_material.set_shader_parameter("gamma_value", shader_settings.get("gamma_value", 1.0))
 
-# FUNCIÓN PÚBLICA: Re-aplicar shader cuando cambie el modelo
+# FUNCIÓN PÚBLICA: Re-aplicar shader cuando cambie el modelo - SIN EFECTOS DE CAMARA
 func _on_model_changed_reapply_shader():
 	"""Re-aplicar shader cuando el modelo cambia (llamar en show_model)"""
 	if not current_shader_settings.is_empty() and current_model:
 		print("🔄 Re-aplicando shader al nuevo modelo...")
 		apply_advanced_shader(current_shader_settings)
+		# ❌ NO emitir señales que muevan la cámara
 
 # FUNCIÓN PÚBLICA: Limpiar shader del modelo
 func clear_advanced_shader():
@@ -870,6 +1455,7 @@ func clear_advanced_shader():
 	shader_applied_to_model = false
 	
 	print("✅ Shader limpiado de %d superficies" % cleared_count)
+	# ❌ NO emitir señales que muevan la cámara
 
 # FUNCIÓN PÚBLICA: Obtener estado del shader
 func get_shader_status() -> Dictionary:
@@ -884,7 +1470,7 @@ func get_shader_status() -> Dictionary:
 # MODIFICAR LA FUNCIÓN EXISTENTE show_model PARA RE-APLICAR SHADER
 # AGREGAR AL FINAL DE LA FUNCIÓN show_model EXISTENTE:
 func _reapply_shader_after_model_change():
-	"""Llamar al final de show_model para re-aplicar shader"""
+	"""Llamar al final de show_model para re-aplicar shader - SIN MOVER CAMARA"""
 	if not current_shader_settings.is_empty():
 		# Usar call_deferred para asegurar que el modelo esté completamente cargado
 		call_deferred("_on_model_changed_reapply_shader")

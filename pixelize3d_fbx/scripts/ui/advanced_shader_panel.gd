@@ -2,10 +2,12 @@
 # Panel avanzado de configuración del shader de pixelización con efectos completos
 # Input: Interacción del usuario con controles de configuración avanzada
 # Output: Señales con configuración de shader actualizada para aplicación en model_preview_panel
+# ❌ ESTA VERSIÓN NO DEBE CAUSAR MOVIMIENTO DE CAMARA O MODELO ❌
+# ✅ SOLO EMITE SEÑALES DE SHADER PARA MATERIALES
 
 extends VBoxContainer
 
-# === SEÑALES DE COMUNICACIÓN ===
+# === SEÑALES DE COMUNICACIÓN - SOLO PARA EFECTOS DE SHADER ===
 signal shader_settings_changed(settings: Dictionary)
 signal reset_to_defaults_requested()
 
@@ -98,13 +100,13 @@ var default_settings: Dictionary = {
 }
 
 func _ready():
-	print("🎨 AdvancedShaderPanel inicializando...")
+	print("🎨 AdvancedShaderPanel inicializando (VERSIÓN AISLADA)...")
 	_initialize_settings()
 	_setup_material_and_shader()
 	_create_ui_layout()
 	_connect_all_signals()
 	_apply_current_settings()
-	print("✅ AdvancedShaderPanel completamente inicializado")
+	print("✅ AdvancedShaderPanel completamente inicializado (SIN efectos de cámara)")
 
 # ========================================================================
 # INICIALIZACIÓN Y CONFIGURACIÓN
@@ -544,124 +546,126 @@ func _connect_all_signals():
 func _on_pixelize_enabled_changed(enabled: bool):
 	if is_updating_ui: return
 	current_settings.pixelize_enabled = enabled
-	_update_preview_and_emit()
+	_update_shader_only()
 
 func _on_pixel_size_changed(value: float):
 	if is_updating_ui: return
 	current_settings.pixel_size = value
 	pixel_size_label.text = "%.0f" % value
-	_update_preview_and_emit()
+	_update_shader_only()
 
 func _on_reduce_colors_enabled_changed(enabled: bool):
 	if is_updating_ui: return
 	current_settings.reduce_colors_enabled = enabled
 	current_settings.reduce_colors = enabled
-	_update_preview_and_emit()
+	_update_shader_only()
 
 func _on_color_levels_changed(value: float):
 	if is_updating_ui: return
 	current_settings.color_levels = int(value)
 	color_levels_label.text = "%d" % int(value)
-	_update_preview_and_emit()
+	_update_shader_only()
 
 func _on_dithering_enabled_changed(enabled: bool):
 	if is_updating_ui: return
 	current_settings.dithering_enabled = enabled
 	current_settings.enable_dithering = enabled
-	_update_preview_and_emit()
+	_update_shader_only()
 
 func _on_dither_strength_changed(value: float):
 	if is_updating_ui: return
 	current_settings.dither_strength = value
 	dither_strength_label.text = "%.2f" % value
-	_update_preview_and_emit()
+	_update_shader_only()
 
 func _on_outline_enabled_changed(enabled: bool):
 	if is_updating_ui: return
 	current_settings.outline_enabled = enabled
 	current_settings.enable_outline = enabled
-	_update_preview_and_emit()
+	_update_shader_only()
 
 func _on_outline_thickness_changed(value: float):
 	if is_updating_ui: return
 	current_settings.outline_thickness = value
 	outline_thickness_label.text = "%.1f" % value
-	_update_preview_and_emit()
+	_update_shader_only()
 
 func _on_outline_color_changed(color: Color):
 	if is_updating_ui: return
 	current_settings.outline_color = color
-	_update_preview_and_emit()
+	_update_shader_only()
 
 func _on_outline_pixelated_changed(enabled: bool):
 	if is_updating_ui: return
 	current_settings.outline_pixelated = enabled
-	_update_preview_and_emit()
+	_update_shader_only()
 
 func _on_outline_smooth_changed(value: float):
 	if is_updating_ui: return
 	current_settings.outline_smooth = value
 	outline_smooth_label.text = "%.2f" % value
-	_update_preview_and_emit()
+	_update_shader_only()
 
 func _on_contrast_enabled_changed(enabled: bool):
 	if is_updating_ui: return
 	current_settings.contrast_enabled = enabled
-	_update_preview_and_emit()
+	_update_shader_only()
 
 func _on_contrast_changed(value: float):
 	if is_updating_ui: return
 	current_settings.contrast_boost = value
 	contrast_label.text = "%.2f" % value
-	_update_preview_and_emit()
+	_update_shader_only()
 
 func _on_saturation_enabled_changed(enabled: bool):
 	if is_updating_ui: return
 	current_settings.saturation_enabled = enabled
-	_update_preview_and_emit()
+	_update_shader_only()
 
 func _on_saturation_changed(value: float):
 	if is_updating_ui: return
 	current_settings.saturation_mult = value
 	saturation_label.text = "%.2f" % value
-	_update_preview_and_emit()
+	_update_shader_only()
 
 func _on_tint_enabled_changed(enabled: bool):
 	if is_updating_ui: return
 	current_settings.tint_enabled = enabled
-	_update_preview_and_emit()
+	_update_shader_only()
 
 func _on_color_tint_changed(color: Color):
 	if is_updating_ui: return
 	current_settings.color_tint = color
-	_update_preview_and_emit()
+	_update_shader_only()
 
 func _on_gamma_enabled_changed(enabled: bool):
 	if is_updating_ui: return
 	current_settings.gamma_enabled = enabled
 	current_settings.apply_gamma_correction = enabled
-	_update_preview_and_emit()
+	_update_shader_only()
 
 func _on_gamma_changed(value: float):
 	if is_updating_ui: return
 	current_settings.gamma_value = value
 	gamma_label.text = "%.2f" % value
-	_update_preview_and_emit()
+	_update_shader_only()
 
 func _on_reset_requested():
 	print("🔄 Reseteando a valores por defecto...")
 	current_settings = default_settings.duplicate()
 	_apply_current_settings()
-	_update_preview_and_emit()
+	_update_shader_only()
 	reset_to_defaults_requested.emit()
 
 # ========================================================================
-# FUNCIONES DE ACTUALIZACIÓN Y APLICACIÓN
+# FUNCIONES DE ACTUALIZACIÓN Y APLICACIÓN - VERSIÓN CORREGIDA
 # ========================================================================
 
-func _update_preview_and_emit():
-	"""Actualizar vista previa y emitir señal de cambio - SIN BUSCAR MODELO DIRECTAMENTE"""
-	print("Aplicando cambios del shader avanzado...")
+# ❌ FUNCIÓN ANTERIOR PROBLEMÁTICA: _update_preview_and_emit()
+# ✅ NUEVA FUNCIÓN CORREGIDA: _update_shader_only()
+func _update_shader_only():
+	"""Actualizar SOLO efectos de shader - SIN emitir señales que muevan cámara"""
+	print("Aplicando cambios del shader avanzado (SOLO MATERIALES)...")
 	print("   Pixelización: %s (tamaño: %.0f)" % [current_settings.pixelize_enabled, current_settings.pixel_size])
 	print("   Reducción colores: %s (%d niveles)" % [current_settings.reduce_colors, current_settings.color_levels])
 	print("   Dithering: %s (fuerza: %.2f)" % [current_settings.enable_dithering, current_settings.dither_strength])
@@ -672,9 +676,9 @@ func _update_preview_and_emit():
 		_apply_settings_to_material(preview_material)
 		print("   Aplicado al material de preview interno")
 	
-	# CORREGIDO: Solo emitir señal para que settings_panel maneje el flujo
+	# ✅ CRÍTICO: Solo emitir señal de shader, NO settings_changed que mueve cámara
 	shader_settings_changed.emit(current_settings.duplicate())
-	print("   Señal shader_settings_changed emitida")
+	print("   ✅ Señal shader_settings_changed emitida (SIN efectos de cámara)")
 
 func _apply_settings_to_material(material: ShaderMaterial):
 	"""Aplicar configuración actual al material especificado"""
@@ -774,7 +778,7 @@ func apply_settings(settings: Dictionary):
 	"""Aplicar configuración externa al panel"""
 	current_settings = settings.duplicate()
 	_apply_current_settings()
-	_update_preview_and_emit()
+	_update_shader_only()
 
 func get_preview_material() -> ShaderMaterial:
 	"""Obtener material de vista previa configurado"""
