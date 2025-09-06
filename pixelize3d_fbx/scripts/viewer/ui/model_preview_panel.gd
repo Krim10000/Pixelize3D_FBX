@@ -44,10 +44,22 @@ var outline_3d_enabled: bool = false
 var outline_material: ShaderMaterial = null
 
 
+# === NUEVAS VARIABLES PARA POST-PROCESSING ===
+var postprocess_quad: MeshInstance3D = null
+var postprocess_material: ShaderMaterial = null
+var postprocess_enabled: bool = false
+var previous_viewport_state: Dictionary = {}
+
+
+
+var original_material: Material = null
+
 func _ready():
 	print("🎬 ModelPreviewPanel MEJORADO inicializado")
 	_setup_ui()
 	_connect_signals()
+	#call_deferred("setup_postprocessing_system")
+	call_deferred("setup_canvas_postprocessing")
 	print("oooooooooooooooooooooooo camera")
 	print(camera)
 	
@@ -94,7 +106,7 @@ func _create_capture_area_indicator():
 	# Configurar para dibujar el borde
 	capture_area_indicator.draw.connect(_draw_capture_area)
 	
-	print("✅ Indicador de área de captura creado")
+	#print("✅ Indicador de área de captura creado")
 
 
 func _draw_capture_area():
@@ -105,11 +117,11 @@ func _draw_capture_area():
 	# ✅ CRÍTICO: Obtener el tamaño real del viewport interno, NO del container
 	var actual_viewport_size = viewport.size
 	
-	# ✅ DEBUG: Mostrar información de tamaños
-	print("🔍 DEBUG _draw_capture_area:")
-	print("  viewport.size: %s" % actual_viewport_size)
-	print("  viewport_container.size: %s" % viewport_container.size)
-	print("  capture_area_indicator.size: %s" % capture_area_indicator.size)
+	## ✅ DEBUG: Mostrar información de tamaños
+	#print("🔍 DEBUG _draw_capture_area:")
+	#print("  viewport.size: %s" % actual_viewport_size)
+	#print("  viewport_container.size: %s" % viewport_container.size)
+	#print("  capture_area_indicator.size: %s" % capture_area_indicator.size)
 	
 	# ✅ CORRECCIÓN: El área de captura debe coincidir exactamente con el viewport
 	# NO usar el viewport_container.size porque puede estar mal escalado
@@ -122,8 +134,8 @@ func _draw_capture_area():
 	
 	var rect = Rect2(offset_x, offset_y, square_size, square_size)
 	
-	print("  square_size calculado: %.1f" % square_size)
-	print("  rect final: %s" % rect)
+	#print("  square_size calculado: %.1f" % square_size)
+	#print("  rect final: %s" % rect)
 	
 	# Configuración visual mejorada
 	var border_color = Color(1.0, 1.0, 0.0, 0.9)  # Amarillo más opaco
@@ -198,11 +210,11 @@ func set_viewport_resolution(resolution: int):
 		return
 	
 	var new_size = Vector2i(resolution, resolution)
-	print("🖼️ Cambiando viewport de preview a: %dx%d" % [new_size.x, new_size.y])
+	#print("🖼️ Cambiando viewport de preview a: %dx%d" % [new_size.x, new_size.y])
 	
 	# 1. Cambiar tamaño del viewport interno
 	viewport.size = new_size
-	print("  ✅ viewport.size = %s" % viewport.size)
+	#print("  ✅ viewport.size = %s" % viewport.size)
 	
 	# 2. ✅ CRÍTICO: Actualizar el viewport container para que coincida EXACTAMENTE
 	if viewport_container:
@@ -210,49 +222,52 @@ func set_viewport_resolution(resolution: int):
 		viewport_container.size = Vector2(resolution, resolution)  # ← AGREGAR ESTO
 		# Forzar actualización del layout
 		viewport_container.queue_sort()
-		print("  ✅ viewport_container.custom_minimum_size = %s" % viewport_container.custom_minimum_size)
+		#print("  ✅ viewport_container.custom_minimum_size = %s" % viewport_container.custom_minimum_size)
 	
 	# 3. Esperar frames para que se apliquen los cambios de layout
 	await get_tree().process_frame
 	await get_tree().process_frame  # Doble frame para asegurar
 	
 	# 4. ✅ VERIFICAR que los tamaños coincidan
-	print("🔍 VERIFICACIÓN POST-CAMBIO:")
-	print("  viewport.size final: %s" % viewport.size)
-	print("  viewport_container.size final: %s" % viewport_container.size)
+	#print("🔍 VERIFICACIÓN POST-CAMBIO:")
+	#print("  viewport.size final: %s" % viewport.size)
+	#print("  viewport_container.size final: %s" % viewport_container.size)
 	
 	# 5. Actualizar indicador de área de captura
 	update_capture_area_indicator()
 	
-	print("✅ Resolución de viewport actualizada y verificada")
+	#print("✅ Resolución de viewport actualizada y verificada")
 
 # ========================================================================
 # FUNCIÓN NUEVA: debug_viewport_sizes()
 # ========================================================================
 func debug_viewport_sizes():
 	"""Debug completo de tamaños de viewport"""
-	print("\n🔍 === DEBUG TAMAÑOS VIEWPORT ===")
-	print("viewport existe: %s" % (viewport != null))
-	print("viewport_container existe: %s" % (viewport_container != null))
-	
+	#print("\n🔍 === DEBUG TAMAÑOS VIEWPORT ===")
+	#print("viewport existe: %s" % (viewport != null))
+	#print("viewport_container existe: %s" % (viewport_container != null))
+	#
 	if viewport:
-		print("viewport.size: %s" % viewport.size)
-		print("viewport.render_target_update_mode: %d" % viewport.render_target_update_mode)
-	
+		pass
+		#print("viewport.size: %s" % viewport.size)
+		#print("viewport.render_target_update_mode: %d" % viewport.render_target_update_mode)
+	#
 	if viewport_container:
-		print("viewport_container.size: %s" % viewport_container.size)
-		print("viewport_container.custom_minimum_size: %s" % viewport_container.custom_minimum_size)
-	
+		pass
+		#print("viewport_container.size: %s" % viewport_container.size)
+		#print("viewport_container.custom_minimum_size: %s" % viewport_container.custom_minimum_size)
+	#
 	if capture_area_indicator:
-		print("capture_area_indicator.size: %s" % capture_area_indicator.size)
-	
-	print("===================================\n")
+		pass
+		#print("capture_area_indicator.size: %s" % capture_area_indicator.size)
+	#
+	#print("===================================\n")
 # ========================================================================
 # FUNCIÓN A MODIFICAR: update_for_resolution_change()
 # ========================================================================
 func update_for_resolution_change(resolution: int, capture_area: float):
 	"""Actualizar preview para cambio de resolución y área de captura"""
-	print("🔄 Actualizando preview - Resolución: %dx%d, Área: %.1f" % [resolution, resolution, capture_area])
+	#print("🔄 Actualizando preview - Resolución: %dx%d, Área: %.1f" % [resolution, resolution, capture_area])
 	
 	# 1. Cambiar resolución del viewport
 	await set_viewport_resolution(resolution)
@@ -273,7 +288,7 @@ func update_for_resolution_change(resolution: int, capture_area: float):
 	await get_tree().process_frame
 	update_capture_area_indicator()
 	
-	print("✅ Preview completamente actualizado")
+	#print("✅ Preview completamente actualizado")
 
 # ========================================================================
 # FUNCIÓN A AGREGAR: get_current_viewport_info()
@@ -415,7 +430,7 @@ func force_initial_wiggle():
 # ========================================================================
 func _setup_initial_camera_centering():
 	"""Configuración inicial de cámara con centrado forzado"""
-	print("🎯 Configurando centrado inicial de cámara...")
+	#print("🎯 Configurando centrado inicial de cámara...")
 	
 	if not current_model:
 		print("❌ No hay modelo para centrar")
@@ -427,20 +442,20 @@ func _setup_initial_camera_centering():
 	
 	# 2. Calcular bounds del modelo
 	current_bounds = _calculate_model_bounds_safe(current_model)
-	print("📐 Bounds calculados: %s" % current_bounds)
+	#print("📐 Bounds calculados: %s" % current_bounds)
 	
 	# 3. Emitir señal de bounds calculados
 	emit_signal("bounds_calculated", current_bounds)
 	
 	# 4. Configurar cámara para el modelo
 	if camera_controller and camera_controller.has_method("setup_for_model"):
-		print("📸 Configurando cámara para modelo...")
+		#print("📸 Configurando cámara para modelo...")
 		camera_controller.setup_for_model(current_bounds)
 		
 		# ✅ CRÍTICO: Forzar actualización inmediata de posición
 		if camera_controller.has_method("update_camera_position"):
 			camera_controller.update_camera_position()
-			print("🔄 Posición de cámara actualizada inmediatamente")
+			#print("🔄 Posición de cámara actualizada inmediatamente")
 	
 	# 5. ✅ NUEVO: Aplicar configuración actual del settings panel si existe
 	_apply_current_settings_to_camera()
@@ -449,7 +464,7 @@ func _setup_initial_camera_centering():
 	await get_tree().process_frame
 	_verify_initial_centering()
 	
-	print("✅ Centrado inicial completado")
+	#print("✅ Centrado inicial completado")
 
 # ========================================================================
 # FUNCIÓN NUEVA: _apply_current_settings_to_camera()
@@ -793,19 +808,20 @@ func reset_camera():
 
 func debug_state():
 	"""Debug del estado actual"""
-	print("\n🎬 === MODEL PREVIEW DEBUG ===")
-	print("Preview activo: %s" % preview_active)
-#	print("Modelo: %s" % (current_model.name if current_model else "NULL"))
-# Error original
-	print("Modelo: %s" % (str(current_model.name) if current_model else "NULL"))
-	#print("AnimationPlayer: %s" % (animation_player.name if animation_player else "NULL"))
-	print("AnimationPlayer: %s" % (str(animation_player.name) if animation_player else "NULL"))
-	if animation_player:
-		print("  Animaciones: %s" % str(animation_player.get_animation_list()))
-		print("  Reproduciendo: %s" % is_animation_playing)
-		print("  Actual: %s" % current_animation_name)
-	print("Bounds: %s" % str(current_bounds))
-	print("============================\n")
+	pass
+	#print("\n🎬 === MODEL PREVIEW DEBUG ===")
+	#print("Preview activo: %s" % preview_active)
+##	print("Modelo: %s" % (current_model.name if current_model else "NULL"))
+## Error original
+	#print("Modelo: %s" % (str(current_model.name) if current_model else "NULL"))
+	##print("AnimationPlayer: %s" % (animation_player.name if animation_player else "NULL"))
+	#print("AnimationPlayer: %s" % (str(animation_player.name) if animation_player else "NULL"))
+	#if animation_player:
+		#print("  Animaciones: %s" % str(animation_player.get_animation_list()))
+		#print("  Reproduciendo: %s" % is_animation_playing)
+		#print("  Actual: %s" % current_animation_name)
+	#print("Bounds: %s" % str(current_bounds))
+	#print("============================\n")
 
 
 
@@ -922,34 +938,6 @@ func hide_orientation_cross():
 	if orientation_overlay:
 		orientation_overlay.visible = false
 
-
-func apply_advanced_shader(shader_settings: Dictionary):
-	"""Aplicar configuración de shader avanzado con soporte 3D outline"""
-	print("🎨 Aplicando shader avanzado al modelo en preview...")
-	
-	if not current_model:
-		print("❌ No hay modelo actual")
-		return
-	
-	current_shader_settings = shader_settings.duplicate()
-	
-	# 1. Aplicar shader principal
-	var mesh_instances = _find_all_mesh_instances_in_model(current_model)
-	var applied_count = 0
-	
-	for mesh_instance in mesh_instances:
-		var surfaces_processed = _apply_shader_to_mesh_instance(mesh_instance, shader_settings)
-		if surfaces_processed > 0:
-			applied_count += 1
-	
-	# 2. Manejar outline 3D si está habilitado
-	if shader_settings.get("enable_outline", false):
-		_apply_3d_outline(shader_settings)
-	else:
-		_clear_3d_outline()
-	
-	shader_applied_to_model = applied_count > 0
-	print("✅ Shader aplicado a %d mesh instances" % applied_count)
 
 
 func _apply_shader_to_mesh_instance(mesh_instance: MeshInstance3D, shader_settings: Dictionary) -> int:
@@ -1183,30 +1171,6 @@ func _on_model_changed_reapply_shader():
 		# ❌ NO emitir señales que muevan la cámara
 
 
-func clear_advanced_shader():
-	"""Limpiar shader avanzado del modelo actual"""
-	if not current_model:
-		return
-	
-	print("🧹 Limpiando shader avanzado del modelo...")
-	
-	var mesh_instances = _find_all_mesh_instances_in_model(current_model)
-	var cleared_count = 0
-	
-	for mesh_instance in mesh_instances:
-		for surface_idx in range(mesh_instance.mesh.get_surface_count() if mesh_instance.mesh else 0):
-			mesh_instance.set_surface_override_material(surface_idx, null)
-			cleared_count += 1
-	
-	# Limpiar outline 3D si existe
-	_clear_3d_outline()
-	
-	current_shader_settings.clear()
-	shader_applied_to_model = false
-	outline_3d_enabled = false
-	
-	print("✅ Shader limpiado de %d superficies" % cleared_count)
-
 
 # FUNCIÓN PÚBLICA: Obtener estado del shader
 func get_shader_status() -> Dictionary:
@@ -1221,15 +1185,256 @@ func get_shader_status() -> Dictionary:
 
 
 func debug_shader_state():
-	"""Debug del estado del shader en el modelo"""
-	print("\n🔍 === DEBUG SHADER ESTADO ===")
-	print("Modelo: %s" % (current_model.name if current_model else "NINGUNO"))
-	print("Shader aplicado: %s" % shader_applied_to_model)
-	print("Outline 3D: %s" % outline_3d_enabled)
-	print("Configuración: %d parámetros" % current_shader_settings.size())
+	pass
+	#"""Debug del estado del shader en el modelo"""
+	#print("\n🔍 === DEBUG SHADER ESTADO ===")
+	#print("Modelo: %s" % (current_model.name if current_model else "NINGUNO"))
+	#print("Shader aplicado: %s" % shader_applied_to_model)
+	#print("Outline 3D: %s" % outline_3d_enabled)
+	#print("Configuración: %d parámetros" % current_shader_settings.size())
+	#
+	#if current_model:
+		#var outline_node = current_model.find_child("Outline3D", false)
+		#print("Nodo Outline3D: %s" % ("SÍ" if outline_node else "NO"))
+	#
+	#print("============================\n")
+#
+
+
+# ========================================================================
+# SISTEMA DE POST-PROCESSING (NUEVO)
+# ========================================================================
+
+func setup_postprocessing_system():
+	"""Configurar sistema de post-processing en el viewport"""
+	if not viewport:
+		print("❌ No hay viewport para configurar post-processing")
+		return
 	
-	if current_model:
-		var outline_node = current_model.find_child("Outline3D", false)
-		print("Nodo Outline3D: %s" % ("SÍ" if outline_node else "NO"))
+	# Crear quad mesh para post-processing si no existe
+	if not postprocess_quad:
+		_create_postprocess_quad()
 	
-	print("============================\n")
+	print("✅ Sistema de post-processing configurado")
+
+func _create_postprocess_quad():
+	"""Crear quad mesh para post-processing"""
+	if not viewport:
+		return
+	
+	# Crear MeshInstance3D con QuadMesh
+	postprocess_quad = MeshInstance3D.new()
+	postprocess_quad.name = "PostProcessQuad"
+	
+	# Configurar QuadMesh
+	var quad_mesh = QuadMesh.new()
+	quad_mesh.size = Vector2(2, 2)  # Tamaño que cubre toda la pantalla
+	postprocess_quad.mesh = quad_mesh
+	
+	# Crear material con shader de post-processing
+	postprocess_material = ShaderMaterial.new()
+	var shader = load("res://resources/shaders/pixelize_postprocess.gdshader")
+	if shader:
+		postprocess_material.shader = shader
+		postprocess_quad.material_override = postprocess_material
+	
+	# Posicionar el quad para que cubra toda la pantalla
+	postprocess_quad.position = Vector3(0, 0, -1)  # Frente a la cámara
+	
+	# Añadir al viewport (pero deshabilitado inicialmente)
+	viewport.add_child(postprocess_quad)
+	postprocess_quad.visible = false
+	
+	print("✅ Quad de post-processing creado")
+
+
+func _apply_postprocess_parameters(settings: Dictionary):
+	"""Aplicar parámetros específicos al shader de post-processing"""
+	if not postprocess_material:
+		return
+	
+	# Parámetros principales
+	postprocess_material.set_shader_parameter("pixelize_enabled", settings.get("pixelize_enabled", false))
+	postprocess_material.set_shader_parameter("pixel_size", settings.get("pixel_size", 4.0))
+	
+	# Reducción de colores
+	postprocess_material.set_shader_parameter("reduce_colors", settings.get("reduce_colors", false))
+	postprocess_material.set_shader_parameter("color_levels", settings.get("color_levels", 16))
+	
+	# Dithering
+	postprocess_material.set_shader_parameter("enable_dithering", settings.get("enable_dithering", false))
+	postprocess_material.set_shader_parameter("dither_strength", settings.get("dither_strength", 0.1))
+	
+	# Efectos avanzados
+	postprocess_material.set_shader_parameter("contrast_enabled", settings.get("contrast_enabled", false))
+	postprocess_material.set_shader_parameter("contrast_boost", settings.get("contrast_boost", 1.0))
+	postprocess_material.set_shader_parameter("saturation_enabled", settings.get("saturation_enabled", false))
+	postprocess_material.set_shader_parameter("saturation_mult", settings.get("saturation_mult", 1.0))
+	postprocess_material.set_shader_parameter("tint_enabled", settings.get("tint_enabled", false))
+	postprocess_material.set_shader_parameter("color_tint", settings.get("color_tint", Color.WHITE))
+	
+	print("📝 Parámetros de post-processing aplicados")
+
+
+func _save_viewport_state():
+	"""Guardar estado anterior del viewport"""
+	previous_viewport_state = {
+		"timestamp": Time.get_unix_time_from_system(),
+		"postprocess_was_enabled": postprocess_enabled
+	}
+	print("💾 Estado anterior del viewport guardado")
+
+func _restore_viewport_state():
+	"""Restaurar estado anterior del viewport"""
+	if previous_viewport_state.is_empty():
+		print("⚠️ No hay estado anterior para restaurar")
+		return
+	
+	print("🔄 Estado anterior del viewport restaurado")
+	previous_viewport_state.clear()
+
+
+
+
+
+
+
+
+func setup_canvas_postprocessing():
+	"""Configurar sistema de post-processing canvas en el ViewportContainer"""
+	if not viewport_container:
+		print("❌ No hay ViewportContainer para configurar post-processing")
+		return
+	
+	# Crear material de post-processing si no existe
+	if not postprocess_material:
+		_create_canvas_postprocess_material()
+	
+	print("✅ Sistema de post-processing canvas configurado")
+
+func _create_canvas_postprocess_material():
+	"""Crear material con shader canvas para post-processing"""
+	postprocess_material = ShaderMaterial.new()
+	
+	# Cargar shader canvas
+	var shader = load("res://resources/shaders/pixelize_postprocess.gdshader")
+	if shader:
+		postprocess_material.shader = shader
+		print("✅ Shader canvas de post-processing cargado")
+	else:
+		print("❌ No se pudo cargar shader canvas: pixelize_postprocess.gdshader")
+		return
+	
+	# Configurar parámetros por defecto
+	postprocess_material.set_shader_parameter("pixelize_enabled", false)
+	postprocess_material.set_shader_parameter("pixel_size", 4.0)
+	postprocess_material.set_shader_parameter("reduce_colors", false)
+	postprocess_material.set_shader_parameter("color_levels", 16)
+	postprocess_material.set_shader_parameter("enable_dithering", false)
+	postprocess_material.set_shader_parameter("dither_strength", 0.1)
+	postprocess_material.set_shader_parameter("contrast_enabled", false)
+	postprocess_material.set_shader_parameter("contrast_boost", 1.0)
+	postprocess_material.set_shader_parameter("saturation_enabled", false)
+	postprocess_material.set_shader_parameter("saturation_mult", 1.0)
+	postprocess_material.set_shader_parameter("tint_enabled", false)
+	postprocess_material.set_shader_parameter("color_tint", Color.WHITE)
+
+func apply_postprocessing(settings: Dictionary):
+	"""Aplicar configuración de post-processing canvas"""
+	if not postprocess_material:
+		setup_canvas_postprocessing()
+		if not postprocess_material:
+			print("❌ No se pudo configurar sistema de post-processing canvas")
+			return
+	
+	# Guardar material original si no está guardado
+	if not postprocess_enabled and viewport_container.material == null:
+		original_material = viewport_container.material
+	
+	# Aplicar parámetros al shader
+	_apply_canvas_postprocess_parameters(settings)
+	
+	# Activar/desactivar post-processing
+	var enable_effect = settings.get("pixelize_enabled", false)
+	
+	if enable_effect:
+		# Aplicar material de post-processing al ViewportContainer
+		viewport_container.material = postprocess_material
+		postprocess_enabled = true
+		print("✅ Post-processing canvas activado en ViewportContainer")
+	else:
+		# Restaurar material original
+		viewport_container.material = original_material
+		postprocess_enabled = false
+		print("🧹 Post-processing canvas desactivado")
+
+func _apply_canvas_postprocess_parameters(settings: Dictionary):
+	"""Aplicar parámetros específicos al shader canvas"""
+	if not postprocess_material:
+		return
+	
+	# Parámetros principales
+	postprocess_material.set_shader_parameter("pixelize_enabled", settings.get("pixelize_enabled", false))
+	postprocess_material.set_shader_parameter("pixel_size", settings.get("pixel_size", 4.0))
+	
+	# Reducción de colores
+	postprocess_material.set_shader_parameter("reduce_colors", settings.get("reduce_colors", false))
+	postprocess_material.set_shader_parameter("color_levels", settings.get("color_levels", 16))
+	
+	# Dithering
+	postprocess_material.set_shader_parameter("enable_dithering", settings.get("enable_dithering", false))
+	postprocess_material.set_shader_parameter("dither_strength", settings.get("dither_strength", 0.1))
+	
+	# Efectos avanzados
+	postprocess_material.set_shader_parameter("contrast_enabled", settings.get("contrast_enabled", false))
+	postprocess_material.set_shader_parameter("contrast_boost", settings.get("contrast_boost", 1.0))
+	postprocess_material.set_shader_parameter("saturation_enabled", settings.get("saturation_enabled", false))
+	postprocess_material.set_shader_parameter("saturation_mult", settings.get("saturation_mult", 1.0))
+	postprocess_material.set_shader_parameter("tint_enabled", settings.get("tint_enabled", false))
+	postprocess_material.set_shader_parameter("color_tint", settings.get("color_tint", Color.WHITE))
+	
+	print("📝 Parámetros de post-processing canvas aplicados")
+
+func clear_postprocessing():
+	"""Limpiar post-processing canvas y volver al estado anterior"""
+	if viewport_container:
+		viewport_container.material = original_material
+	
+	postprocess_enabled = false
+	print("🧹 Post-processing canvas limpiado, estado anterior restaurado")
+
+func get_postprocess_status() -> Dictionary:
+	"""Obtener estado del sistema de post-processing canvas"""
+	return {
+		"enabled": postprocess_enabled,
+		"material_exists": postprocess_material != null,
+		"viewport_container_exists": viewport_container != null,
+		"current_material": viewport_container.material.get_class() if viewport_container and viewport_container.material else "null"
+	}
+
+# ========================================================================
+# REEMPLAZAR ESTAS FUNCIONES EXISTENTES
+# ========================================================================
+
+func apply_advanced_shader(shader_settings: Dictionary):
+	"""Aplicar shader usando post-processing canvas"""
+	current_shader_settings = shader_settings.duplicate()
+	
+	# Forzar que sea post-processing
+	current_shader_settings["post_processing"] = true
+	
+	# Aplicar post-processing canvas
+	apply_postprocessing(current_shader_settings)
+	
+	shader_applied_to_model = true
+	print("✅ Shader aplicado usando post-processing canvas")
+
+func clear_advanced_shader():
+	"""Limpiar shader avanzado"""
+	clear_postprocessing()
+	
+	current_shader_settings.clear()
+	shader_applied_to_model = false
+	postprocess_enabled = false
+	
+	print("✅ Shader canvas limpiado")

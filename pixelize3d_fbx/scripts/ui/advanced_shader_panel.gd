@@ -1,7 +1,7 @@
 # scripts/ui/advanced_shader_panel.gd
-# Panel avanzado de shader con soporte completo para outline 3D y efectos
-# Input: Interacción del usuario con controles avanzados
-# Output: Configuración de shader con bordes 3D configurables
+# Panel avanzado de shader con soporte para POST-PROCESSING
+# Input: Interacción del usuario con controles de pixelización
+# Output: Configuración de post-processing para aplicar a toda la pantalla
 
 extends VBoxContainer
 
@@ -9,22 +9,30 @@ extends VBoxContainer
 signal shader_settings_changed(settings: Dictionary)
 signal reset_to_defaults_requested()
 
-# === CONTROLES UI BÁSICOS ===
+# === CONTROLES UI PIXELIZACIÓN ===
 var pixelize_enabled_check: CheckBox
 var pixel_size_slider: HSlider
 var pixel_size_label: Label
+
+# === CONTROLES UI REDUCCIÓN DE COLORES ===
 var reduce_colors_check: CheckBox
 var color_levels_slider: HSlider
 var color_levels_label: Label
 
-# === CONTROLES UI OUTLINE 3D ===
-var outline_enabled_check: CheckBox
-var outline_thickness_slider: HSlider
-var outline_thickness_label: Label
-var outline_color_picker: ColorPicker
-var outline_pixelated_check: CheckBox
-var outline_3d_mode_check: CheckBox
-var outline_auto_detect_check: CheckBox
+# === CONTROLES UI DITHERING ===
+var enable_dithering_check: CheckBox
+var dither_strength_slider: HSlider
+var dither_strength_label: Label
+
+# === CONTROLES UI EFECTOS AVANZADOS ===
+var contrast_enabled_check: CheckBox
+var contrast_boost_slider: HSlider
+var contrast_boost_label: Label
+var saturation_enabled_check: CheckBox
+var saturation_mult_slider: HSlider
+var saturation_mult_label: Label
+var tint_enabled_check: CheckBox
+var color_tint_picker: ColorPicker
 
 # === CONTROLES DE ACCIÓN ===
 var apply_button: Button
@@ -33,23 +41,20 @@ var reset_button: Button
 
 # === CONFIGURACIÓN ACTUAL ===
 var current_settings: Dictionary = {
-	"pixelize_enabled": true,
+	"pixelize_enabled": false,
 	"pixel_size": 4.0,
 	"reduce_colors": false,
 	"color_levels": 16,
 	"enable_dithering": false,
-	"enable_outline": false,
-	"outline_thickness": 1.0,
-	"outline_color": Color.BLACK,
-	"outline_pixelated": true,
-	"outline_auto_detect": true,
-	"outline_3d_mode": true,
+	"dither_strength": 0.1,
+	"contrast_enabled": false,
 	"contrast_boost": 1.0,
+	"saturation_enabled": false,
 	"saturation_mult": 1.0,
+	"tint_enabled": false,
 	"color_tint": Color.WHITE,
-	"apply_gamma_correction": false,
-	"gamma_value": 1.0,
-	"shader_path": "res://resources/shaders/pixelize_spatial.gdshader"
+	"post_processing": true,  # Indica que es post-processing
+	"shader_path": "res://resources/shaders/pixelize_postprocess.gdshader"
 }
 
 # ========================================================================
@@ -57,75 +62,88 @@ var current_settings: Dictionary = {
 # ========================================================================
 
 func _ready():
-	print("🎨 AdvancedShaderPanel con soporte 3D outline inicializando...")
-	_create_complete_ui()
+	print("🎨 AdvancedShaderPanel POST-PROCESSING inicializando...")
+	_create_postprocess_ui()
 	_connect_all_signals()
-	print("✅ Panel avanzado completo listo")
+	print("✅ Panel de post-processing listo")
 
-func _create_complete_ui():
-	"""Crear interfaz completa con todas las opciones"""
+func _create_postprocess_ui():
+	"""Crear interfaz para post-processing"""
+	
+	# Crear container con scroll para opciones
+	var scroll_container = ScrollContainer.new()
+	scroll_container.size_flags_vertical = Control.SIZE_EXPAND_FILL
+	add_child(scroll_container)
+	
+	var main_vbox = VBoxContainer.new()
+	scroll_container.add_child(main_vbox)
 	
 	# Título principal
 	var title = Label.new()
-	title.text = "🎨 Configuración Avanzada de Shader"
+	title.text = "🎨 Pixelización Post-Processing"
 	title.add_theme_font_size_override("font_size", 18)
 	title.add_theme_color_override("font_color", Color.CYAN)
 	title.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	add_child(title)
+	main_vbox.add_child(title)
 	
-	add_child(HSeparator.new())
+	main_vbox.add_child(HSeparator.new())
 	
-	# Info del shader
+	# Info del sistema
 	var info_label = Label.new()
-	info_label.text = "✅ Sistema: pixelize_spatial.gdshader + outline_3d.gdshader"
+	info_label.text = "✅ Sistema: Post-Processing (pantalla completa)"
 	info_label.add_theme_font_size_override("font_size", 10)
 	info_label.add_theme_color_override("font_color", Color.GREEN)
 	info_label.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	add_child(info_label)
+	main_vbox.add_child(info_label)
 	
-	add_child(HSeparator.new())
+	main_vbox.add_child(HSeparator.new())
 	
-	# === SECCIÓN PIXELIZACIÓN ===
-	_create_pixelization_section()
+	# === SECCIÓN PRINCIPAL: PIXELIZACIÓN ===
+	_create_pixelization_section(main_vbox)
 	
-	add_child(HSeparator.new())
+	main_vbox.add_child(HSeparator.new())
 	
-	# === SECCIÓN OUTLINE 3D ===
-	_create_outline_3d_section()
+	# === SECCIÓN: REDUCCIÓN DE COLORES ===
+	_create_color_reduction_section(main_vbox)
 	
-	add_child(HSeparator.new())
+	main_vbox.add_child(HSeparator.new())
 	
-	# === SECCIÓN REDUCCIÓN DE COLORES ===
-	_create_color_reduction_section()
+	# === SECCIÓN: DITHERING ===
+	_create_dithering_section(main_vbox)
 	
-	add_child(HSeparator.new())
+	main_vbox.add_child(HSeparator.new())
+	
+	# === SECCIÓN: EFECTOS AVANZADOS ===
+	_create_advanced_effects_section(main_vbox)
+	
+	main_vbox.add_child(HSeparator.new())
 	
 	# === PRESETS ===
-	_create_presets_section()
+	_create_presets_section(main_vbox)
 	
-	add_child(HSeparator.new())
+	main_vbox.add_child(HSeparator.new())
 	
 	# === BOTONES DE ACCIÓN ===
 	_create_action_buttons()
 
-func _create_pixelization_section():
-	"""Crear sección de pixelización"""
+func _create_pixelization_section(parent: VBoxContainer):
+	"""Crear sección de pixelización principal"""
 	var pixel_title = Label.new()
 	pixel_title.text = "🟦 Pixelización"
 	pixel_title.add_theme_font_size_override("font_size", 14)
 	pixel_title.add_theme_color_override("font_color", Color.LIGHT_BLUE)
-	add_child(pixel_title)
+	parent.add_child(pixel_title)
 	
-	# Habilitar pixelización
+	# Checkbox principal para habilitar/deshabilitar
 	pixelize_enabled_check = CheckBox.new()
 	pixelize_enabled_check.text = "Habilitar Pixelización"
-	pixelize_enabled_check.button_pressed = true
-	pixelize_enabled_check.toggled.connect(_on_setting_changed)
-	add_child(pixelize_enabled_check)
+	pixelize_enabled_check.button_pressed = false
+	pixelize_enabled_check.toggled.connect(_on_pixelize_enabled_changed)
+	parent.add_child(pixelize_enabled_check)
 	
 	# Tamaño de píxel
 	var pixel_size_container = HBoxContainer.new()
-	add_child(pixel_size_container)
+	parent.add_child(pixel_size_container)
 	
 	var pixel_label = Label.new()
 	pixel_label.text = "Tamaño:"
@@ -146,107 +164,24 @@ func _create_pixelization_section():
 	pixel_size_label.custom_minimum_size.x = 30
 	pixel_size_container.add_child(pixel_size_label)
 
-func _create_outline_3d_section():
-	"""Crear sección completa de outline 3D"""
-	var outline_title = Label.new()
-	outline_title.text = "🔲 Bordes 3D Avanzados"
-	outline_title.add_theme_font_size_override("font_size", 14)
-	outline_title.add_theme_color_override("font_color", Color.ORANGE)
-	add_child(outline_title)
-	
-	# Descripción del outline 3D
-	var outline_desc = Label.new()
-	outline_desc.text = "Bordes reales mediante expansión de vértices (no post-procesamiento)"
-	outline_desc.add_theme_font_size_override("font_size", 9)
-	outline_desc.add_theme_color_override("font_color", Color(0.7, 0.7, 0.7))
-	outline_desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
-	add_child(outline_desc)
-	
-	# Habilitar outline
-	outline_enabled_check = CheckBox.new()
-	outline_enabled_check.text = "Habilitar Bordes 3D"
-	outline_enabled_check.button_pressed = false
-	outline_enabled_check.toggled.connect(_on_outline_enabled_changed)
-	add_child(outline_enabled_check)
-	
-	# Grosor del outline
-	var thickness_container = HBoxContainer.new()
-	add_child(thickness_container)
-	
-	var thickness_label = Label.new()
-	thickness_label.text = "Grosor:"
-	thickness_label.custom_minimum_size.x = 80
-	thickness_container.add_child(thickness_label)
-	
-	outline_thickness_slider = HSlider.new()
-	outline_thickness_slider.min_value = 0.1
-	outline_thickness_slider.max_value = 5.0
-	outline_thickness_slider.step = 0.1
-	outline_thickness_slider.value = 1.0
-	outline_thickness_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
-	outline_thickness_slider.value_changed.connect(_on_outline_thickness_changed)
-	thickness_container.add_child(outline_thickness_slider)
-	
-	outline_thickness_label = Label.new()
-	outline_thickness_label.text = "1.0"
-	outline_thickness_label.custom_minimum_size.x = 30
-	thickness_container.add_child(outline_thickness_label)
-	
-	# Color del outline - versión compacta
-	var color_container = HBoxContainer.new()
-	add_child(color_container)
-	
-	var color_title = Label.new()
-	color_title.text = "Color:"
-	color_title.custom_minimum_size.x = 80
-	color_container.add_child(color_title)
-	
-	outline_color_picker = ColorPicker.new()
-	outline_color_picker.color = Color.BLACK
-	outline_color_picker.custom_minimum_size = Vector2(180, 120)
-	outline_color_picker.color_changed.connect(_on_outline_color_changed)
-	color_container.add_child(outline_color_picker)
-	
-	# Opciones del outline
-	outline_pixelated_check = CheckBox.new()
-	outline_pixelated_check.text = "Bordes Pixelizados"
-	outline_pixelated_check.button_pressed = true
-	outline_pixelated_check.tooltip_text = "Los bordes siguen el estilo pixelizado del modelo"
-	outline_pixelated_check.toggled.connect(_on_setting_changed)
-	add_child(outline_pixelated_check)
-	
-	outline_3d_mode_check = CheckBox.new()
-	outline_3d_mode_check.text = "Modo 3D Real (recomendado)"
-	outline_3d_mode_check.button_pressed = true
-	outline_3d_mode_check.tooltip_text = "Usa expansión de vértices para bordes reales"
-	outline_3d_mode_check.toggled.connect(_on_setting_changed)
-	add_child(outline_3d_mode_check)
-	
-	outline_auto_detect_check = CheckBox.new()
-	outline_auto_detect_check.text = "Detección Automática de Bordes"
-	outline_auto_detect_check.button_pressed = true
-	outline_auto_detect_check.tooltip_text = "Detecta automáticamente dónde aplicar bordes"
-	outline_auto_detect_check.toggled.connect(_on_setting_changed)
-	add_child(outline_auto_detect_check)
-
-func _create_color_reduction_section():
+func _create_color_reduction_section(parent: VBoxContainer):
 	"""Crear sección de reducción de colores"""
 	var color_title = Label.new()
 	color_title.text = "🎨 Reducción de Colores"
 	color_title.add_theme_font_size_override("font_size", 14)
 	color_title.add_theme_color_override("font_color", Color.YELLOW)
-	add_child(color_title)
+	parent.add_child(color_title)
 	
-	# Habilitar reducción de colores
+	# Checkbox para habilitar reducción de colores
 	reduce_colors_check = CheckBox.new()
 	reduce_colors_check.text = "Reducir Colores"
 	reduce_colors_check.button_pressed = false
-	reduce_colors_check.toggled.connect(_on_setting_changed)
-	add_child(reduce_colors_check)
+	reduce_colors_check.toggled.connect(_on_reduce_colors_changed)
+	parent.add_child(reduce_colors_check)
 	
 	# Niveles de color
 	var color_levels_container = HBoxContainer.new()
-	add_child(color_levels_container)
+	parent.add_child(color_levels_container)
 	
 	var levels_label = Label.new()
 	levels_label.text = "Niveles:"
@@ -267,73 +202,165 @@ func _create_color_reduction_section():
 	color_levels_label.custom_minimum_size.x = 30
 	color_levels_container.add_child(color_levels_label)
 
-func _create_presets_section():
+func _create_dithering_section(parent: VBoxContainer):
+	"""Crear sección de dithering"""
+	var dither_title = Label.new()
+	dither_title.text = "⚫ Dithering"
+	dither_title.add_theme_font_size_override("font_size", 14)
+	dither_title.add_theme_color_override("font_color", Color.LIGHT_GRAY)
+	parent.add_child(dither_title)
+	
+	# Checkbox para habilitar dithering
+	enable_dithering_check = CheckBox.new()
+	enable_dithering_check.text = "Habilitar Dithering"
+	enable_dithering_check.button_pressed = false
+	enable_dithering_check.toggled.connect(_on_dithering_enabled_changed)
+	parent.add_child(enable_dithering_check)
+	
+	# Intensidad del dithering
+	var dither_strength_container = HBoxContainer.new()
+	parent.add_child(dither_strength_container)
+	
+	var strength_label = Label.new()
+	strength_label.text = "Intensidad:"
+	strength_label.custom_minimum_size.x = 80
+	dither_strength_container.add_child(strength_label)
+	
+	dither_strength_slider = HSlider.new()
+	dither_strength_slider.min_value = 0.0
+	dither_strength_slider.max_value = 1.0
+	dither_strength_slider.step = 0.01
+	dither_strength_slider.value = 0.1
+	dither_strength_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	dither_strength_slider.value_changed.connect(_on_dither_strength_changed)
+	dither_strength_container.add_child(dither_strength_slider)
+	
+	dither_strength_label = Label.new()
+	dither_strength_label.text = "0.10"
+	dither_strength_label.custom_minimum_size.x = 40
+	dither_strength_container.add_child(dither_strength_label)
+
+func _create_advanced_effects_section(parent: VBoxContainer):
+	"""Crear sección de efectos avanzados"""
+	var effects_title = Label.new()
+	effects_title.text = "✨ Efectos Avanzados"
+	effects_title.add_theme_font_size_override("font_size", 14)
+	effects_title.add_theme_color_override("font_color", Color.MAGENTA)
+	parent.add_child(effects_title)
+	
+	# === CONTRASTE ===
+	contrast_enabled_check = CheckBox.new()
+	contrast_enabled_check.text = "Ajustar Contraste"
+	contrast_enabled_check.button_pressed = false
+	contrast_enabled_check.toggled.connect(_on_contrast_enabled_changed)
+	parent.add_child(contrast_enabled_check)
+	
+	var contrast_container = HBoxContainer.new()
+	parent.add_child(contrast_container)
+	
+	var contrast_label = Label.new()
+	contrast_label.text = "Contraste:"
+	contrast_label.custom_minimum_size.x = 80
+	contrast_container.add_child(contrast_label)
+	
+	contrast_boost_slider = HSlider.new()
+	contrast_boost_slider.min_value = 0.5
+	contrast_boost_slider.max_value = 2.0
+	contrast_boost_slider.step = 0.01
+	contrast_boost_slider.value = 1.0
+	contrast_boost_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	contrast_boost_slider.value_changed.connect(_on_contrast_boost_changed)
+	contrast_container.add_child(contrast_boost_slider)
+	
+	contrast_boost_label = Label.new()
+	contrast_boost_label.text = "1.00"
+	contrast_boost_label.custom_minimum_size.x = 40
+	contrast_container.add_child(contrast_boost_label)
+	
+	# === SATURACIÓN ===
+	saturation_enabled_check = CheckBox.new()
+	saturation_enabled_check.text = "Ajustar Saturación"
+	saturation_enabled_check.button_pressed = false
+	saturation_enabled_check.toggled.connect(_on_saturation_enabled_changed)
+	parent.add_child(saturation_enabled_check)
+	
+	var saturation_container = HBoxContainer.new()
+	parent.add_child(saturation_container)
+	
+	var saturation_label = Label.new()
+	saturation_label.text = "Saturación:"
+	saturation_label.custom_minimum_size.x = 80
+	saturation_container.add_child(saturation_label)
+	
+	saturation_mult_slider = HSlider.new()
+	saturation_mult_slider.min_value = 0.0
+	saturation_mult_slider.max_value = 2.0
+	saturation_mult_slider.step = 0.01
+	saturation_mult_slider.value = 1.0
+	saturation_mult_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
+	saturation_mult_slider.value_changed.connect(_on_saturation_mult_changed)
+	saturation_container.add_child(saturation_mult_slider)
+	
+	saturation_mult_label = Label.new()
+	saturation_mult_label.text = "1.00"
+	saturation_mult_label.custom_minimum_size.x = 40
+	saturation_container.add_child(saturation_mult_label)
+	
+	# === TINTE DE COLOR ===
+	tint_enabled_check = CheckBox.new()
+	tint_enabled_check.text = "Tinte de Color"
+	tint_enabled_check.button_pressed = false
+	tint_enabled_check.toggled.connect(_on_tint_enabled_changed)
+	parent.add_child(tint_enabled_check)
+	
+	var color_container = HBoxContainer.new()
+	parent.add_child(color_container)
+	
+	var color_title = Label.new()
+	color_title.text = "Color:"
+	color_title.custom_minimum_size.x = 80
+	color_container.add_child(color_title)
+	
+	color_tint_picker = ColorPicker.new()
+	color_tint_picker.color = Color.WHITE
+	color_tint_picker.custom_minimum_size = Vector2(180, 120)
+	color_tint_picker.color_changed.connect(_on_color_tint_changed)
+	color_container.add_child(color_tint_picker)
+
+func _create_presets_section(parent: VBoxContainer):
 	"""Crear sección de presets"""
 	var presets_title = Label.new()
 	presets_title.text = "⚡ Presets Rápidos"
 	presets_title.add_theme_font_size_override("font_size", 14)
-	presets_title.add_theme_color_override("font_color", Color.MAGENTA)
-	add_child(presets_title)
+	presets_title.add_theme_color_override("font_color", Color.ORANGE)
+	parent.add_child(presets_title)
 	
-	# Presets de outline
-	var outline_presets_container = HBoxContainer.new()
-	add_child(outline_presets_container)
-	
-	var outline_presets_label = Label.new()
-	outline_presets_label.text = "Bordes:"
-	outline_presets_label.custom_minimum_size.x = 80
-	outline_presets_container.add_child(outline_presets_label)
-	
-	var preset_thin = Button.new()
-	preset_thin.text = "Fino"
-	preset_thin.custom_minimum_size.x = 60
-	preset_thin.pressed.connect(_apply_outline_preset.bind("thin"))
-	outline_presets_container.add_child(preset_thin)
-	
-	var preset_medium = Button.new()
-	preset_medium.text = "Medio"
-	preset_medium.custom_minimum_size.x = 60
-	preset_medium.pressed.connect(_apply_outline_preset.bind("medium"))
-	outline_presets_container.add_child(preset_medium)
-	
-	var preset_thick = Button.new()
-	preset_thick.text = "Grueso"
-	preset_thick.custom_minimum_size.x = 60
-	preset_thick.pressed.connect(_apply_outline_preset.bind("thick"))
-	outline_presets_container.add_child(preset_thick)
-	
-	var preset_off = Button.new()
-	preset_off.text = "Sin Borde"
-	preset_off.custom_minimum_size.x = 80
-	preset_off.pressed.connect(_apply_outline_preset.bind("off"))
-	outline_presets_container.add_child(preset_off)
-	
-	# Presets generales
-	var general_presets_container = HBoxContainer.new()
-	add_child(general_presets_container)
-	
-	var general_presets_label = Label.new()
-	general_presets_label.text = "Generales:"
-	general_presets_label.custom_minimum_size.x = 80
-	general_presets_container.add_child(general_presets_label)
+	var presets_container = HBoxContainer.new()
+	parent.add_child(presets_container)
 	
 	var preset_retro = Button.new()
 	preset_retro.text = "Retro"
-	preset_retro.custom_minimum_size.x = 60
-	preset_retro.pressed.connect(_apply_general_preset.bind("retro"))
-	general_presets_container.add_child(preset_retro)
+	preset_retro.custom_minimum_size.x = 80
+	preset_retro.pressed.connect(_apply_preset.bind("retro"))
+	presets_container.add_child(preset_retro)
 	
 	var preset_modern = Button.new()
 	preset_modern.text = "Moderno"
-	preset_modern.custom_minimum_size.x = 60
-	preset_modern.pressed.connect(_apply_general_preset.bind("modern"))
-	general_presets_container.add_child(preset_modern)
+	preset_modern.custom_minimum_size.x = 80
+	preset_modern.pressed.connect(_apply_preset.bind("modern"))
+	presets_container.add_child(preset_modern)
 	
-	var preset_cartoon = Button.new()
-	preset_cartoon.text = "Cartoon"
-	preset_cartoon.custom_minimum_size.x = 60
-	preset_cartoon.pressed.connect(_apply_general_preset.bind("cartoon"))
-	general_presets_container.add_child(preset_cartoon)
+	var preset_gameboy = Button.new()
+	preset_gameboy.text = "Game Boy"
+	preset_gameboy.custom_minimum_size.x = 80
+	preset_gameboy.pressed.connect(_apply_preset.bind("gameboy"))
+	presets_container.add_child(preset_gameboy)
+	
+	var preset_off = Button.new()
+	preset_off.text = "Desactivar"
+	preset_off.custom_minimum_size.x = 80
+	preset_off.pressed.connect(_apply_preset.bind("off"))
+	presets_container.add_child(preset_off)
 
 func _create_action_buttons():
 	"""Crear botones de acción"""
@@ -365,59 +392,94 @@ func _create_action_buttons():
 
 func _connect_all_signals():
 	"""Conectar todas las señales necesarias"""
-	print("🔗 Conectando señales del panel avanzado...")
+	print("🔗 Conectando señales del panel de post-processing...")
 	# Las señales ya están conectadas en la creación de UI
 	print("✅ Todas las señales conectadas")
 
-func _on_setting_changed(_value = null):
-	"""Manejar cambio general en configuración"""
-	_update_current_settings()
+func _on_pixelize_enabled_changed(enabled: bool):
+	"""Manejar activación/desactivación principal"""
+	current_settings.pixelize_enabled = enabled
+	print("🎨 Post-processing %s" % ("habilitado" if enabled else "deshabilitado"))
 	_emit_settings_signal()
 
 func _on_pixel_size_changed(value: float):
 	"""Manejar cambio en tamaño de píxel"""
 	pixel_size_label.text = "%.0f" % value
-	_update_current_settings()
+	current_settings.pixel_size = value
+	_emit_settings_signal()
+
+func _on_reduce_colors_changed(enabled: bool):
+	"""Manejar activación de reducción de colores"""
+	current_settings.reduce_colors = enabled
+	print("🎨 Reducción de colores %s" % ("habilitada" if enabled else "deshabilitada"))
 	_emit_settings_signal()
 
 func _on_color_levels_changed(value: float):
 	"""Manejar cambio en niveles de color"""
 	color_levels_label.text = "%d" % int(value)
-	_update_current_settings()
+	current_settings.color_levels = int(value)
 	_emit_settings_signal()
 
-func _on_outline_enabled_changed(enabled: bool):
-	"""Manejar activación/desactivación de outline"""
-	print("🔲 Outline 3D %s" % ("habilitado" if enabled else "deshabilitado"))
-	_update_current_settings()
+func _on_dithering_enabled_changed(enabled: bool):
+	"""Manejar activación de dithering"""
+	current_settings.enable_dithering = enabled
+	print("⚫ Dithering %s" % ("habilitado" if enabled else "deshabilitado"))
 	_emit_settings_signal()
 
-func _on_outline_thickness_changed(value: float):
-	"""Manejar cambio en grosor del outline"""
-	outline_thickness_label.text = "%.1f" % value
-	_update_current_settings()
+func _on_dither_strength_changed(value: float):
+	"""Manejar cambio en intensidad de dithering"""
+	dither_strength_label.text = "%.2f" % value
+	current_settings.dither_strength = value
 	_emit_settings_signal()
 
-func _on_outline_color_changed(color: Color):
-	"""Manejar cambio en color del outline"""
-	print("🎨 Color de outline cambiado: %s" % color)
-	_update_current_settings()
+func _on_contrast_enabled_changed(enabled: bool):
+	"""Manejar activación de ajuste de contraste"""
+	current_settings.contrast_enabled = enabled
+	print("✨ Ajuste de contraste %s" % ("habilitado" if enabled else "deshabilitado"))
+	_emit_settings_signal()
+
+func _on_contrast_boost_changed(value: float):
+	"""Manejar cambio en contraste"""
+	contrast_boost_label.text = "%.2f" % value
+	current_settings.contrast_boost = value
+	_emit_settings_signal()
+
+func _on_saturation_enabled_changed(enabled: bool):
+	"""Manejar activación de ajuste de saturación"""
+	current_settings.saturation_enabled = enabled
+	print("✨ Ajuste de saturación %s" % ("habilitado" if enabled else "deshabilitado"))
+	_emit_settings_signal()
+
+func _on_saturation_mult_changed(value: float):
+	"""Manejar cambio en saturación"""
+	saturation_mult_label.text = "%.2f" % value
+	current_settings.saturation_mult = value
+	_emit_settings_signal()
+
+func _on_tint_enabled_changed(enabled: bool):
+	"""Manejar activación de tinte"""
+	current_settings.tint_enabled = enabled
+	print("✨ Tinte de color %s" % ("habilitado" if enabled else "deshabilitado"))
+	_emit_settings_signal()
+
+func _on_color_tint_changed(color: Color):
+	"""Manejar cambio en color de tinte"""
+	current_settings.color_tint = color
+	print("🎨 Color de tinte cambiado: %s" % color)
 	_emit_settings_signal()
 
 func _on_apply_pressed():
-	"""Aplicar shader manualmente"""
-	print("🎨 Aplicando shader manualmente...")
-	_update_current_settings()
+	"""Aplicar configuración manualmente"""
+	print("🎨 Aplicando post-processing manualmente...")
 	current_settings.pixelize_enabled = true
+	pixelize_enabled_check.button_pressed = true
 	_emit_settings_signal()
 
 func _on_clear_pressed():
-	"""Quitar shader completamente"""
-	print("🧹 Quitando shader...")
+	"""Quitar post-processing completamente"""
+	print("🧹 Desactivando post-processing...")
 	current_settings.pixelize_enabled = false
-	current_settings.enable_outline = false
 	pixelize_enabled_check.button_pressed = false
-	outline_enabled_check.button_pressed = false
 	_emit_settings_signal()
 
 func _on_reset_pressed():
@@ -425,6 +487,67 @@ func _on_reset_pressed():
 	print("🔄 Reseteando configuración...")
 	reset_to_defaults_requested.emit()
 	_reset_to_defaults()
+
+# ========================================================================
+# SISTEMA DE PRESETS
+# ========================================================================
+
+func _apply_preset(preset_name: String):
+	"""Aplicar preset de configuración"""
+	print("⚡ Aplicando preset: %s" % preset_name)
+	
+	match preset_name:
+		"retro":
+			_set_preset_values(true, 8.0, true, 8, true, 0.3, false, 1.0, false, 1.0, false, Color.WHITE)
+		"modern":
+			_set_preset_values(true, 2.0, false, 16, false, 0.1, true, 1.2, true, 1.1, false, Color.WHITE)
+		"gameboy":
+			_set_preset_values(true, 4.0, true, 4, true, 0.2, true, 1.3, false, 0.0, true, Color(0.6, 0.8, 0.4))
+		"off":
+			_set_preset_values(false, 4.0, false, 16, false, 0.1, false, 1.0, false, 1.0, false, Color.WHITE)
+	
+	_emit_settings_signal()
+
+func _set_preset_values(
+	pixelize: bool, pixel_sz: float, 
+	reduce_col: bool, col_levels: int,
+	dither: bool, dither_str: float,
+	contrast: bool, contrast_val: float,
+	saturation: bool, saturation_val: float,
+	tint: bool, tint_color: Color
+):
+	"""Aplicar valores específicos de preset"""
+	# Pixelización
+	pixelize_enabled_check.button_pressed = pixelize
+	pixel_size_slider.value = pixel_sz
+	pixel_size_label.text = "%.0f" % pixel_sz
+	
+	# Reducción de colores
+	reduce_colors_check.button_pressed = reduce_col
+	color_levels_slider.value = col_levels
+	color_levels_label.text = "%d" % col_levels
+	
+	# Dithering
+	enable_dithering_check.button_pressed = dither
+	dither_strength_slider.value = dither_str
+	dither_strength_label.text = "%.2f" % dither_str
+	
+	# Contraste
+	contrast_enabled_check.button_pressed = contrast
+	contrast_boost_slider.value = contrast_val
+	contrast_boost_label.text = "%.2f" % contrast_val
+	
+	# Saturación
+	saturation_enabled_check.button_pressed = saturation
+	saturation_mult_slider.value = saturation_val
+	saturation_mult_label.text = "%.2f" % saturation_val
+	
+	# Tinte
+	tint_enabled_check.button_pressed = tint
+	color_tint_picker.color = tint_color
+	
+	# Actualizar configuración
+	_update_current_settings()
 
 # ========================================================================
 # LÓGICA DE CONFIGURACIÓN
@@ -436,99 +559,29 @@ func _update_current_settings():
 	current_settings.pixel_size = pixel_size_slider.value
 	current_settings.reduce_colors = reduce_colors_check.button_pressed
 	current_settings.color_levels = int(color_levels_slider.value)
-	
-	# Configuración de outline 3D
-	current_settings.enable_outline = outline_enabled_check.button_pressed
-	current_settings.outline_thickness = outline_thickness_slider.value
-	current_settings.outline_color = outline_color_picker.color
-	current_settings.outline_pixelated = outline_pixelated_check.button_pressed
-	current_settings.outline_3d_mode = outline_3d_mode_check.button_pressed
-	current_settings.outline_auto_detect = outline_auto_detect_check.button_pressed
-	
-	# Mantener otros valores por defecto
-	current_settings.enable_dithering = false
-	current_settings.shader_path = "res://resources/shaders/pixelize_spatial.gdshader"
+	current_settings.enable_dithering = enable_dithering_check.button_pressed
+	current_settings.dither_strength = dither_strength_slider.value
+	current_settings.contrast_enabled = contrast_enabled_check.button_pressed
+	current_settings.contrast_boost = contrast_boost_slider.value
+	current_settings.saturation_enabled = saturation_enabled_check.button_pressed
+	current_settings.saturation_mult = saturation_mult_slider.value
+	current_settings.tint_enabled = tint_enabled_check.button_pressed
+	current_settings.color_tint = color_tint_picker.color
+	current_settings.post_processing = true
+	current_settings.shader_path = "res://resources/shaders/pixelize_postprocess.gdshader"
 
 func _emit_settings_signal():
 	"""Emitir señal con configuración actual"""
-	print("📡 Emitiendo señal: shader_settings_changed")
+	_update_current_settings()
+	print("📡 Emitiendo señal: shader_settings_changed (POST-PROCESSING)")
 	print("   - pixelize_enabled: %s" % current_settings.pixelize_enabled)
 	print("   - pixel_size: %.0f" % current_settings.pixel_size)
-	print("   - outline_enabled: %s" % current_settings.enable_outline)
-	if current_settings.enable_outline:
-		print("   - outline_3d_mode: %s" % current_settings.outline_3d_mode)
-		print("   - outline_thickness: %.1f" % current_settings.outline_thickness)
-		print("   - outline_color: %s" % current_settings.outline_color)
+	print("   - reduce_colors: %s" % current_settings.reduce_colors)
+	print("   - enable_dithering: %s" % current_settings.enable_dithering)
+	print("   - post_processing: %s" % current_settings.post_processing)
 	
 	# Emitir señal
 	shader_settings_changed.emit(current_settings.duplicate())
-
-# ========================================================================
-# SISTEMA DE PRESETS
-# ========================================================================
-
-func _apply_outline_preset(preset_name: String):
-	"""Aplicar preset de configuración de outline"""
-	print("🎨 Aplicando preset de outline: %s" % preset_name)
-	
-	match preset_name:
-		"thin":
-			_set_outline_settings(true, 0.5, Color.BLACK, true, true)
-		"medium":
-			_set_outline_settings(true, 1.0, Color.BLACK, true, true)
-		"thick":
-			_set_outline_settings(true, 2.0, Color.BLACK, true, true)
-		"off":
-			_set_outline_settings(false, 1.0, Color.BLACK, true, true)
-	
-	_emit_settings_signal()
-
-func _apply_general_preset(preset_name: String):
-	"""Aplicar preset general de configuración"""
-	print("⚡ Aplicando preset general: %s" % preset_name)
-	
-	match preset_name:
-		"retro":
-			# Píxeles grandes, colores reducidos, sin outline
-			_set_pixelization_settings(true, 8.0)
-			_set_color_reduction_settings(true, 8)
-			_set_outline_settings(false, 1.0, Color.BLACK, true, true)
-		"modern":
-			# Píxeles pequeños, outline fino
-			_set_pixelization_settings(true, 2.0)
-			_set_color_reduction_settings(false, 16)
-			_set_outline_settings(true, 0.5, Color.BLACK, true, true)
-		"cartoon":
-			# Píxeles medianos, outline grueso y colorido
-			_set_pixelization_settings(true, 4.0)
-			_set_color_reduction_settings(true, 12)
-			_set_outline_settings(true, 1.5, Color(0.2, 0.2, 0.8), true, true)
-	
-	_emit_settings_signal()
-
-func _set_outline_settings(enabled: bool, thickness: float, color: Color, pixelated: bool, mode_3d: bool):
-	"""Aplicar configuración específica de outline"""
-	outline_enabled_check.button_pressed = enabled
-	outline_thickness_slider.value = thickness
-	outline_thickness_label.text = "%.1f" % thickness
-	outline_color_picker.color = color
-	outline_pixelated_check.button_pressed = pixelated
-	outline_3d_mode_check.button_pressed = mode_3d
-	_update_current_settings()
-
-func _set_pixelization_settings(enabled: bool, pixel_size: float):
-	"""Aplicar configuración de pixelización"""
-	pixelize_enabled_check.button_pressed = enabled
-	pixel_size_slider.value = pixel_size
-	pixel_size_label.text = "%.0f" % pixel_size
-	_update_current_settings()
-
-func _set_color_reduction_settings(enabled: bool, levels: int):
-	"""Aplicar configuración de reducción de colores"""
-	reduce_colors_check.button_pressed = enabled
-	color_levels_slider.value = levels
-	color_levels_label.text = "%d" % levels
-	_update_current_settings()
 
 # ========================================================================
 # API PÚBLICA
@@ -543,132 +596,69 @@ func apply_settings(settings: Dictionary):
 	"""Aplicar configuración externa"""
 	current_settings = settings.duplicate()
 	
-	# Actualizar UI básica
-	pixelize_enabled_check.button_pressed = current_settings.get("pixelize_enabled", true)
+	# Actualizar UI
+	pixelize_enabled_check.button_pressed = current_settings.get("pixelize_enabled", false)
 	pixel_size_slider.value = current_settings.get("pixel_size", 4.0)
 	pixel_size_label.text = "%.0f" % pixel_size_slider.value
 	reduce_colors_check.button_pressed = current_settings.get("reduce_colors", false)
 	color_levels_slider.value = current_settings.get("color_levels", 16)
 	color_levels_label.text = "%d" % color_levels_slider.value
+	enable_dithering_check.button_pressed = current_settings.get("enable_dithering", false)
+	dither_strength_slider.value = current_settings.get("dither_strength", 0.1)
+	dither_strength_label.text = "%.2f" % dither_strength_slider.value
+	contrast_enabled_check.button_pressed = current_settings.get("contrast_enabled", false)
+	contrast_boost_slider.value = current_settings.get("contrast_boost", 1.0)
+	contrast_boost_label.text = "%.2f" % contrast_boost_slider.value
+	saturation_enabled_check.button_pressed = current_settings.get("saturation_enabled", false)
+	saturation_mult_slider.value = current_settings.get("saturation_mult", 1.0)
+	saturation_mult_label.text = "%.2f" % saturation_mult_slider.value
+	tint_enabled_check.button_pressed = current_settings.get("tint_enabled", false)
+	color_tint_picker.color = current_settings.get("color_tint", Color.WHITE)
 	
-	# Actualizar UI de outline
-	outline_enabled_check.button_pressed = current_settings.get("enable_outline", false)
-	outline_thickness_slider.value = current_settings.get("outline_thickness", 1.0)
-	outline_thickness_label.text = "%.1f" % outline_thickness_slider.value
-	outline_color_picker.color = current_settings.get("outline_color", Color.BLACK)
-	outline_pixelated_check.button_pressed = current_settings.get("outline_pixelated", true)
-	outline_3d_mode_check.button_pressed = current_settings.get("outline_3d_mode", true)
-	outline_auto_detect_check.button_pressed = current_settings.get("outline_auto_detect", true)
-	
-	print("⚙️ Configuración con outline 3D aplicada desde externa")
+	print("⚙️ Configuración de post-processing aplicada desde externa")
 
 func force_emit_current_settings():
 	"""Forzar emisión de configuración actual"""
-	_update_current_settings()
 	_emit_settings_signal()
 
 func _reset_to_defaults():
 	"""Resetear a configuración por defecto"""
-	# Valores por defecto
 	current_settings = {
-		"pixelize_enabled": true,
+		"pixelize_enabled": false,
 		"pixel_size": 4.0,
 		"reduce_colors": false,
 		"color_levels": 16,
 		"enable_dithering": false,
-		"enable_outline": false,
-		"outline_thickness": 1.0,
-		"outline_color": Color.BLACK,
-		"outline_pixelated": true,
-		"outline_auto_detect": true,
-		"outline_3d_mode": true,
-		"shader_path": "res://resources/shaders/pixelize_spatial.gdshader"
+		"dither_strength": 0.1,
+		"contrast_enabled": false,
+		"contrast_boost": 1.0,
+		"saturation_enabled": false,
+		"saturation_mult": 1.0,
+		"tint_enabled": false,
+		"color_tint": Color.WHITE,
+		"post_processing": true,
+		"shader_path": "res://resources/shaders/pixelize_postprocess.gdshader"
 	}
 	
-	# Aplicar a UI
 	apply_settings(current_settings)
 	_emit_settings_signal()
-
-# ========================================================================
-# VALIDACIÓN Y DEBUG
-# ========================================================================
-
-func validate_outline_settings() -> bool:
-	"""Validar configuración de outline"""
-	if not outline_enabled_check.button_pressed:
-		return true
-	
-	var thickness = outline_thickness_slider.value
-	if thickness < 0.1 or thickness > 10.0:
-		print("❌ Grosor de outline inválido: %.1f" % thickness)
-		return false
-	
-	var color = outline_color_picker.color
-	if color.a < 0.1:
-		print("❌ Color de outline muy transparente: %.2f" % color.a)
-		return false
-	
-	return true
-
-func debug_panel_state():
-	"""Debug del estado del panel"""
-	print("\n🔍 === DEBUG PANEL AVANZADO CON OUTLINE 3D ===")
-	print("=== PIXELIZACIÓN ===")
-	print("pixelize_enabled: %s" % current_settings.pixelize_enabled)
-	print("pixel_size: %.0f" % current_settings.pixel_size)
-	print("reduce_colors: %s" % current_settings.reduce_colors)
-	print("color_levels: %d" % current_settings.color_levels)
-	
-	print("=== OUTLINE 3D ===")
-	print("enable_outline: %s" % current_settings.enable_outline)
-	print("outline_thickness: %.1f" % current_settings.outline_thickness)
-	print("outline_color: %s" % current_settings.outline_color)
-	print("outline_pixelated: %s" % current_settings.outline_pixelated)
-	print("outline_3d_mode: %s" % current_settings.outline_3d_mode)
-	print("outline_auto_detect: %s" % current_settings.outline_auto_detect)
-	
-	print("=== SISTEMA ===")
-	print("shader_path: %s" % current_settings.get("shader_path", "N/A"))
-	
-	if has_signal("shader_settings_changed"):
-		var connections = get_signal_connection_list("shader_settings_changed")
-		print("Conexiones de shader_settings_changed: %d" % connections.size())
-		for conn in connections:
-			if conn.has("callable"):
-				print("  - %s" % conn["callable"].get_method())
-	else:
-		print("❌ No tiene señal shader_settings_changed")
-	
-	print("===========================================\n")
 
 # ========================================================================
 # FUNCIONES DE UTILIDAD
 # ========================================================================
 
-func get_outline_settings() -> Dictionary:
-	"""Obtener solo configuración de outline"""
-	return {
-		"enable_outline": current_settings.enable_outline,
-		"outline_thickness": current_settings.outline_thickness,
-		"outline_color": current_settings.outline_color,
-		"outline_pixelated": current_settings.outline_pixelated,
-		"outline_3d_mode": current_settings.outline_3d_mode,
-		"outline_auto_detect": current_settings.outline_auto_detect
-	}
+func is_postprocessing_enabled() -> bool:
+	"""Verificar si post-processing está habilitado"""
+	return current_settings.get("pixelize_enabled", false)
 
-func get_pixelization_settings() -> Dictionary:
-	"""Obtener solo configuración de pixelización"""
-	return {
-		"pixelize_enabled": current_settings.pixelize_enabled,
-		"pixel_size": current_settings.pixel_size,
-		"reduce_colors": current_settings.reduce_colors,
-		"color_levels": current_settings.color_levels
-	}
-
-func is_outline_enabled() -> bool:
-	"""Verificar si outline está habilitado"""
-	return current_settings.get("enable_outline", false)
-
-func is_3d_outline_mode() -> bool:
-	"""Verificar si está en modo outline 3D"""
-	return current_settings.get("outline_3d_mode", true) and is_outline_enabled()
+func debug_panel_state():
+	"""Debug del estado del panel"""
+	print("\n🔍 === DEBUG PANEL CANVAS POST-PROCESSING ===")
+	print("pixelize_enabled: %s" % current_settings.pixelize_enabled)
+	print("pixel_size: %.0f" % current_settings.pixel_size)
+	print("reduce_colors: %s" % current_settings.reduce_colors)
+	print("enable_dithering: %s" % current_settings.enable_dithering)
+	print("canvas_postprocess: %s" % current_settings.get("canvas_postprocess", true))
+	print("post_processing: %s" % current_settings.post_processing)
+	print("shader_path: %s" % current_settings.get("shader_path", "N/A"))
+	print("============================================\n")

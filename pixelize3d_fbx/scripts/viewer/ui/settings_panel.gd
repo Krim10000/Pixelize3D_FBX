@@ -207,66 +207,7 @@ func _create_basic_settings():
 	add_child(effects_desc)
 
 
-func _apply_basic_shader_to_preview():
-	"""Aplicar shader básico de pixelización al preview"""
-	if not model_preview_panel:
-		_get_model_preview_panel_reference()
-	
-	if not model_preview_panel:
-		print("❌ No hay ModelPreviewPanel para aplicar shader")
-		return
-	
-	# Configuración básica de pixelización usando el shader que funciona bien
-	var basic_shader_settings = {
-		"pixelize_enabled": true,
-		"pixel_size": 4.0,
-		"reduce_colors": false,
-		"enable_dithering": false,
-		"enable_outline": false,
-		"shader_path": "res://resources/shaders/pixelize_spatial.gdshader"  # ✅ USAR EL QUE FUNCIONA
-	}
-	
-	# Si hay configuración avanzada, usarla en su lugar
-	if not current_shader_settings.is_empty():
-		basic_shader_settings = current_shader_settings.duplicate()
-		basic_shader_settings["pixelize_enabled"] = true
-	
-	# Aplicar al preview usando el método que SÍ funciona
-	if model_preview_panel.has_method("apply_advanced_shader"):
-		model_preview_panel.apply_advanced_shader(basic_shader_settings)
-		shader_currently_applied = true
-		print("✅ Shader básico aplicado al preview")
-	else:
-		print("❌ ModelPreviewPanel no tiene apply_advanced_shader")
 
-func _remove_shader_from_preview():
-	"""QUITAR shader del preview (hacerlo reversible)"""
-	if not model_preview_panel:
-		_get_model_preview_panel_reference()
-	
-	if not model_preview_panel:
-		print("❌ No hay ModelPreviewPanel para quitar shader")
-		return
-	
-	# Usar método de limpieza si existe
-	if model_preview_panel.has_method("clear_advanced_shader"):
-		model_preview_panel.clear_advanced_shader()
-		shader_currently_applied = false
-		print("✅ Shader removido del preview")
-	else:
-		# Fallback: aplicar configuración "sin shader"
-		var no_shader_settings = {
-			"pixelize_enabled": false,
-			"pixel_size": 1.0,
-			"reduce_colors": false,
-			"enable_dithering": false,
-			"enable_outline": false
-		}
-		
-		if model_preview_panel.has_method("apply_advanced_shader"):
-			model_preview_panel.apply_advanced_shader(no_shader_settings)
-			shader_currently_applied = false
-			print("✅ Shader deshabilitado en preview")
 
 # ========================================================================
 # FUNCIÓN CORREGIDA: CONECTAR PANEL AVANZADO
@@ -1017,21 +958,7 @@ func _on_setting_changed(value = null):
 	settings_changed.emit(_get_enhanced_settings())
 
 
-func _on_pixelize_changed(enabled: bool):
-	
-	"""Manejar cambio en pixelización - VERSIÓN CORREGIDA"""
-	print("🎨 Pixelización cambiada: %s" % enabled)
-	
-	current_settings.pixelize = enabled
-	
-	if enabled:
-		_apply_basic_shader_to_preview()
-	else:
-		_remove_shader_from_preview()
-	
-	# NO emitir settings_changed.emit() que mueve la cámara
-	print("✅ Pixelización aplicada sin mover cámara")
-	
+
 
 func _emit_shader_settings():
 	"""Emitir configuración - YA NO NECESARIA con el panel completo"""
@@ -1228,85 +1155,6 @@ func _validate_shader_system() -> bool:
 
 
 
-# FUNCIÓN MEJORADA: Manejar la aplicación de configuración
-func _on_advanced_shader_applied():
-	"""Aplicar configuración avanzada y actualizar sistema - MEJORADA"""
-	if advanced_shader_panel:
-		var new_settings = advanced_shader_panel.get_current_settings()
-		current_shader_settings = new_settings.duplicate()
-		
-		# Log detallado de la configuración aplicada
-		print("✅ Configuración avanzada aplicada:")
-		print("   • Configuraciones totales: %d" % current_shader_settings.size())
-		
-		# Detalles específicos del tinte
-		var tint_enabled = current_shader_settings.get("enable_color_tint", false)
-		var tint_color = current_shader_settings.get("color_tint", Color.WHITE)
-		print("   • Tinte de color: %s" % ("Habilitado (%s)" % tint_color if tint_enabled else "Deshabilitado"))
-		
-		# Detalles de otros efectos importantes
-		print("   • Pixelización: %.0f px" % current_shader_settings.get("pixel_size", 4.0))
-		print("   • Bordes: %s (grosor: %.1f)" % [
-			"Habilitados" if current_shader_settings.get("enable_outline", false) else "Deshabilitados",
-			current_shader_settings.get("outline_thickness", 1.0)
-		])
-		print("   • Reducción de colores: %s" % (
-			"Sí (%d niveles)" % current_shader_settings.get("color_levels", 16) 
-			if current_shader_settings.get("reduce_colors", false) 
-			else "No"
-		))
-		
-		# Actualizar el checkbox básico de pixelización si existe
-		if pixelize_check and current_shader_settings.has("pixelize_enabled"):
-			pixelize_check.button_pressed = current_shader_settings.pixelize_enabled
-			current_settings.pixelize = current_shader_settings.pixelize_enabled
-		
-		# Emitir señal con configuración actualizada
-		settings_changed.emit(_get_enhanced_settings())
-		
-		# Aplicar a material actual si existe un modelo cargado
-		_apply_shader_to_current_model()
-
-# FUNCIÓN ADICIONAL: Aplicar shader al modelo actual
-func _apply_shader_to_current_model():
-	"""Aplicar configuración de shader al modelo actual en el viewport"""
-	# Buscar el ViewerCoordinator
-	var viewer_coordinator = get_node_or_null("/root/ViewerModular")
-	if not viewer_coordinator:
-		return
-	
-	# Buscar el preview panel
-	var preview_panel = viewer_coordinator.get_node_or_null("HSplitContainer/RightPanel/ModelPreviewPanel")
-	if not preview_panel:
-		return
-	
-	# Buscar el viewport y el modelo
-	var viewport_container = preview_panel.get_node_or_null("ViewportContainer")
-	if not viewport_container:
-		return
-		
-	var subviewport = viewport_container.get_node_or_null("SubViewport")
-	if not subviewport:
-		return
-	
-	# Buscar todos los MeshInstance3D en el viewport
-	var meshes = _find_all_mesh_instances(subviewport)
-	
-	for mesh_inst in meshes:
-		if mesh_inst.material_override and mesh_inst.material_override is ShaderMaterial:
-			apply_advanced_shader_to_material(mesh_inst.material_override, _get_enhanced_settings())
-			print("   • Shader aplicado a: %s" % mesh_inst.name)
-
-func _find_all_mesh_instances(node: Node) -> Array:
-	"""Buscar recursivamente todos los MeshInstance3D"""
-	var meshes = []
-	if node is MeshInstance3D:
-		meshes.append(node)
-	
-	for child in node.get_children():
-		meshes.append_array(_find_all_mesh_instances(child))
-	
-	return meshes
 
 func _on_show_advanced_shader_panel():
 	"""Mostrar el panel avanzado completo"""
@@ -1396,24 +1244,6 @@ func _on_shader_reset_requested():
 		current_settings.pixelize = false
 	
 	settings_changed.emit(_get_enhanced_settings())
-
-func _get_enhanced_settings() -> Dictionary:
-	"""Obtener configuración mejorada con shader avanzado"""
-	var enhanced_settings = current_settings.duplicate()
-	
-	# NUEVA FUNCIONALIDAD: Configuración avanzada de shader
-	if not current_shader_settings.is_empty():
-		# Incluir toda la configuración avanzada
-		enhanced_settings["advanced_shader"] = current_shader_settings.duplicate()
-		enhanced_settings["use_advanced_shader"] = true
-		
-		# Sobrescribir pixelización básica con la avanzada
-		enhanced_settings["pixelize"] = current_shader_settings.get("pixelize_enabled", true)
-	else:
-		enhanced_settings["use_advanced_shader"] = false
-		enhanced_settings["advanced_shader"] = {}
-	
-	return enhanced_settings
 
 func _show_error(message: String):
 	"""Mostrar mensaje de error"""
@@ -1544,57 +1374,6 @@ func has_advanced_shader_settings() -> bool:
 	"""Verificar si hay configuración avanzada de shader"""
 	return not current_shader_settings.is_empty()
 
-func apply_advanced_shader_to_material(material: Material, settings: Dictionary):
-	"""Aplicar configuración avanzada de shader a un material"""
-	
-	if not material is ShaderMaterial:
-		print("⚠️ Material no es ShaderMaterial, no se puede aplicar configuración avanzada")
-		return
-	
-	var shader_material = material as ShaderMaterial
-	
-	# Cargar shader avanzado si no está cargado
-	if not shader_material.shader:
-		var advanced_shader = load("res://resources/shaders/pixelize_advanced.gdshader")
-		if advanced_shader:
-			shader_material.shader = advanced_shader
-			print("✅ Shader avanzado cargado en material")
-		else:
-			print("❌ Error: No se pudo cargar shader avanzado")
-			return
-	
-	# Aplicar todos los parámetros del shader
-	var shader_settings = settings.get("advanced_shader", {})
-	
-	if not shader_settings.is_empty():
-		# Parámetros de pixelización
-		shader_material.set_shader_parameter("pixel_size", shader_settings.get("pixel_size", 4.0))
-		
-		# Parámetros de reducción de colores
-		shader_material.set_shader_parameter("reduce_colors", shader_settings.get("reduce_colors", false))
-		shader_material.set_shader_parameter("color_levels", shader_settings.get("color_levels", 16))
-		
-		# Parámetros de dithering
-		shader_material.set_shader_parameter("enable_dithering", shader_settings.get("enable_dithering", false))
-		shader_material.set_shader_parameter("dither_strength", shader_settings.get("dither_strength", 0.1))
-		
-		# Parámetros de borde (NUEVOS)
-		shader_material.set_shader_parameter("enable_outline", shader_settings.get("enable_outline", false))
-		shader_material.set_shader_parameter("outline_thickness", shader_settings.get("outline_thickness", 1.0))
-		shader_material.set_shader_parameter("outline_color", shader_settings.get("outline_color", Color.BLACK))
-		shader_material.set_shader_parameter("outline_pixelated", shader_settings.get("outline_pixelated", true))
-		shader_material.set_shader_parameter("outline_smooth", shader_settings.get("outline_smooth", 0.0))
-		
-		# Efectos avanzados
-		shader_material.set_shader_parameter("contrast_boost", shader_settings.get("contrast_boost", 1.0))
-		shader_material.set_shader_parameter("saturation_mult", shader_settings.get("saturation_mult", 1.0))
-		shader_material.set_shader_parameter("color_tint", shader_settings.get("color_tint", Color.WHITE))
-		shader_material.set_shader_parameter("apply_gamma_correction", shader_settings.get("apply_gamma_correction", false))
-		shader_material.set_shader_parameter("gamma_value", shader_settings.get("gamma_value", 1.0))
-		
-		print("✅ Configuración avanzada aplicada al material")
-	else:
-		print("⚠️ No hay configuración avanzada disponible")
 
 # ========================================================================
 # FUNCIONES DE INFORMACION Y DEBUG
@@ -1721,31 +1500,19 @@ func _initialize_shader_system_isolated():
 
 
 
-func _on_advanced_shader_settings_changed(settings: Dictionary):
-	"""Manejar cambios en configuración avanzada - VERSIÓN LIMPIA"""
-	print("📡 Configuración de shader recibida:")
-	print("   • Pixelización: %s (tamaño: %.0f)" % [settings.get("pixelize_enabled", false), settings.get("pixel_size", 4.0)])
-	print("   • Bordes: %s" % settings.get("enable_outline", false))
-	
-	current_shader_settings = settings.duplicate()
-	
-	# Sincronizar checkbox básico SIN bucles
-	if pixelize_check and settings.has("pixelize_enabled"):
-		if pixelize_check.toggled.is_connected(_on_pixelize_changed):
-			pixelize_check.toggled.disconnect(_on_pixelize_changed)
-		
-		pixelize_check.button_pressed = settings.pixelize_enabled
-		current_settings.pixelize = settings.pixelize_enabled
-		
-		pixelize_check.toggled.connect(_on_pixelize_changed)
-	
-	# Aplicar al preview
-	_apply_shader_to_preview_direct(settings)
-	
-	print("✅ Configuración aplicada sin mover cámara")
 
 
-
+func _apply_postprocessing_to_current_model():
+	"""Aplicar post-processing al modelo actual"""
+	if not model_preview_panel:
+		return
+	
+	if not current_shader_settings.is_empty():
+		if model_preview_panel.has_method("apply_postprocessing"):
+			model_preview_panel.apply_postprocessing(current_shader_settings)
+		elif model_preview_panel.has_method("apply_advanced_shader"):
+			model_preview_panel.apply_advanced_shader(current_shader_settings)
+		print("🔄 Post-processing re-aplicado al modelo actual")
 # NUEVA FUNCIÓN: Aplicar shader al modelo en el preview
 func _apply_shader_to_preview_model(shader_settings: Dictionary):
 	"""Aplicar configuración de shader al modelo en el ModelPreviewPanel"""
@@ -1873,3 +1640,182 @@ func debug_corrected_shader_system():
 		print("Conexiones: %d" % connections.size())
 	
 	print("===================================\n")
+
+
+
+
+
+# ========================================================================
+# REEMPLAZAR ESTAS FUNCIONES EN settings_panel.gd
+# ========================================================================
+
+func _apply_basic_shader_to_preview():
+	"""Aplicar canvas post-processing básico al preview"""
+	if not model_preview_panel:
+		_get_model_preview_panel_reference()
+	
+	if not model_preview_panel:
+		print("❌ No hay ModelPreviewPanel para aplicar canvas post-processing")
+		return
+	
+	# Configuración básica de canvas post-processing
+	var basic_canvas_settings = {
+		"pixelize_enabled": true,
+		"pixel_size": 4.0,
+		"reduce_colors": false,
+		"color_levels": 16,
+		"enable_dithering": false,
+		"dither_strength": 0.1,
+		"contrast_enabled": false,
+		"contrast_boost": 1.0,
+		"saturation_enabled": false,
+		"saturation_mult": 1.0,
+		"tint_enabled": false,
+		"color_tint": Color.WHITE,
+		"post_processing": true,
+		"canvas_postprocess": true,
+		"shader_path": "res://resources/shaders/pixelize_postprocess.gdshader"
+	}
+	
+	# Si hay configuración avanzada, usarla en su lugar
+	if not current_shader_settings.is_empty():
+		basic_canvas_settings = current_shader_settings.duplicate()
+		basic_canvas_settings["pixelize_enabled"] = true
+		basic_canvas_settings["post_processing"] = true
+		basic_canvas_settings["canvas_postprocess"] = true
+	
+	# Aplicar al preview usando canvas post-processing
+	if model_preview_panel.has_method("apply_postprocessing"):
+		model_preview_panel.apply_postprocessing(basic_canvas_settings)
+		shader_currently_applied = true
+		print("✅ Canvas post-processing básico aplicado al preview")
+	elif model_preview_panel.has_method("apply_advanced_shader"):
+		model_preview_panel.apply_advanced_shader(basic_canvas_settings)
+		shader_currently_applied = true
+		print("✅ Canvas post-processing aplicado via apply_advanced_shader")
+	else:
+		print("❌ ModelPreviewPanel no tiene métodos de canvas post-processing")
+
+func _remove_shader_from_preview():
+	"""QUITAR canvas post-processing del preview (reversible)"""
+	if not model_preview_panel:
+		_get_model_preview_panel_reference()
+	
+	if not model_preview_panel:
+		print("❌ No hay ModelPreviewPanel para quitar canvas post-processing")
+		return
+	
+	# Usar método de limpieza de canvas post-processing
+	if model_preview_panel.has_method("clear_postprocessing"):
+		model_preview_panel.clear_postprocessing()
+		shader_currently_applied = false
+		print("✅ Canvas post-processing removido del preview")
+	elif model_preview_panel.has_method("clear_advanced_shader"):
+		model_preview_panel.clear_advanced_shader()
+		shader_currently_applied = false
+		print("✅ Shader removido via clear_advanced_shader")
+	else:
+		print("❌ ModelPreviewPanel no tiene métodos de limpieza")
+
+func _on_advanced_shader_settings_changed(settings: Dictionary):
+	"""Manejar cambios en configuración avanzada de canvas post-processing"""
+	current_shader_settings = settings.duplicate()
+	
+	# Asegurar que sea canvas post-processing
+	current_shader_settings["post_processing"] = true
+	current_shader_settings["canvas_postprocess"] = true
+	
+	# Actualizar checkbox básico si existe
+	if pixelize_check and settings.has("pixelize_enabled"):
+		pixelize_check.button_pressed = settings.pixelize_enabled
+		current_settings.pixelize = settings.pixelize_enabled
+	
+	# Emitir señal con configuración actualizada
+	settings_changed.emit(_get_enhanced_settings())
+	
+	# Aplicar inmediatamente al modelo actual si existe
+	_apply_canvas_postprocessing_to_current_model()
+
+# ========================================================================
+# AÑADIR ESTA NUEVA FUNCIÓN
+# ========================================================================
+
+func _apply_canvas_postprocessing_to_current_model():
+	"""Aplicar canvas post-processing al modelo actual"""
+	if not model_preview_panel:
+		return
+	
+	if not current_shader_settings.is_empty():
+		# Asegurar flags de canvas
+		current_shader_settings["canvas_postprocess"] = true
+		current_shader_settings["post_processing"] = true
+		
+		if model_preview_panel.has_method("apply_postprocessing"):
+			model_preview_panel.apply_postprocessing(current_shader_settings)
+		elif model_preview_panel.has_method("apply_advanced_shader"):
+			model_preview_panel.apply_advanced_shader(current_shader_settings)
+		print("🔄 Canvas post-processing re-aplicado al modelo actual")
+
+# ========================================================================
+# MODIFICAR ESTAS FUNCIONES EXISTENTES
+# ========================================================================
+
+func _on_pixelize_changed(enabled: bool):
+	"""Manejar cambio en checkbox de pixelización - MODIFICADO PARA CANVAS"""
+	current_settings.pixelize = enabled
+	
+	if enabled:
+		print("🎨 Aplicando canvas post-processing básico...")
+		_apply_basic_shader_to_preview()
+	else:
+		print("🧹 Removiendo canvas post-processing...")
+		_remove_shader_from_preview()
+	
+	# Emitir señal de cambio
+	settings_changed.emit(_get_enhanced_settings())
+
+func _get_enhanced_settings() -> Dictionary:
+	"""Obtener configuración mejorada con canvas post-processing - MODIFICADO"""
+	var settings = current_settings.duplicate()
+	
+	# NUEVA FUNCIONALIDAD: Configuración básica de pixelización canvas
+	if pixelize_check:
+		settings["pixelize"] = pixelize_check.button_pressed
+	else:
+		settings["pixelize"] = false  # Default
+	
+	# NUEVA FUNCIONALIDAD: Configuración avanzada de canvas shader
+	if not current_shader_settings.is_empty():
+		# Incluir toda la configuración avanzada con flags de canvas
+		settings["advanced_shader"] = current_shader_settings.duplicate()
+		settings["use_advanced_shader"] = true
+		settings["canvas_postprocess"] = true
+		
+		# Sobrescribir pixelización básica con la avanzada
+		settings["pixelize"] = current_shader_settings.get("pixelize_enabled", true)
+	else:
+		settings["use_advanced_shader"] = false
+		settings["advanced_shader"] = {}
+		settings["canvas_postprocess"] = false
+	
+	return settings
+
+# ========================================================================
+# FUNCIONES DE DEBUG (NUEVAS)
+# ========================================================================
+
+func debug_canvas_shader_system():
+	"""Debug del sistema de canvas shader"""
+	#print("\n🔍 === DEBUG SISTEMA DE CANVAS SHADER ===")
+	#print("advanced_shader_panel: %s" % ("✅" if advanced_shader_panel else "❌"))
+	#print("model_preview_panel: %s" % ("✅" if model_preview_panel else "❌"))
+	#print("current_shader_settings: %d elementos" % current_shader_settings.size())
+	#print("canvas_postprocess flag: %s" % current_shader_settings.get("canvas_postprocess", false))
+	#
+	if model_preview_panel:
+		#print("model_preview_panel.current_model: %s" % ("✅" if model_preview_panel.current_model else "❌"))
+		if model_preview_panel.has_method("get_postprocess_status"):
+			var status = model_preview_panel.get_postprocess_status()
+			#print("postprocess_status: %s" % status)
+	
+	#print("=====================================\n")

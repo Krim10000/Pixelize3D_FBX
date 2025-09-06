@@ -273,9 +273,9 @@ func _on_render_settings_changed(settings: Dictionary):
 		enhanced_settings["manual_zoom_override"] = true
 		enhanced_settings["fixed_orthographic_size"] = capture_area
 		
-		print("🔄 Parámetros de cámara calculados:")
-		print("  camera_distance: %.1f" % enhanced_settings["camera_distance"])
-		print("  orthographic_size: %.1f" % enhanced_settings["orthographic_size"])
+		#print("🔄 Parámetros de cámara calculados:")
+		#print("  camera_distance: %.1f" % enhanced_settings["camera_distance"])
+		#print("  orthographic_size: %.1f" % enhanced_settings["orthographic_size"])
 	
 	# ✅ NUEVO: Sincronizar resolución en preview primero
 	if model_preview_panel:
@@ -317,11 +317,11 @@ func _on_render_settings_changed(settings: Dictionary):
 	# 4. Guardar configuración actual
 	current_render_settings = enhanced_settings
 	
-	print("🎯 Sincronización completa - Resolución: %dx%d, Área: %.1f" % [
-		enhanced_settings.get("sprite_size", 128),
-		enhanced_settings.get("sprite_size", 128),
-		enhanced_settings.get("capture_area_size", 4.0)
-	])
+	#print("🎯 Sincronización completa - Resolución: %dx%d, Área: %.1f" % [
+		#enhanced_settings.get("sprite_size", 128),
+		#enhanced_settings.get("sprite_size", 128),
+		#enhanced_settings.get("capture_area_size", 4.0)
+	#])
 
 # ========================================================================
 # FUNCIÓN A AGREGAR: validate_preview_render_sync()
