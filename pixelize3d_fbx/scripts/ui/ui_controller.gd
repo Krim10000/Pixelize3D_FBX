@@ -326,7 +326,7 @@ func _create_config_panel() -> Control:
 	# Checkbox básico (mantener compatibilidad)
 	basic_pixelize_checkbox = CheckBox.new()
 	basic_pixelize_checkbox.text = "Aplicar pixelización"
-	basic_pixelize_checkbox.button_pressed = true
+	basic_pixelize_checkbox.button_pressed = false
 	basic_pixelize_checkbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	basic_pixelize_checkbox.toggled.connect(_on_basic_pixelize_toggled)
 	pixelize_container.add_child(basic_pixelize_checkbox)
@@ -977,7 +977,7 @@ func _get_enhanced_render_settings() -> Dictionary:
 	if basic_pixelize_checkbox:
 		settings["pixelize"] = basic_pixelize_checkbox.button_pressed
 	else:
-		settings["pixelize"] = true  # Default
+		settings["pixelize"] = false  # Default
 	
 	# NUEVA FUNCIONALIDAD: Configuración avanzada de shader
 	if not current_shader_settings.is_empty():
