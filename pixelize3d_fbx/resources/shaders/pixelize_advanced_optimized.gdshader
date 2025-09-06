@@ -62,7 +62,7 @@ void vertex() {
 // === FRAGMENT SHADER (BASADO EN pixelize.gdshader QUE FUNCIONA BIEN) ===
 void fragment() {
     // === PASO 1: PIXELIZACIÓN BÁSICA (EXACTAMENTE COMO pixelize.gdshader) ===
-    
+
     // Obtener el tamaño de la textura
     vec2 texture_size = vec2(textureSize(main_texture, 0));
 
@@ -90,7 +90,7 @@ void fragment() {
     }
 
     // === PASO 4: APLICAR EFECTOS AVANZADOS OPCIONALES ===
-    
+
     // Ajustar contraste si está habilitado
     if (contrast_enabled && contrast_boost != 1.0) {
         color.rgb = adjust_contrast(color.rgb, contrast_boost);

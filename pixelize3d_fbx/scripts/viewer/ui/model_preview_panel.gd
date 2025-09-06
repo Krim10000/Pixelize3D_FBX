@@ -38,6 +38,11 @@ var capture_area_indicator: Control
 var orientation_overlay: Control
 var orientation_cross: Control
 
+var current_shader_settings: Dictionary = {}
+var shader_applied_to_model: bool = false
+var outline_3d_enabled: bool = false
+var outline_material: ShaderMaterial = null
+
 
 func _ready():
 	print("🎬 ModelPreviewPanel MEJORADO inicializado")
@@ -90,136 +95,6 @@ func _create_capture_area_indicator():
 	capture_area_indicator.draw.connect(_draw_capture_area)
 	
 	print("✅ Indicador de área de captura creado")
-
-# pixelize3d_fbx/scripts/viewer/ui/model_preview_panel.gd
-# Funciones para AGREGAR/MODIFICAR en model_preview_panel.gd
-
-# ========================================================================
-# FUNCIÓN A AGREGAR: set_viewport_resolution()
-# ========================================================================
-#func set_viewport_resolution(resolution: int):
-	#"""Cambiar resolución del viewport de preview"""
-	#if not viewport:
-		#print("❌ No hay viewport disponible")
-		#return
-	#
-	#var new_size = Vector2i(resolution, resolution)
-	#print("🖼️ Cambiando viewport de preview a: %dx%d" % [new_size.x, new_size.y])
-	#
-	## Cambiar tamaño del viewport
-	#viewport.size = new_size
-	#
-	## Actualizar viewport container para ajustarse al nuevo tamaño
-	#if viewport_container:
-		#viewport_container.custom_minimum_size = Vector2(resolution, resolution)
-	#
-	## Actualizar indicador de área de captura
-	#update_capture_area_indicator()
-	#
-	#print("✅ Resolución de viewport actualizada")
-#
-## ========================================================================
-## FUNCIÓN A MODIFICAR: _draw_capture_area()
-## REEMPLAZAR la función existente
-## ========================================================================
-##func _draw_capture_area():
-	##"""Dibujar borde del área de captura - MEJORADO para resolución variable"""
-	##if not viewport or not capture_area_indicator:
-		##return
-	##
-	### Obtener tamaño actual del viewport
-	##var viewport_size = viewport_container.size
-	##var actual_viewport_size = viewport.size
-	##
-	### El área de captura es siempre todo el viewport (coherencia total)
-	##var capture_rect = Rect2(Vector2.ZERO, viewport_size)
-	##
-	### Configuración visual
-	##var border_color = Color(1.0, 1.0, 0.0, 0.9)  # Amarillo más opaco
-	##var border_width = 3.0  # Más grueso para mejor visibilidad
-	##
-	### Dibujar marco principal
-	##capture_area_indicator.draw_rect(capture_rect, border_color, false, border_width)
-	##
-	### Dibujar esquinas para mejor visibilidad
-	##var corner_size = min(20.0, viewport_size.x * 0.15)  # Proporcional al tamaño
-	##var corner_color = Color(1.0, 0.5, 0.0, 1.0)  # Naranja
-	##var corner_width = 4.0
-	##
-	### Esquina superior izquierda
-	##capture_area_indicator.draw_line(
-		##capture_rect.position,
-		##capture_rect.position + Vector2(corner_size, 0),
-		##corner_color, corner_width
-	##)
-	##capture_area_indicator.draw_line(
-		##capture_rect.position,
-		##capture_rect.position + Vector2(0, corner_size),
-		##corner_color, corner_width
-	##)
-	##
-	### Esquina superior derecha
-	##var top_right = Vector2(capture_rect.position.x + capture_rect.size.x, capture_rect.position.y)
-	##capture_area_indicator.draw_line(
-		##top_right,
-		##top_right + Vector2(-corner_size, 0),
-		##corner_color, corner_width
-	##)
-	##capture_area_indicator.draw_line(
-		##top_right,
-		##top_right + Vector2(0, corner_size),
-		##corner_color, corner_width
-	##)
-	##
-	### Esquina inferior izquierda
-	##var bottom_left = Vector2(capture_rect.position.x, capture_rect.position.y + capture_rect.size.y)
-	##capture_area_indicator.draw_line(
-		##bottom_left,
-		##bottom_left + Vector2(corner_size, 0),
-		##corner_color, corner_width
-	##)
-	##capture_area_indicator.draw_line(
-		##bottom_left,
-		##bottom_left + Vector2(0, -corner_size),
-		##corner_color, corner_width
-	##)
-	##
-	### Esquina inferior derecha
-	##var bottom_right = capture_rect.position + capture_rect.size
-	##capture_area_indicator.draw_line(
-		##bottom_right,
-		##bottom_right + Vector2(-corner_size, 0),
-		##corner_color, corner_width
-	##)
-	##capture_area_indicator.draw_line(
-		##bottom_right,
-		##bottom_right + Vector2(0, -corner_size),
-		##corner_color, corner_width
-	##)
-	##
-	### Agregar texto informativo de resolución
-	##if actual_viewport_size.x > 0:
-		##var font = ThemeDB.fallback_font
-		##var font_size = max(8, actual_viewport_size.x / 16)  # Tamaño proporcional
-		##var resolution_text = "%dx%d" % [actual_viewport_size.x, actual_viewport_size.y]
-		##var text_pos = capture_rect.position + Vector2(5, font_size + 5)
-		##
-		### Fondo semi-transparente para el texto
-		##var text_size = font.get_string_size(resolution_text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size)
-		##var text_bg_rect = Rect2(text_pos - Vector2(2, font_size), text_size + Vector2(4, 2))
-		##capture_area_indicator.draw_rect(text_bg_rect, Color(0, 0, 0, 0.7))
-		##
-		### Texto de resolución
-		##capture_area_indicator.draw_string(
-			##font, 
-			##text_pos, 
-			##resolution_text, 
-			##HORIZONTAL_ALIGNMENT_LEFT, 
-			##-1, 
-			##font_size, 
-			##Color.WHITE
-		##)
-#
 
 
 func _draw_capture_area():
@@ -421,90 +296,6 @@ func get_current_viewport_info() -> Dictionary:
 	return info
 
 
-#func _draw_capture_area():
-	#"""Dibujar borde del área de captura"""
-	#if not viewport or not capture_area_indicator:
-		#return
-	#
-	#var viewport_size = viewport_container.size
-	#var capture_size = min(viewport_size.x, viewport_size.y)
-	#
-	## Calcular área cuadrada centrada
-	#var offset_x = (viewport_size.x - capture_size) / 2.0
-	#print("viewport_size.x ")
-	#print(viewport_size.x )
-	#print("capture_size")
-	#print(capture_size)
-	#print("offset_x")
-	#print(offset_x)
-	#var offset_y = (viewport_size.y - capture_size) / 2.0
-	#print("offset_y")
-	#print(offset_y)
-##	var rect = Rect2(offset_x, offset_y, capture_size, capture_size)
-	#var rect = Rect2(0, offset_y, capture_size, capture_size)
-	#
-	## Dibujar borde del área de captura
-	#var border_color = Color(1.0, 1.0, 0.0, 0.8)  # Amarillo semi-transparente
-	#var border_width = 2.0
-	#
-	## Dibujar marco
-	#capture_area_indicator.draw_rect(rect, border_color, false, border_width)
-	#
-	## Dibujar esquinas más visibles
-	#var corner_size = 20.0
-	#var corner_color = Color(1.0, 0.5, 0.0, 1.0)  # Naranja
-	#
-	## Esquina superior izquierda
-	#capture_area_indicator.draw_line(
-		#Vector2(rect.position.x, rect.position.y),
-		#Vector2(rect.position.x + corner_size, rect.position.y),
-		#corner_color, 3.0
-	#)
-	#capture_area_indicator.draw_line(
-		#Vector2(rect.position.x, rect.position.y),
-		#Vector2(rect.position.x, rect.position.y + corner_size),
-		#corner_color, 3.0
-	#)
-	#
-	## Esquina superior derecha
-	#capture_area_indicator.draw_line(
-		#Vector2(rect.position.x + rect.size.x, rect.position.y),
-		#Vector2(rect.position.x + rect.size.x - corner_size, rect.position.y),
-		#corner_color, 3.0
-	#)
-	#capture_area_indicator.draw_line(
-		#Vector2(rect.position.x + rect.size.x, rect.position.y),
-		#Vector2(rect.position.x + rect.size.x, rect.position.y + corner_size),
-		#corner_color, 3.0
-	#)
-	#
-	## Esquina inferior izquierda
-	#capture_area_indicator.draw_line(
-		#Vector2(rect.position.x, rect.position.y + rect.size.y),
-		#Vector2(rect.position.x + corner_size, rect.position.y + rect.size.y),
-		#corner_color, 3.0
-	#)
-	#capture_area_indicator.draw_line(
-		#Vector2(rect.position.x, rect.position.y + rect.size.y),
-		#Vector2(rect.position.x, rect.position.y + rect.size.y - corner_size),
-		#corner_color, 3.0
-	#)
-	#
-	## Esquina inferior derecha
-	#capture_area_indicator.draw_line(
-		#Vector2(rect.position.x + rect.size.x, rect.position.y + rect.size.y),
-		#Vector2(rect.position.x + rect.size.x - corner_size, rect.position.y + rect.size.y),
-		#corner_color, 3.0
-	#)
-	#capture_area_indicator.draw_line(
-		#Vector2(rect.position.x + rect.size.x, rect.position.y + rect.size.y),
-		#Vector2(rect.position.x + rect.size.x, rect.position.y + rect.size.y - corner_size),
-		#corner_color, 3.0
-	#)
-
-
-
-
 func update_capture_area_indicator():
 	"""Actualizar indicador cuando cambie la configuración"""
 	if capture_area_indicator:
@@ -521,70 +312,6 @@ func _connect_signals():
 	if model_rotator and model_rotator.has_signal("north_changed"):
 		model_rotator.connect("north_changed", _on_north_changed)
 
-# === GESTIÓN DEL MODELO ===
-
-#func set_model(model: Node3D):
-	#"""✅ MEJORADO: Configurar modelo para preview"""
-	#print("🎬 Configurando modelo para preview: %s" % model.name)
-	#
-	#if not model_container:
-		#print("❌ model_container no disponible")
-		#return
-	#
-	## Limpiar modelo anterior
-	#_clear_current_model_safe()
-	#
-	#if not model:
-		#status_label.text = "No hay modelo cargado"
-		#controls_help_label.visible = false
-		#return
-	#
-	## Duplicar modelo para preview
-	#current_model = model.duplicate()
-	#current_model.name = "Preview_" + model.name
-	#model_container.add_child(current_model)
-	#
-	## Buscar AnimationPlayer
-	#animation_player = _find_animation_player(current_model)
-	#
-	#if capture_area_indicator:
-		#capture_area_indicator.visible = true
-		#update_capture_area_indicator()
-	#
-	#
-	#if animation_player:
-		#print("✅ AnimationPlayer encontrado con %d animaciones" % animation_player.get_animation_list().size())
-		#_setup_animation_loops()
-		#
-		## Conectar señales del AnimationPlayer
-		#if not animation_player.animation_finished.is_connected(_on_animation_finished):
-			#animation_player.animation_finished.connect(_on_animation_finished)
-	#else:
-		#print("⚠️ No se encontró AnimationPlayer")
-	#
-	## Calcular bounds
-	#current_bounds = _calculate_model_bounds_safe(current_model)
-	#emit_signal("bounds_calculated", current_bounds)
-	#
-	## Configurar cámara
-	#if camera_controller and camera_controller.has_method("setup_for_model"):
-		#camera_controller.setup_for_model(current_bounds)
-	#
-	## Actualizar UI
-	#status_label.text = "Modelo: " + model.name
-	#controls_help_label.visible = true
-	##preview_active = true
-	#
-	#emit_signal("preview_ready")
-#
-	#show_orientation_cross()
-	#
-	#print("✅ Preview configurado completamente con cruz de orientación")
-
-
-
-# REEMPLAZAR ESTAS FUNCIONES en model_preview_panel.gd para arreglar el centrado inicial
-
 func set_model(model: Node3D):
 	"""✅ MEJORADO: Configurar modelo para preview con wiggle fix de centrado"""
 	print("🎬 Configurando modelo para preview: %s" % model.name)
@@ -600,6 +327,13 @@ func set_model(model: Node3D):
 		status_label.text = "No hay modelo cargado"
 		controls_help_label.visible = false
 		return
+	
+	if not current_shader_settings.is_empty():
+		call_deferred("_reapply_shader_after_model_change")
+	
+	show_orientation_cross()
+	emit_signal("preview_ready")
+	print("✅ Preview configurado con soporte 3D outline")
 	
 	# Duplicar modelo para preview
 	current_model = model.duplicate()
@@ -823,11 +557,7 @@ func force_immediate_centering():
 	else:
 		print("❌ No hay modelo cargado para centrar")
 
-# ========================================================================
-# COMANDO PARA EJECUTAR DESDE CONSOLA SI HAY PROBLEMAS:
-# ========================================================================
-# var preview = get_node("/root/ViewerModular/HSplitContainer/RightPanel/ModelPreviewPanel")
-# preview.force_immediate_centering()
+
 
 # === CONTROL DE ANIMACIONES ===
 
@@ -922,12 +652,7 @@ func _on_animation_finished(anim_name: String):
 
 func _on_camera_ready():
 	"""Callback cuando la cámara está lista - CORREGIDO"""
-	#print("📷 Cámara lista")
-	# NO llamar a ninguna función de configuración de cámara aquí
-	# Eso causaría recursión infinita
-	
-	# La cámara ya fue configurada cuando se emitió esta señal
-	# Solo hacer tareas que no involucren reconfigurar la cámara:
+
 	
 	# Actualizar UI
 	if preview_active:
@@ -1197,61 +922,145 @@ func hide_orientation_cross():
 	if orientation_overlay:
 		orientation_overlay.visible = false
 
-# ========================================================================
-# scripts/viewer/ui/model_preview_panel.gd
-# FUNCIONES CORREGIDAS PARA SHADER AVANZADO - AGREGAR A model_preview_panel.gd
-# ❌ ESTAS FUNCIONES NO DEBEN MOVER LA CAMARA O EL MODELO ❌
-# ✅ SOLO APLICAN EFECTOS DE SHADER A LOS MATERIALES
-# ========================================================================
 
-# AGREGAR ESTAS VARIABLES AL INICIO DE LA CLASE (después de var current_model)
-var current_shader_settings: Dictionary = {}
-var shader_applied_to_model: bool = false
-
-# FUNCIÓN PRINCIPAL: Aplicar shader avanzado al modelo actual - SIN MOVER NADA
 func apply_advanced_shader(shader_settings: Dictionary):
-	"""Aplicar configuración de shader avanzado al modelo actual en el preview - SOLO MATERIALES"""
+	"""Aplicar configuración de shader avanzado con soporte 3D outline"""
 	print("🎨 Aplicando shader avanzado al modelo en preview...")
-	print("   Modelo actual: %s" % (current_model.name if current_model else "NINGUNO"))
 	
 	if not current_model:
-		print("   ❌ No hay modelo actual para aplicar shader")
+		print("❌ No hay modelo actual")
 		return
 	
-	# Guardar configuración
 	current_shader_settings = shader_settings.duplicate()
 	
-	# Buscar todas las MeshInstance3D en el modelo
+	# 1. Aplicar shader principal
 	var mesh_instances = _find_all_mesh_instances_in_model(current_model)
-	print("   📦 Encontradas %d mesh instances en el modelo" % mesh_instances.size())
-	
 	var applied_count = 0
-	var total_surfaces = 0
 	
 	for mesh_instance in mesh_instances:
 		var surfaces_processed = _apply_shader_to_mesh_instance(mesh_instance, shader_settings)
 		if surfaces_processed > 0:
 			applied_count += 1
-			total_surfaces += surfaces_processed
-			print("   ✅ Shader aplicado a: %s (%d superficies)" % [mesh_instance.name, surfaces_processed])
-		else:
-			print("   ⚠️ No se pudo aplicar shader a: %s" % mesh_instance.name)
+	
+	# 2. Manejar outline 3D si está habilitado
+	if shader_settings.get("enable_outline", false):
+		_apply_3d_outline(shader_settings)
+	else:
+		_clear_3d_outline()
 	
 	shader_applied_to_model = applied_count > 0
-	
-	if shader_applied_to_model:
-		print("   🎉 Shader avanzado aplicado exitosamente!")
-		print("o0o0o0o0oooooooooooooooshader_settings")
-		print(shader_settings)
-		print("   📊 Resumen: %d mesh instances, %d superficies procesadas" % [applied_count, total_surfaces])
-		# ❌ NO EMITIR SEÑALES QUE MUEVAN LA CAMARA
-	else:
-		print("   ❌ No se pudo aplicar shader a ninguna mesh instance")
+	print("✅ Shader aplicado a %d mesh instances" % applied_count)
 
-# FUNCIÓN AUXILIAR: Encontrar todas las MeshInstance3D en el modelo
+
+func _apply_shader_to_mesh_instance(mesh_instance: MeshInstance3D, shader_settings: Dictionary) -> int:
+	"""Aplicar shader a todas las superficies de una MeshInstance3D"""
+	if not mesh_instance or not mesh_instance.mesh:
+		return 0
+	
+	var surfaces_processed = 0
+	var surface_count = mesh_instance.mesh.get_surface_count()
+	
+	for surface_idx in range(surface_count):
+		if _apply_shader_to_surface(mesh_instance, surface_idx, shader_settings):
+			surfaces_processed += 1
+	
+	return surfaces_processed
+
+
+func _reapply_shader_after_model_change():
+	"""Re-aplicar shader después de cambiar modelo"""
+	if not current_shader_settings.is_empty() and current_model:
+		print("🔄 Re-aplicando shader al nuevo modelo...")
+		apply_advanced_shader(current_shader_settings)
+
+
+
+
+func _apply_3d_outline(shader_settings: Dictionary):
+	"""Aplicar outline 3D real expandiendo vertices"""
+	if not current_model:
+		return
+	
+	print("🔲 Aplicando outline 3D...")
+	
+	# Buscar si ya existe outline
+	var outline_node = current_model.find_child("Outline3D", false)
+	
+	if not outline_node:
+		# Crear nuevo outline duplicando el modelo
+		outline_node = current_model.duplicate()
+		outline_node.name = "Outline3D"
+		current_model.add_child(outline_node)
+		
+		# Configurar para que se renderice primero (detrás)
+		outline_node.position = current_model.position
+		outline_node.rotation = current_model.rotation
+		outline_node.scale = current_model.scale
+	
+	# Aplicar outline shader a todas las mesh instances del outline
+	var outline_meshes = _find_all_mesh_instances_in_model(outline_node)
+	
+	for mesh_instance in outline_meshes:
+		# Crear material de outline para cada superficie
+		for surface_idx in range(mesh_instance.mesh.get_surface_count() if mesh_instance.mesh else 0):
+			var outline_material = _create_outline_material(shader_settings)
+			mesh_instance.set_surface_override_material(surface_idx, outline_material)
+	
+	outline_3d_enabled = true
+	print("✅ Outline 3D aplicado con %d mesh instances" % outline_meshes.size())
+	
+	
+	
+func _create_outline_material(shader_settings: Dictionary) -> ShaderMaterial:
+	"""Crear material específico para outline 3D"""
+	var outline_material = ShaderMaterial.new()
+	
+	# Cargar shader de outline 3D
+	var outline_shader_path = "res://resources/shaders/outline_3d.gdshader"
+	if ResourceLoader.exists(outline_shader_path):
+		outline_material.shader = load(outline_shader_path)
+	else:
+		print("❌ Shader de outline 3D no encontrado: %s" % outline_shader_path)
+		return null
+	
+	# Configurar parámetros del outline
+	outline_material.set_shader_parameter("outline_color", shader_settings.get("outline_color", Color.BLACK))
+	outline_material.set_shader_parameter("outline_thickness", shader_settings.get("outline_thickness", 1.0) * 0.01)
+	outline_material.set_shader_parameter("outline_pixelated", shader_settings.get("outline_pixelated", true))
+	outline_material.set_shader_parameter("pixel_size", shader_settings.get("pixel_size", 4.0))
+	
+	# Configurar render priority para que se dibuje primero
+	outline_material.set("render_priority", -1)
+	
+	return outline_material
+	
+	
+func _clear_3d_outline():
+	"""Eliminar outline 3D del modelo"""
+	if not current_model:
+		return
+	
+	var outline_node = current_model.find_child("Outline3D", false)
+	if outline_node:
+		outline_node.queue_free()
+		outline_3d_enabled = false
+		print("🧹 Outline 3D eliminado")
+
+
+
+
 func _find_all_mesh_instances_in_model(model: Node3D) -> Array:
-	"""Encontrar recursivamente todas las MeshInstance3D en el modelo"""
+	"""Encontrar recursivamente todas las MeshInstance3D"""
 	var mesh_instances = []
+	
+	if model is MeshInstance3D:
+		mesh_instances.append(model)
+	
+	for child in model.get_children():
+		if child is Node3D and child.name != "Outline3D":  # Evitar recursión infinita
+			mesh_instances.append_array(_find_all_mesh_instances_in_model(child))
+	
+	return mesh_instances
 	
 	# Si el nodo actual es MeshInstance3D, agregarlo
 	if model is MeshInstance3D:
@@ -1264,168 +1073,107 @@ func _find_all_mesh_instances_in_model(model: Node3D) -> Array:
 	
 	return mesh_instances
 
-# FUNCIÓN AUXILIAR: Aplicar shader a una MeshInstance3D específica
-func _apply_shader_to_mesh_instance(mesh_instance: MeshInstance3D, shader_settings: Dictionary) -> int:
-	"""Aplicar shader a todas las superficies de una MeshInstance3D"""
-	if not mesh_instance or not mesh_instance.mesh:
-		return 0
-	
-	var surfaces_processed = 0
-	var surface_count = mesh_instance.mesh.get_surface_count()
-	
-	print("     Procesando %s con %d superficies..." % [mesh_instance.name, surface_count])
-	
-	for surface_idx in range(surface_count):
-		if _apply_shader_to_surface(mesh_instance, surface_idx, shader_settings):
-			surfaces_processed += 1
-	
-	return surfaces_processed
-
-# FUNCIÓN AUXILIAR: Aplicar shader a una superficie específica
 func _apply_shader_to_surface(mesh_instance: MeshInstance3D, surface_idx: int, shader_settings: Dictionary) -> bool:
-	"""Aplicar shader avanzado a una superficie específica de la mesh"""
+	"""Aplicar shader a una superficie específica"""
 	var target_material = null
-	var material_source = ""
 	
-	# 1. Verificar si ya tiene surface override material
+	# Obtener o crear material
 	var surface_override = mesh_instance.get_surface_override_material(surface_idx)
 	if surface_override:
 		target_material = surface_override
-		material_source = "surface_override"
-	
-	# 2. Si no tiene override, crear uno desde el material original
 	elif mesh_instance.mesh.surface_get_material(surface_idx):
-		var original_material = mesh_instance.mesh.surface_get_material(surface_idx)
-		target_material = original_material.duplicate()
+		target_material = mesh_instance.mesh.surface_get_material(surface_idx).duplicate()
 		mesh_instance.set_surface_override_material(surface_idx, target_material)
-		material_source = "created_from_original"
-		print("       Creado material override para superficie %d" % surface_idx)
-	
-	# 3. Si no hay material, crear uno nuevo
 	else:
 		target_material = StandardMaterial3D.new()
 		mesh_instance.set_surface_override_material(surface_idx, target_material)
-		material_source = "created_new"
-		print("       Creado material nuevo para superficie %d" % surface_idx)
 	
-	if not target_material:
-		print("       ❌ No se pudo obtener material para superficie %d" % surface_idx)
-		return false
-	
-	# 4. Convertir a ShaderMaterial si es necesario
+	# Convertir a ShaderMaterial
 	var shader_material = _convert_to_shader_material(target_material, mesh_instance, surface_idx)
 	if not shader_material:
-		print("       ❌ No se pudo convertir a ShaderMaterial superficie %d" % surface_idx)
 		return false
 	
-	# 5. Cargar y aplicar el shader avanzado
+	# Cargar shader
 	if not _ensure_advanced_shader_loaded(shader_material):
-		print("       ❌ No se pudo cargar shader avanzado para superficie %d" % surface_idx)
 		return false
 	
-	# 6. Aplicar todos los parámetros del shader
+	# Aplicar parámetros
 	_apply_shader_parameters(shader_material, shader_settings)
 	
-	print("       ✅ Superficie %d: shader aplicado (%s)" % [surface_idx, material_source])
 	return true
 
-# FUNCIÓN AUXILIAR: Convertir material a ShaderMaterial
 func _convert_to_shader_material(material: Material, mesh_instance: MeshInstance3D, surface_idx: int) -> ShaderMaterial:
-	"""Convertir un material a ShaderMaterial preservando propiedades"""
-	
-	# Si ya es ShaderMaterial, devolverlo directamente
+	"""Convertir material a ShaderMaterial preservando propiedades"""
 	if material is ShaderMaterial:
 		return material as ShaderMaterial
 	
-	# Crear nuevo ShaderMaterial
 	var shader_material = ShaderMaterial.new()
 	
-	# Preservar propiedades importantes si es StandardMaterial3D
+	# Preservar propiedades de StandardMaterial3D
 	if material is StandardMaterial3D:
 		var std_material = material as StandardMaterial3D
-		
-		# Preservar textura principal (albedo)
 		if std_material.albedo_texture:
 			shader_material.set_shader_parameter("main_texture", std_material.albedo_texture)
-		
-		# Preservar color albedo
 		if std_material.albedo_color != Color.WHITE:
 			shader_material.set_shader_parameter("base_color", std_material.albedo_color)
-		
-		print("       🔄 Material convertido de StandardMaterial3D a ShaderMaterial")
-	else:
-		print("       🔄 Material convertido de %s a ShaderMaterial" % material.get_class())
 	
-	# Asignar el nuevo ShaderMaterial a la superficie
 	mesh_instance.set_surface_override_material(surface_idx, shader_material)
-	
 	return shader_material
 
-# FUNCIÓN AUXILIAR: Asegurar que el shader avanzado esté cargado
 func _ensure_advanced_shader_loaded(shader_material: ShaderMaterial) -> bool:
-	"""Asegurar que el shader avanzado esté cargado en el material"""
-	var shader_path = "res://resources/shaders/pixelize_advanced_improved.gdshader"
+	"""Cargar shader avanzado si no está cargado"""
+	var shader_path = "res://resources/shaders/pixelize_spatial.gdshader"
 	
-	# Si ya tiene el shader correcto, retornar true
 	if shader_material.shader and shader_material.shader.resource_path == shader_path:
 		return true
 	
-	# Cargar el shader avanzado
 	if ResourceLoader.exists(shader_path):
 		var advanced_shader = load(shader_path) as Shader
 		if advanced_shader:
 			shader_material.shader = advanced_shader
-			print("       🔧 Shader avanzado cargado desde: %s" % shader_path)
 			return true
-		else:
-			print("       ❌ Error: No se pudo cargar como Shader: %s" % shader_path)
-			return false
-	else:
-		print("       ❌ Error: Archivo de shader no encontrado: %s" % shader_path)
-		return false
+	
+	print("❌ No se pudo cargar shader: %s" % shader_path)
+	return false
 
-# FUNCIÓN AUXILIAR: Aplicar parámetros del shader
+## FUNCIÓN AUXILIAR: Asegurar que el shader avanzado esté cargado
+#func _ensure_advanced_shader_loaded(shader_material: ShaderMaterial) -> bool:
+	#"""Asegurar que el shader avanzado esté cargado en el material"""
+	#var shader_path = "res://resources/shaders/pixelize_advanced_improved.gdshader"
+	#
+	## Si ya tiene el shader correcto, retornar true
+	#if shader_material.shader and shader_material.shader.resource_path == shader_path:
+		#return true
+	#
+	## Cargar el shader avanzado
+	#if ResourceLoader.exists(shader_path):
+		#var advanced_shader = load(shader_path) as Shader
+		#if advanced_shader:
+			#shader_material.shader = advanced_shader
+			#print("       🔧 Shader avanzado cargado desde: %s" % shader_path)
+			#return true
+		#else:
+			#print("       ❌ Error: No se pudo cargar como Shader: %s" % shader_path)
+			#return false
+	#else:
+		#print("       ❌ Error: Archivo de shader no encontrado: %s" % shader_path)
+		#return false
+
 func _apply_shader_parameters(shader_material: ShaderMaterial, shader_settings: Dictionary):
-	"""Aplicar todos los parámetros del shader avanzado al material"""
-	
-	# Parámetros de pixelización
+	"""Aplicar parámetros del shader al material"""
+	# Parámetros básicos
 	shader_material.set_shader_parameter("pixel_size", shader_settings.get("pixel_size", 4.0))
-	
-	# Parámetros de reducción de colores
 	shader_material.set_shader_parameter("reduce_colors", shader_settings.get("reduce_colors", false))
 	shader_material.set_shader_parameter("color_levels", shader_settings.get("color_levels", 16))
-	
-	# Parámetros de dithering
 	shader_material.set_shader_parameter("enable_dithering", shader_settings.get("enable_dithering", false))
 	shader_material.set_shader_parameter("dither_strength", shader_settings.get("dither_strength", 0.1))
 	
-	# Parámetros de bordes
-	shader_material.set_shader_parameter("enable_outline", shader_settings.get("enable_outline", false))
-	shader_material.set_shader_parameter("outline_thickness", shader_settings.get("outline_thickness", 1.0))
-	shader_material.set_shader_parameter("outline_color", shader_settings.get("outline_color", Color.BLACK))
-	shader_material.set_shader_parameter("outline_pixelated", shader_settings.get("outline_pixelated", true))
-	shader_material.set_shader_parameter("outline_smooth", shader_settings.get("outline_smooth", 0.0))
-	
-	# Efectos avanzados - aplicar solo si están habilitados
-	var contrast_value = 1.0
-	if shader_settings.get("contrast_enabled", false):
-		contrast_value = shader_settings.get("contrast_boost", 1.0)
-	shader_material.set_shader_parameter("contrast_boost", contrast_value)
-	
-	var saturation_value = 1.0
-	if shader_settings.get("saturation_enabled", false):
-		saturation_value = shader_settings.get("saturation_mult", 1.0)
-	shader_material.set_shader_parameter("saturation_mult", saturation_value)
-	
-	var tint_color = Color.WHITE
-	if shader_settings.get("tint_enabled", false):
-		tint_color = shader_settings.get("color_tint", Color.WHITE)
-	shader_material.set_shader_parameter("color_tint", tint_color)
-	
-	var apply_gamma = shader_settings.get("gamma_enabled", false)
-	shader_material.set_shader_parameter("apply_gamma_correction", apply_gamma)
+	# Parámetros de efectos avanzados
+	shader_material.set_shader_parameter("contrast_boost", shader_settings.get("contrast_boost", 1.0))
+	shader_material.set_shader_parameter("saturation_mult", shader_settings.get("saturation_mult", 1.0))
+	shader_material.set_shader_parameter("color_tint", shader_settings.get("color_tint", Color.WHITE))
+	shader_material.set_shader_parameter("apply_gamma_correction", shader_settings.get("apply_gamma_correction", false))
 	shader_material.set_shader_parameter("gamma_value", shader_settings.get("gamma_value", 1.0))
-
 # FUNCIÓN PÚBLICA: Re-aplicar shader cuando cambie el modelo - SIN EFECTOS DE CAMARA
 func _on_model_changed_reapply_shader():
 	"""Re-aplicar shader cuando el modelo cambia (llamar en show_model)"""
@@ -1434,7 +1182,7 @@ func _on_model_changed_reapply_shader():
 		apply_advanced_shader(current_shader_settings)
 		# ❌ NO emitir señales que muevan la cámara
 
-# FUNCIÓN PÚBLICA: Limpiar shader del modelo
+
 func clear_advanced_shader():
 	"""Limpiar shader avanzado del modelo actual"""
 	if not current_model:
@@ -1447,15 +1195,18 @@ func clear_advanced_shader():
 	
 	for mesh_instance in mesh_instances:
 		for surface_idx in range(mesh_instance.mesh.get_surface_count() if mesh_instance.mesh else 0):
-			# Remover surface override material para volver al original
 			mesh_instance.set_surface_override_material(surface_idx, null)
 			cleared_count += 1
 	
+	# Limpiar outline 3D si existe
+	_clear_3d_outline()
+	
 	current_shader_settings.clear()
 	shader_applied_to_model = false
+	outline_3d_enabled = false
 	
 	print("✅ Shader limpiado de %d superficies" % cleared_count)
-	# ❌ NO emitir señales que muevan la cámara
+
 
 # FUNCIÓN PÚBLICA: Obtener estado del shader
 func get_shader_status() -> Dictionary:
@@ -1467,44 +1218,18 @@ func get_shader_status() -> Dictionary:
 		"model_name": current_model.name if current_model else ""
 	}
 
-# MODIFICAR LA FUNCIÓN EXISTENTE show_model PARA RE-APLICAR SHADER
-# AGREGAR AL FINAL DE LA FUNCIÓN show_model EXISTENTE:
-func _reapply_shader_after_model_change():
-	"""Llamar al final de show_model para re-aplicar shader - SIN MOVER CAMARA"""
-	if not current_shader_settings.is_empty():
-		# Usar call_deferred para asegurar que el modelo esté completamente cargado
-		call_deferred("_on_model_changed_reapply_shader")
 
-# FUNCIÓN DE DEBUG (OPCIONAL): Debug del estado del shader
+
 func debug_shader_state():
-	"""Debug del estado actual del shader en el modelo"""
-	print("\n🔍 === DEBUG SHADER EN MODEL PREVIEW ===")
-	print("Modelo actual: %s" % (current_model.name if current_model else "NINGUNO"))
+	"""Debug del estado del shader en el modelo"""
+	print("\n🔍 === DEBUG SHADER ESTADO ===")
+	print("Modelo: %s" % (current_model.name if current_model else "NINGUNO"))
 	print("Shader aplicado: %s" % shader_applied_to_model)
+	print("Outline 3D: %s" % outline_3d_enabled)
 	print("Configuración: %d parámetros" % current_shader_settings.size())
 	
 	if current_model:
-		var mesh_instances = _find_all_mesh_instances_in_model(current_model)
-		print("Mesh instances encontradas: %d" % mesh_instances.size())
-		
-		for mesh_instance in mesh_instances:
-			print("  • %s:" % mesh_instance.name)
-			if mesh_instance.mesh:
-				for surface_idx in range(mesh_instance.mesh.get_surface_count()):
-					var override_mat = mesh_instance.get_surface_override_material(surface_idx)
-					if override_mat:
-						var is_shader_mat = override_mat is ShaderMaterial
-						var has_advanced_shader = false
-						if is_shader_mat and override_mat.shader:
-							has_advanced_shader = "pixelize_advanced" in override_mat.shader.resource_path
-						print("    Superficie %d: %s %s" % [
-							surface_idx,
-							"ShaderMaterial" if is_shader_mat else override_mat.get_class(),
-							"(shader avanzado)" if has_advanced_shader else ""
-						])
-					else:
-						print("    Superficie %d: sin override" % surface_idx)
-			else:
-				print("    Sin mesh")
+		var outline_node = current_model.find_child("Outline3D", false)
+		print("Nodo Outline3D: %s" % ("SÍ" if outline_node else "NO"))
 	
-	print("=========================================\n")
+	print("============================\n")

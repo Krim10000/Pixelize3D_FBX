@@ -65,10 +65,10 @@ vec3 adjust_saturation(vec3 color, float saturation) {
 float detect_edge_2d(sampler2D tex, vec2 uv, vec2 texture_size, float thickness) {
     vec2 texel_size = 1.0 / texture_size;
     float edge_threshold = 0.1;
-    
+
     // Obtener color central
     vec4 center_color = texture(tex, uv);
-    
+
     // Muestrear vecinos en las 8 direcciones
     vec4 neighbors[8];
     neighbors[0] = texture(tex, uv + vec2(-texel_size.x, -texel_size.y) * thickness); // Top-left
@@ -79,7 +79,7 @@ float detect_edge_2d(sampler2D tex, vec2 uv, vec2 texture_size, float thickness)
     neighbors[5] = texture(tex, uv + vec2(-texel_size.x, texel_size.y) * thickness); // Bottom-left
     neighbors[6] = texture(tex, uv + vec2(0.0, texel_size.y) * thickness);           // Bottom
     neighbors[7] = texture(tex, uv + vec2(texel_size.x, texel_size.y) * thickness);  // Bottom-right
-    
+
     // Calcular diferencias de color
     float max_diff = 0.0;
     for (int i = 0; i < 8; i++) {
@@ -87,16 +87,16 @@ float detect_edge_2d(sampler2D tex, vec2 uv, vec2 texture_size, float thickness)
         float color_diff = length(diff);
         max_diff = max(max_diff, color_diff);
     }
-    
+
     // También considerar diferencias de transparencia
     float alpha_diff = 0.0;
     for (int i = 0; i < 8; i++) {
         alpha_diff = max(alpha_diff, abs(center_color.a - neighbors[i].a));
     }
-    
+
     // Combinar diferencias de color y transparencia
     float edge_strength = max(max_diff, alpha_diff);
-    
+
     return step(edge_threshold, edge_strength);
 }
 
@@ -109,36 +109,36 @@ void vertex() {
 void fragment() {
     // === PASO 1: PIXELIZACIÓN BÁSICA ===
     vec2 texture_size = vec2(textureSize(main_texture, 0));
-    
+
     // Calcular coordenadas pixelizadas
     vec2 pixel_coord = UV * texture_size;
     vec2 pixelated_coord = floor(pixel_coord / pixel_size) * pixel_size;
     vec2 pixelated_uv = pixelated_coord / texture_size;
-    
+
     // Obtener el color base pixelizado
     vec4 color = texture(main_texture, pixelated_uv);
-    
+
     // === PASO 2: APLICAR DITHERING SI ESTÁ ACTIVADO ===
     if (enable_dithering && dither_strength > 0.0) {
         ivec2 dither_pos = ivec2(mod(pixel_coord, 4.0));
         float dither_value = dither_matrix[dither_pos.x][dither_pos.y];
-        
+
         vec3 dithered = color.rgb + (dither_value - 0.5) * dither_strength;
         color.rgb = clamp(dithered, 0.0, 1.0);
     }
-    
+
     // === PASO 3: APLICAR REDUCCIÓN DE COLORES SI ESTÁ ACTIVADA ===
     if (reduce_colors) {
         color.rgb = quantize_color(color.rgb, float(color_levels));
     }
-    
+
     // === PASO 4: DETECCIÓN Y APLICACIÓN DE BORDE 2D ===
     float outline_factor = 0.0;
     if (enable_outline && color.a > 0.1) {
         // Usar coordenadas pixelizadas o originales según configuración
         vec2 edge_uv = outline_pixelated ? pixelated_uv : UV;
         outline_factor = detect_edge_2d(main_texture, edge_uv, texture_size, outline_thickness);
-        
+
         // Aplicar suavizado al borde si está configurado
         if (outline_smooth > 0.0) {
             outline_factor = smoothstep(0.1, 0.1 + outline_smooth, outline_factor);
@@ -146,34 +146,34 @@ void fragment() {
             outline_factor = step(0.1, outline_factor);
         }
     }
-    
+
     // === PASO 5: MEZCLAR COLOR BASE CON BORDE ===
     if (outline_factor > 0.0) {
         color = mix(color, outline_color, outline_factor);
     }
-    
+
     // === PASO 6: APLICAR EFECTOS AVANZADOS ===
-    
+
     // Ajustar contraste
     if (contrast_enabled && contrast_boost != 1.0) {
         color.rgb = adjust_contrast(color.rgb, contrast_boost);
     }
-    
+
     // Ajustar saturación
     if (saturation_enabled && saturation_mult != 1.0) {
         color.rgb = adjust_saturation(color.rgb, saturation_mult);
     }
-    
+
     // Aplicar tinte
     if (tint_enabled) {
         color.rgb *= color_tint.rgb;
         color.a *= color_tint.a;
     }
-    
+
     // === PASO 7: APLICAR RESULTADO FINAL ===
     ALBEDO = color.rgb;
     ALPHA = color.a;
-    
+
     // Asegurar que los bordes sean opacos si se especifica
     if (enable_outline && outline_factor > 0.5) {
         ALPHA = max(ALPHA, outline_color.a);
