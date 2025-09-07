@@ -237,15 +237,15 @@ func _create_advanced_shader_panel():
 	
 	var advanced_window = Window.new()
 	advanced_window.title = "Configuración Avanzada de Shader"
-	advanced_window.size = Vector2i(680, 750)
-	advanced_window.min_size = Vector2i(650, 700)
+	advanced_window.size = Vector2i(500, 750)
+	advanced_window.min_size = Vector2i(500, 700)
 	advanced_window.unresizable = false
 	advanced_window.transient = true
 	advanced_window.exclusive = false
 	
 	# Posicionar ventana
 	var screen_size = DisplayServer.screen_get_size()
-	advanced_window.position = Vector2i(screen_size.x - 720, 50)
+	advanced_window.position = Vector2i(900, 50)
 	
 	get_tree().current_scene.add_child(advanced_window)
 	
@@ -684,32 +684,77 @@ func _create_capture_area_settings():
 	print("🎯 _create_capture_area_settings() COMPLETADO EXITOSAMENTE")
 
 
-
-# REEMPLAZAR ESTA FUNCIÓN en settings_panel.gd
-
 # ========================================================================
-# FUNCIÓN A REEMPLAZAR: _on_resolution_selected() - CON WIGGLE FIX
+# FUNCIÓN MODIFICADA: _on_resolution_selected() - CON COMPENSACIÓN AUTOMÁTICA DE TAMAÑO
+# Ubicación: pixelize3d_fbx/scripts/viewer/ui/settings_panel.gd
+# Input: resolution (int) - Nueva resolución seleccionada (32, 64, 128, 256, 512)
+# Output: Actualiza resolución y compensa automáticamente el área de captura para mantener tamaño visual
 # ========================================================================
 func _on_resolution_selected(resolution: int):
-	"""Manejar selección de resolución de sprite - CON WIGGLE PARA CENTRADO"""
-	print("🖼️ Resolución seleccionada: %d - aplicando con wiggle fix..." % resolution)
+	"""Manejar selección de resolución de sprite - CON COMPENSACIÓN AUTOMÁTICA DE TAMAÑO"""
+	print("🖼️ Resolución seleccionada: %d (anterior: %d)" % [resolution, current_sprite_resolution])
 	
+	# ✅ COMPENSACIÓN AUTOMÁTICA DE TAMAÑO
+	var previous_resolution = current_sprite_resolution
+	var compensated_area = capture_area_slider.value
+	var area_changed = false
+	
+	# Solo aplicar compensación si hay cambio real de resolución
+	if previous_resolution > 0 and previous_resolution != resolution:
+		# Calcular factor de compensación
+		# Factor > 1.0 = resolución aumentó, necesitamos área menor para mantener tamaño visual
+		# Factor < 1.0 = resolución disminuyó, necesitamos área mayor para mantener tamaño visual
+		var resolution_factor = float(resolution) / float(previous_resolution)
+		
+		# Aplicar compensación (relación directa: más resolución = área proportcionalmente menor)
+		var current_area = capture_area_slider.value
+		compensated_area = current_area * resolution_factor
+		
+		print("  🔧 Compensación automática:")
+		print("    Factor de resolución: %.3f (%d→%d)" % [resolution_factor, previous_resolution, resolution])
+		print("    Área actual: %.2f → Área compensada: %.2f" % [current_area, compensated_area])
+		
+		# Aplicar límites del slider (usar extremos si se exceden)
+		if compensated_area < capture_area_slider.min_value:
+			compensated_area = capture_area_slider.min_value
+			print("    ⚠️ Área limitada al mínimo: %.2f" % compensated_area)
+		elif compensated_area > capture_area_slider.max_value:
+			compensated_area = capture_area_slider.max_value
+			print("    ⚠️ Área limitada al máximo: %.2f" % compensated_area)
+		
+		area_changed = true
+	else:
+		print("  ℹ️ Sin compensación (primera configuración o misma resolución)")
+	
+	# Actualizar configuración de resolución
 	current_sprite_resolution = resolution
 	current_settings.sprite_size = resolution
 	
-	# Actualizar label informativo
+	# Actualizar label informativo de resolución
 	if resolution_info_label:
 		resolution_info_label.text = "Resolución actual: %dx%d píxeles" % [resolution, resolution]
 	
-	print("  ✅ Configuración de resolución actualizada")
+	# ✅ APLICAR COMPENSACIÓN AL SLIDER AUTOMÁTICAMENTE
+	if area_changed and compensated_area != capture_area_slider.value:
+		print("  📏 Aplicando área compensada: %.2f" % compensated_area)
+		# Al cambiar el slider, se disparará _on_capture_area_changed() automáticamente
+		# que actualizará current_settings.capture_area_size y emitirá settings_changed
+		capture_area_slider.value = compensated_area
+		# NO emitimos settings_changed aquí porque _on_capture_area_changed() ya lo hará
+	else:
+		# Si no hubo cambio de área, emitir señal manualmente
+		print("  ✅ Área de captura sin cambios: %.2f" % compensated_area)
+		settings_changed.emit(_get_enhanced_settings())
 	
-	# Emitir señal con configuración actualizada (SIN wiggle aún)
-	settings_changed.emit(_get_enhanced_settings())
+	print("  ✅ Configuración de resolución actualizada con compensación")
+	
+	# Actualizar visual (esto no emite señales)
 	_update_capture_area_visual()
 	
 	# ✅ WIGGLE FIX: Forzar re-centrado con micro-cambio del slider
 	_perform_centering_wiggle()
-
+	
+	print("  🎯 Compensación automática completada - tamaño visual mantenido")
 # ========================================================================
 # FUNCIÓN NUEVA: _perform_centering_wiggle()
 # ========================================================================
@@ -1177,7 +1222,7 @@ func _on_show_advanced_shader_panel():
 			advanced_shader_panel.apply_settings(current_shader_settings)
 			print("✅ Configuración actual aplicada al panel")
 		
-		advanced_window.popup_centered()
+		advanced_window.popup()
 	else:
 		# Buscar la ventana padre del panel
 		var current_node = advanced_shader_panel.get_parent()
@@ -1189,7 +1234,7 @@ func _on_show_advanced_shader_panel():
 			if not current_shader_settings.is_empty() and advanced_shader_panel.has_method("apply_settings"):
 				advanced_shader_panel.apply_settings(current_shader_settings)
 			
-			current_node.popup_centered()
+			current_node.popup()
 			print("✅ Panel avanzado mostrado con configuración actualizada")
 		else:
 			print("❌ No se pudo encontrar la ventana padre del panel")
@@ -1253,7 +1298,7 @@ func _show_error(message: String):
 	error_dialog.title = "Error"
 	error_dialog.dialog_text = message
 	get_tree().current_scene.add_child(error_dialog)
-	error_dialog.popup_centered()
+	error_dialog.popup()
 	error_dialog.confirmed.connect(error_dialog.queue_free)
 
 # ========================================================================

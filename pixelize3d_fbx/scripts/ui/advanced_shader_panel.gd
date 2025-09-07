@@ -41,8 +41,8 @@ var reset_button: Button
 
 # === CONFIGURACIÓN ACTUAL ===
 var current_settings: Dictionary = {
-	"pixelize_enabled": false,
-	"pixel_size": 4.0,
+	"pixelize_enabled": true,
+	"pixel_size": 2.0,
 	"reduce_colors": false,
 	"color_levels": 16,
 	"enable_dithering": false,
@@ -137,7 +137,7 @@ func _create_pixelization_section(parent: VBoxContainer):
 	# Checkbox principal para habilitar/deshabilitar
 	pixelize_enabled_check = CheckBox.new()
 	pixelize_enabled_check.text = "Habilitar Pixelización"
-	pixelize_enabled_check.button_pressed = false
+	pixelize_enabled_check.button_pressed = true
 	pixelize_enabled_check.toggled.connect(_on_pixelize_enabled_changed)
 	parent.add_child(pixelize_enabled_check)
 	
@@ -151,16 +151,16 @@ func _create_pixelization_section(parent: VBoxContainer):
 	pixel_size_container.add_child(pixel_label)
 	
 	pixel_size_slider = HSlider.new()
-	pixel_size_slider.min_value = 1.0
+	pixel_size_slider.min_value = 0.0
 	pixel_size_slider.max_value = 32.0
-	pixel_size_slider.step = 1.0
-	pixel_size_slider.value = 4.0
+	pixel_size_slider.step = 0.1
+	pixel_size_slider.value = 2.0
 	pixel_size_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	pixel_size_slider.value_changed.connect(_on_pixel_size_changed)
 	pixel_size_container.add_child(pixel_size_slider)
 	
 	pixel_size_label = Label.new()
-	pixel_size_label.text = "4"
+	pixel_size_label.text = "2"
 	pixel_size_label.custom_minimum_size.x = 30
 	pixel_size_container.add_child(pixel_size_label)
 

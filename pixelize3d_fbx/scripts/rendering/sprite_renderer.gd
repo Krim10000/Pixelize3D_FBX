@@ -45,21 +45,21 @@ func _ready():
 	else:
 		push_error("❌ No se pudo cargar orientation_analyzer.gd")
 
-func update_render_settings(new_settings: Dictionary):
-	"""Actualizar configuración de renderizado en tiempo real"""
-	#print("🔄 Actualizando configuración de sprite renderer...")
-	
-	render_settings = new_settings.duplicate()
-	
-	# Aplicar cambios inmediatamente si hay una cámara configurada
-	if camera_controller and camera_controller.has_method("set_camera_settings"):
-		camera_controller.set_camera_settings(new_settings)
-		#print("✅ Configuración aplicada al camera controller del renderer")
-	
-	#print("✅ Configuración de renderer actualizada")
-	#print("  - directions: %d" % render_settings.get("directions", 16))
-	#print("  - sprite_size: %d" % render_settings.get("sprite_size", 128))
-	#print("  - camera_height: %.1f" % render_settings.get("camera_height", 12.0))
+#func update_render_settings(new_settings: Dictionary):
+	#"""Actualizar configuración de renderizado en tiempo real"""
+	##print("🔄 Actualizando configuración de sprite renderer...")
+	#
+	#render_settings = new_settings.duplicate()
+	#
+	## Aplicar cambios inmediatamente si hay una cámara configurada
+	#if camera_controller and camera_controller.has_method("set_camera_settings"):
+		#camera_controller.set_camera_settings(new_settings)
+		##print("✅ Configuración aplicada al camera controller del renderer")
+	#
+	##print("✅ Configuración de renderer actualizada")
+	##print("  - directions: %d" % render_settings.get("directions", 16))
+	##print("  - sprite_size: %d" % render_settings.get("sprite_size", 128))
+	##print("  - camera_height: %.1f" % render_settings.get("camera_height", 12.0))
 
 func _initialize_shared_references():
 	"""Inicializar referencias compartidas con ModelPreviewPanel"""
@@ -428,53 +428,53 @@ func _restore_preview_mode():
 # RENDERIZADO DE FRAMES - MANTIENE LÓGICA EXISTENTE
 # ========================================================================
 
-func _render_next_frame():
-	"""Renderizar siguiente frame usando cámara compartida"""
-	if current_frame >= total_frames:
-		_finish_rendering()
-		return
-	
-	if not current_model or not is_instance_valid(current_model):
-		push_error("❌ Modelo se invalidó durante el renderizado")
-		_finish_rendering()
-		return
-
-	_prepare_model_for_frame()
-
-	# Esperar frames para garantizar render limpio
+#func _render_next_frame():
+	#"""Renderizar siguiente frame usando cámara compartida"""
+	#if current_frame >= total_frames:
+		#_finish_rendering()
+		#return
+	#
+	#if not current_model or not is_instance_valid(current_model):
+		#push_error("❌ Modelo se invalidó durante el renderizado")
+		#_finish_rendering()
+		#return
+#
+	#_prepare_model_for_frame()
+#
+	## Esperar frames para garantizar render limpio
+	##await get_tree().process_frame
+	##await RenderingServer.frame_post_draw
 	#await get_tree().process_frame
-	#await RenderingServer.frame_post_draw
-	await get_tree().process_frame
-	
-	# Configurar viewport para captura
-	viewport.render_target_clear_mode = SubViewport.CLEAR_MODE_ALWAYS
-	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	#await RenderingServer.frame_post_draw
-	
-	# ✅ Captura del frame usando viewport compartido
-	var image := viewport.get_texture().get_image().duplicate()
-	
-	if render_settings.get("pixelize", true):
-		image = _apply_pixelization(image)
-
-	var frame_data := {
-		"animation": current_animation,
-		"direction": current_direction,
-		"frame": current_frame,
-		"angle": _get_current_camera_angle(),
-		"image": image
-	}
-
-	#emit_signal("frame_rendered", frame_data)
-	frame_rendered.emit(frame_data)
-	#emit_signal("rendering_progress", current_frame + 1, total_frames)
-	rendering_progress.emit(current_frame+1, total_frames)
-	
-	
-	
-
-	current_frame += 1
-	call_deferred("_render_next_frame")
+	#
+	## Configurar viewport para captura
+	#viewport.render_target_clear_mode = SubViewport.CLEAR_MODE_ALWAYS
+	#viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	##await RenderingServer.frame_post_draw
+	#
+	## ✅ Captura del frame usando viewport compartido
+	#var image := viewport.get_texture().get_image().duplicate()
+	#
+	#if render_settings.get("pixelize", true):
+		#image = _apply_pixelization(image)
+#
+	#var frame_data := {
+		#"animation": current_animation,
+		#"direction": current_direction,
+		#"frame": current_frame,
+		#"angle": _get_current_camera_angle(),
+		#"image": image
+	#}
+#
+	##emit_signal("frame_rendered", frame_data)
+	#frame_rendered.emit(frame_data)
+	##emit_signal("rendering_progress", current_frame + 1, total_frames)
+	#rendering_progress.emit(current_frame+1, total_frames)
+	#
+	#
+	#
+#
+	#current_frame += 1
+	#call_deferred("_render_next_frame")
 
 func _get_current_camera_angle() -> float:
 	"""Obtener ángulo actual de la cámara"""
@@ -492,35 +492,35 @@ func _finish_rendering():
 	#emit_signal("animation_complete", current_animation)
 	animation_complete.emit(current_animation)
 	#print("✅ Renderizado completado y preview restaurado")
-
-func _render_static_frame():
-	"""Renderizar frame estático para modelos sin animación"""
-	await get_tree().process_frame
-	
-	if not viewport:
-		push_error("❌ Viewport no disponible para frame estático")
-		_finish_rendering()
-		return
-	
-	viewport.render_target_clear_mode = SubViewport.CLEAR_MODE_ALWAYS
-	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	await RenderingServer.frame_post_draw
-	
-	var image = viewport.get_texture().get_image()
-	
-	if render_settings.get("pixelize", true):
-		image = _apply_pixelization(image)
-	
-	var frame_data = {
-		"animation": current_animation,
-		"direction": current_direction,
-		"frame": 0,
-		"angle": _get_current_camera_angle(),
-		"image": image
-	}
-	
-	emit_signal("frame_rendered", frame_data)
-	_finish_rendering()
+#
+#func _render_static_frame():
+	#"""Renderizar frame estático para modelos sin animación"""
+	#await get_tree().process_frame
+	#
+	#if not viewport:
+		#push_error("❌ Viewport no disponible para frame estático")
+		#_finish_rendering()
+		#return
+	#
+	#viewport.render_target_clear_mode = SubViewport.CLEAR_MODE_ALWAYS
+	#viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	#await RenderingServer.frame_post_draw
+	#
+	#var image = viewport.get_texture().get_image()
+	#
+	#if render_settings.get("pixelize", true):
+		#image = _apply_pixelization(image)
+	#
+	#var frame_data = {
+		#"animation": current_animation,
+		#"direction": current_direction,
+		#"frame": 0,
+		#"angle": _get_current_camera_angle(),
+		#"image": image
+	#}
+	#
+	#emit_signal("frame_rendered", frame_data)
+	#_finish_rendering()
 
 # ========================================================================
 # PREPARACIÓN DE MODELO - MANTIENE LÓGICA EXISTENTE
@@ -720,8 +720,8 @@ func _render_next_frame_with_delay():
 	
 	var image = viewport.get_texture().get_image().duplicate()
 	
-	if render_settings.get("pixelize", true):
-		image = _apply_pixelization(image)
+	#if render_settings.get("pixelize", true):
+		#image = _apply_pixelization(image)
 	
 	var frame_data = {
 		"animation": current_animation,
@@ -807,3 +807,230 @@ func validate_viewport_resolution_sync() -> Dictionary:
 		print("⚠️ Viewport no sincronizado: %s vs %s" % [validation.viewport_size, validation.expected_size])
 	
 	return validation
+
+
+
+#func update_render_settings(settings: Dictionary):
+	#"""Actualizar configuración de renderizado - CON SOPORTE SHADER AVANZADO"""
+	#print("🔄 Actualizando configuración de renderizado...")
+	#
+	#render_settings = settings.duplicate()
+	#
+	## ✅ NUEVO: Manejar shader avanzado
+	#if settings.has("advanced_shader") and not settings["advanced_shader"].is_empty():
+		#render_settings["use_advanced_shader"] = true
+		#render_settings["advanced_shader"] = settings["advanced_shader"].duplicate()
+		#print("  🎨 Configuración de shader avanzado incluida")
+		#print("    pixel_size: %s" % settings["advanced_shader"].get("pixel_size", "N/A"))
+		#print("    pixelize_enabled: %s" % settings["advanced_shader"].get("pixelize_enabled", "N/A"))
+	#else:
+		#render_settings["use_advanced_shader"] = false
+		#print("  ℹ️ Sin shader avanzado")
+	#
+	## Aplicar configuración a la cámara si existe
+	#if camera_controller and camera_controller.has_method("set_camera_settings"):
+		#camera_controller.set_camera_settings(render_settings)
+	#
+	#print("✅ Configuración de renderizado actualizada")
+#
+#
+#
+##func _apply_advanced_shader_to_model(model: Node3D, shader_settings: Dictionary):
+	##"""Aplicar shader avanzado al modelo durante el renderizado"""
+	##if not model:
+		##return
+	##
+	### Buscar todos los MeshInstance3D y aplicar shader
+	##_apply_shader_recursive(model, shader_settings)
+#
+##func _apply_shader_recursive(node: Node3D, shader_settings: Dictionary):
+	##"""Aplicar shader recursivamente a todos los MeshInstance3D"""
+	##if node is MeshInstance3D:
+		##var mesh_instance = node as MeshInstance3D
+		##
+		### Crear material con shader si no existe
+		##if not mesh_instance.material_override:
+			##mesh_instance.material_override = ShaderMaterial.new()
+		##
+		##if mesh_instance.material_override is ShaderMaterial:
+			##var shader_material = mesh_instance.material_override as ShaderMaterial
+			##
+			### Cargar shader avanzado
+			##var shader_path = "res://resources/shaders/pixelize_with_outline.gdshader"
+			##if ResourceLoader.exists(shader_path):
+				##shader_material.shader = load(shader_path)
+				##
+				### Aplicar parámetros
+				##shader_material.set_shader_parameter("pixel_size", shader_settings.get("pixel_size", 2.0))
+				##shader_material.set_shader_parameter("reduce_colors", shader_settings.get("reduce_colors", false))
+				##shader_material.set_shader_parameter("color_levels", shader_settings.get("color_levels", 16))
+				##shader_material.set_shader_parameter("enable_dithering", shader_settings.get("enable_dithering", false))
+				##shader_material.set_shader_parameter("dither_strength", shader_settings.get("dither_strength", 0.1))
+				##
+				##print("    🎨 Shader aplicado a: %s" % mesh_instance.name)
+	##
+	### Continuar recursivamente
+	##for child in node.get_children():
+		##if child is Node3D:
+			##_apply_shader_recursive(child, shader_settings)
+#
+
+
+
+func _render_next_frame():
+	"""Renderizar siguiente frame usando cámara compartida - CON SHADER AVANZADO"""
+	if current_frame >= total_frames:
+		_finish_rendering()
+		return
+	
+	if not current_model or not is_instance_valid(current_model):
+		push_error("❌ Modelo se invalidó durante el renderizado")
+		_finish_rendering()
+		return
+
+	_prepare_model_for_frame()
+
+	# ✅ NUEVO: Aplicar shader avanzado si está habilitado
+	if render_settings.get("use_advanced_shader", false):
+		var shader_settings = render_settings.get("advanced_shader", {})
+		_apply_advanced_shader_to_model(current_model, shader_settings)
+		print("  🎨 Shader avanzado aplicado para frame %d" % current_frame)
+
+	# Esperar frames para garantizar render limpio
+	await get_tree().process_frame
+	
+	# Configurar viewport para captura
+	viewport.render_target_clear_mode = SubViewport.CLEAR_MODE_ALWAYS
+	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	
+	# ✅ Captura del frame usando viewport compartido
+	var image := viewport.get_texture().get_image().duplicate()
+	
+	# ✅ CAMBIO: Remover pixelización aquí porque ya se aplica con el shader
+	# if render_settings.get("pixelize", true):
+	#	image = _apply_pixelization(image)
+
+	var frame_data := {
+		"animation": current_animation,
+		"direction": current_direction,
+		"frame": current_frame,
+		"angle": _get_current_camera_angle(),
+		"image": image
+	}
+
+	frame_rendered.emit(frame_data)
+	rendering_progress.emit(current_frame+1, total_frames)
+	
+	current_frame += 1
+	call_deferred("_render_next_frame")
+	
+	
+	# ========================================================================
+# SOPORTE PARA SHADER AVANZADO - NUEVO
+# ========================================================================
+
+func _apply_advanced_shader_to_model(model: Node3D, shader_settings: Dictionary):
+	"""Aplicar shader avanzado al modelo durante el renderizado"""
+	if not model:
+		return
+	
+	# Buscar todos los MeshInstance3D y aplicar shader
+	_apply_shader_recursive(model, shader_settings)
+
+func _apply_shader_recursive(node: Node3D, shader_settings: Dictionary):
+	"""Aplicar shader recursivamente a todos los MeshInstance3D"""
+	if node is MeshInstance3D:
+		var mesh_instance = node as MeshInstance3D
+		
+		# Crear material con shader si no existe
+		if not mesh_instance.material_override:
+			mesh_instance.material_override = ShaderMaterial.new()
+		
+		if mesh_instance.material_override is ShaderMaterial:
+			var shader_material = mesh_instance.material_override as ShaderMaterial
+			
+			# Cargar shader avanzado
+			var shader_path = "res://resources/shaders/pixelize_with_outline.gdshader"
+			if ResourceLoader.exists(shader_path):
+				shader_material.shader = load(shader_path)
+				
+				# Aplicar parámetros EXACTOS del panel
+				shader_material.set_shader_parameter("pixel_size", shader_settings.get("pixel_size", 2.0))
+				shader_material.set_shader_parameter("reduce_colors", shader_settings.get("reduce_colors", false))
+				shader_material.set_shader_parameter("color_levels", shader_settings.get("color_levels", 16))
+				shader_material.set_shader_parameter("enable_dithering", shader_settings.get("enable_dithering", false))
+				shader_material.set_shader_parameter("dither_strength", shader_settings.get("dither_strength", 0.1))
+				shader_material.set_shader_parameter("enable_outline", shader_settings.get("enable_outline", false))
+				shader_material.set_shader_parameter("outline_thickness", shader_settings.get("outline_thickness", 1.0))
+				shader_material.set_shader_parameter("outline_color", shader_settings.get("outline_color", Color.BLACK))
+				shader_material.set_shader_parameter("contrast_boost", shader_settings.get("contrast_boost", 1.0))
+				shader_material.set_shader_parameter("saturation_mult", shader_settings.get("saturation_mult", 1.0))
+				shader_material.set_shader_parameter("color_tint", shader_settings.get("color_tint", Color.WHITE))
+				
+				print("    🎨 Shader aplicado a: %s (pixel_size: %s)" % [mesh_instance.name, shader_settings.get("pixel_size", 2.0)])
+			else:
+				print("    ❌ Shader no encontrado: %s" % shader_path)
+	
+	# Continuar recursivamente
+	for child in node.get_children():
+		if child is Node3D:
+			_apply_shader_recursive(child, shader_settings)
+
+func update_render_settings(new_settings: Dictionary):
+	"""Actualizar configuración de renderizado - CON SOPORTE SHADER AVANZADO"""
+	print("🔄 Actualizando configuración de renderizado...")
+	
+	render_settings = new_settings.duplicate()
+	
+	# ✅ NUEVO: Manejar shader avanzado
+	if new_settings.has("advanced_shader") and not new_settings["advanced_shader"].is_empty():
+		render_settings["use_advanced_shader"] = true
+		render_settings["advanced_shader"] = new_settings["advanced_shader"].duplicate()
+		print("  🎨 Configuración de shader avanzado incluida")
+		print("    pixel_size: %s" % new_settings["advanced_shader"].get("pixel_size", "N/A"))
+		print("    pixelize_enabled: %s" % new_settings["advanced_shader"].get("pixelize_enabled", "N/A"))
+	else:
+		render_settings["use_advanced_shader"] = false
+		print("  ℹ️ Sin shader avanzado")
+	
+	# Aplicar configuración a la cámara si existe
+	if camera_controller and camera_controller.has_method("set_camera_settings"):
+		camera_controller.set_camera_settings(render_settings)
+	
+	print("✅ Configuración de renderizado actualizada")
+	
+func _render_static_frame():
+	"""Renderizar frame estático para modelos sin animación - CON SHADER"""
+	await get_tree().process_frame
+	
+	if not viewport:
+		push_error("❌ Viewport no disponible para frame estático")
+		_finish_rendering()
+		return
+	
+	# ✅ NUEVO: Aplicar shader avanzado si está habilitado
+	if render_settings.get("use_advanced_shader", false):
+		var shader_settings = render_settings.get("advanced_shader", {})
+		_apply_advanced_shader_to_model(current_model, shader_settings)
+		print("  🎨 Shader avanzado aplicado a frame estático")
+	
+	viewport.render_target_clear_mode = SubViewport.CLEAR_MODE_ALWAYS
+	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	await RenderingServer.frame_post_draw
+	
+	var image = viewport.get_texture().get_image()
+	
+	# ✅ CAMBIO: Remover pixelización manual ya que se aplica con shader
+	# if render_settings.get("pixelize", true):
+	#	image = _apply_pixelization(image)
+	
+	var frame_data = {
+		"animation": current_animation,
+		"direction": current_direction,
+		"frame": 0,
+		"angle": _get_current_camera_angle(),
+		"image": image
+	}
+	
+	emit_signal("frame_rendered", frame_data)
+	_finish_rendering()

@@ -688,3 +688,47 @@ func is_busy() -> bool:
 func get_default_config() -> Dictionary:
 	"""Obtener configuración por defecto"""
 	return _merge_configs({})
+
+# ========================================================================
+# NUEVA FUNCIÓN: SINCRONIZACIÓN DE SHADER AVANZADO
+# ========================================================================
+func set_advanced_shader_settings(shader_settings: Dictionary):
+	"""Configurar shader avanzado para el renderizado de sprite sheet"""
+	print("🎨 Pipeline recibiendo configuración de shader avanzado:")
+	print("  pixel_size: %s" % shader_settings.get("pixel_size", "N/A"))
+	print("  pixelize_enabled: %s" % shader_settings.get("pixelize_enabled", "N/A"))
+	
+	# Guardar configuración para el renderizado
+	if not current_config.has("advanced_shader"):
+		current_config["advanced_shader"] = {}
+	
+	current_config["advanced_shader"] = shader_settings.duplicate()
+	current_config["use_advanced_shader"] = true
+	current_config["pixelize"] = shader_settings.get("pixelize_enabled", false)
+	
+	# Si el sprite_renderer ya está configurado, pasarle la configuración inmediatamente
+	if sprite_renderer and sprite_renderer.has_method("update_render_settings"):
+		var enhanced_settings = current_config.duplicate()
+		sprite_renderer.update_render_settings(enhanced_settings)
+		print("✅ Configuración de shader enviada a sprite_renderer")
+	else:
+		print("⚠️ sprite_renderer no disponible, configuración guardada para usar después")
+
+func update_pipeline_settings(settings: Dictionary):
+	"""Actualizar configuración del pipeline - MEJORADA con shader avanzado"""
+	print("📋 Actualizando configuración del pipeline...")
+	
+	# Combinar con configuración actual
+	current_config.merge(settings, true)
+	
+	# Si hay configuración de shader avanzado, procesarla
+	if settings.has("advanced_shader") and not settings["advanced_shader"].is_empty():
+		print("  🎨 Aplicando configuración de shader avanzado al pipeline")
+		set_advanced_shader_settings(settings["advanced_shader"])
+	
+	# Actualizar sprite_renderer si está disponible
+	if sprite_renderer and sprite_renderer.has_method("update_render_settings"):
+		sprite_renderer.update_render_settings(current_config)
+		print("✅ Pipeline settings actualizados en sprite_renderer")
+	
+	print("✅ Configuración del pipeline actualizada")
