@@ -112,6 +112,7 @@ func _create_ui():
 	# SECCION: ORIENTACION
 	_create_orientation_settings()
 
+
 func _create_basic_settings():
 	"""Crear configuracion basica"""
 	var basic_title = Label.new()
@@ -1827,7 +1828,7 @@ func _get_enhanced_settings() -> Dictionary:
 	if pixelize_check:
 		settings["pixelize"] = pixelize_check.button_pressed
 	else:
-		settings["pixelize"] = false  # Default
+		settings["pixelize"] = true  # Default
 	
 	# NUEVA FUNCIONALIDAD: Configuración avanzada de canvas shader
 	if not current_shader_settings.is_empty():

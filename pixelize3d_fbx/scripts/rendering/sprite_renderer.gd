@@ -258,7 +258,7 @@ func _configure_camera_for_rendering(settings: Dictionary):
 		# 2. Obtener orientación sugerida
 		var suggested_north = orientation_analyzer.analyze_model_quick(current_model)
 		
-		var adjusted_north = suggested_north 
+		var adjusted_north = suggested_north
 
 		# Normalizar
 		while adjusted_north >= 360.0:
@@ -282,7 +282,7 @@ func _configure_camera_for_rendering(settings: Dictionary):
 			"camera_angle": final_settings.get("camera_angle", 45.0),
 			"camera_height": final_settings.get("camera_height", 12.0),
 			"camera_distance": final_settings.get("camera_distance", 20.0),
-			"north_offset": final_settings.get("north_offset" , 270.0)
+			"north_offset": final_settings.get("north_offset" , 0.0)
 		}
 		camera_controller.set_camera_settings(camera_settings)
 		print( camera_settings)

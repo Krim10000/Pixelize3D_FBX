@@ -1179,7 +1179,7 @@ func get_shader_status() -> Dictionary:
 		"shader_applied": shader_applied_to_model,
 		"settings_count": current_shader_settings.size(),
 		"has_model": current_model != null,
-		"model_name": current_model.name if current_model else ""
+		"model_name": current_model.name
 	}
 
 
