@@ -39,12 +39,12 @@ var pipeline_start_time: float = 0.0
 # Configuración
 var default_render_settings: Dictionary = {
 	"directions": 16,
-	"sprite_size": 256,
+	"sprite_size": 128,
 	"fps": 12,
 	"camera_angle": 45.0,
 	"camera_height": 12.0,
 	"camera_distance": 20.0,
-	"north_offset": 0.0,
+	"north_offset": 270.0,
 	"pixelize": true
 }
 
@@ -270,7 +270,7 @@ func _execute_export_phase() -> bool:
 	
 		# ✅ NUEVO: Debug de límites antes de exportar
 	if export_manager.has_method("debug_layout_calculation"):
-		var sprite_size = Vector2(current_config.get("sprite_size", 256), current_config.get("sprite_size", 256))
+		var sprite_size = Vector2(current_config.get("sprite_size", 128), current_config.get("sprite_size", 256))
 		var directions = current_config.get("directions", 16)
 		
 		# Estimar frames aproximados (rough estimate)
@@ -340,7 +340,9 @@ func _render_all_directions_sequential(combined_model: Node3D) -> bool:
 		var angle = direction * (360.0 / total_directions)
 		
 		# Aplicar north offset si existe
-		var north_offset = current_config.get("north_offset", 0.0)
+		var north_offset = current_config.get("north_offset", 0)
+		#print("north_offset in render XXXXXXXXXXXXXXXXXXXXXXXXXX")
+		#print(north_offset)
 		angle += north_offset
 		
 		#print("  📐 Renderizando dirección %d/%d: %.1f°" % [direction + 1, total_directions, angle])

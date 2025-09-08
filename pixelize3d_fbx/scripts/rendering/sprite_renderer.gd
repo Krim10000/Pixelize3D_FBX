@@ -45,21 +45,6 @@ func _ready():
 	else:
 		push_error("❌ No se pudo cargar orientation_analyzer.gd")
 
-#func update_render_settings(new_settings: Dictionary):
-	#"""Actualizar configuración de renderizado en tiempo real"""
-	##print("🔄 Actualizando configuración de sprite renderer...")
-	#
-	#render_settings = new_settings.duplicate()
-	#
-	## Aplicar cambios inmediatamente si hay una cámara configurada
-	#if camera_controller and camera_controller.has_method("set_camera_settings"):
-		#camera_controller.set_camera_settings(new_settings)
-		##print("✅ Configuración aplicada al camera controller del renderer")
-	#
-	##print("✅ Configuración de renderer actualizada")
-	##print("  - directions: %d" % render_settings.get("directions", 16))
-	##print("  - sprite_size: %d" % render_settings.get("sprite_size", 128))
-	##print("  - camera_height: %.1f" % render_settings.get("camera_height", 12.0))
 
 func _initialize_shared_references():
 	"""Inicializar referencias compartidas con ModelPreviewPanel"""
@@ -143,13 +128,7 @@ func _get_preview_references():
 
 func _log_initialization_status():
 	"""Log del estado de inicialización"""
-	#print("✅ Referencias compartidas inicializadas:")
-	#print("  PreviewPanel: %s" % ("✅" if preview_panel else "❌"))
-	#print("  Viewport: %s" % ("✅" if viewport else "❌"))
-	#print("  Camera: %s" % ("✅" if camera else "❌"))
-	#print("  CameraController: %s" % ("✅" if camera_controller else "❌"))
-	#print("  ModelContainer: %s" % ("✅" if model_container else "❌"))
-	#print("  AnimationManager: %s" % ("✅" if anim_manager else "❌"))
+
 
 # ========================================================================
 # INICIALIZACIÓN DE RENDERIZADO - MODIFICADO
@@ -163,40 +142,12 @@ func initialize(settings: Dictionary):
 	
 	render_settings = settings
 	
-	#print("🎨 Inicializando renderizado con viewport compartido...")
-	#print("  Viewport path: %s" % viewport.get_path())
-	#print("  Tamaño solicitado: %dx%d" % [settings.get("sprite_size", 128), settings.get("sprite_size", 128)])
-	#
-	# ✅ NUEVO: Configurar viewport para renderizado sin afectar preview
+
 	_prepare_viewport_for_rendering(settings)
 	
 	# Configurar cámara para renderizado
 	_configure_camera_for_rendering(settings)
 	
-	#print("✅ SpriteRenderer inicializado con viewport compartido")
-
-#func _prepare_viewport_for_rendering(settings: Dictionary):
-	#"""Preparar viewport compartido para renderizado"""
-	#if not viewport:
-		#return
-	#
-	## Guardar configuración original del viewport
-	#original_viewport_mode = viewport.render_target_update_mode
-	#
-	## Configurar tamaño para renderizado
-	#var sprite_size = settings.get("sprite_size", 128)
-	#
-	## ✅ CRÍTICO: Respetar el tamaño del preview pero preparar para captura
-	##print("🔧 Preparando viewport para renderizado:")
-	##print("  Tamaño actual: %s" % str(viewport.size))	
-	##print("  Modo actual: %d" % viewport.render_target_update_mode)
-	#
-	## Configurar para renderizado óptimo
-	#viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS  # CRÍTICO
-	#viewport.render_target_clear_mode = SubViewport.CLEAR_MODE_ALWAYS
-	#
-	## No cambiar el tamaño para mantener consistencia con preview
-	## El tamaño se mantendrá igual al preview para garantizar WYSIWYG
 
 
 func _prepare_viewport_for_rendering(settings: Dictionary):
@@ -351,33 +302,56 @@ func _validate_shared_render_prerequisites() -> bool:
 
 func _switch_to_render_mode(model: Node3D, angle: float):
 	"""Cambiar viewport compartido a modo renderizado"""
-	#print("🔄 Cambiando a modo renderizado...")
 	
 	# Limpiar container y añadir modelo para renderizado
 	_safe_switch_model_in_container(model)
 	
 	# Configurar cámara para el modelo y ángulo específico
 	if camera_controller:
-		# Calcular bounds del modelo
-		var bounds = _calculate_model_bounds(model)
-		if camera_controller.has_method("setup_for_model"):
-			camera_controller.setup_for_model(bounds)
+		## Calcular bounds del modelo
+		#var bounds = _calculate_model_bounds(model)
+		##if camera_controller.has_method("setup_for_model"):
+			#camera_controller.setup_for_model(bounds)
 		
-		# Aplicar ángulo específico para esta dirección
+		# Aplicar ángulo - el camera_controller ya maneja su north_offset interno
 		if camera_controller.has_method("set_rotation_angle"):
 			camera_controller.set_rotation_angle(angle)
-			#print("🧭 Ángulo de cámara establecido: %.1f°" % angle)
+			print("🔧 Ángulo aplicado: %.1f°" % angle)
 	
 	# Configurar viewport para captura
 	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	
-	#print("✅ Modo renderizado activado")
+#func _safe_switch_model_in_container(new_model: Node3D):
+	#"""Cambiar modelo en container de forma segura"""
+	#if not model_container:
+		#push_error("❌ No hay model_container disponible")
+		#return
+	#
+	## Remover modelo actual del container (pero no hacer queue_free)
+	#for child in model_container.get_children():
+		#model_container.remove_child(child)
+		## No hacer queue_free aquí - el modelo puede estar siendo usado en otro lugar
+	#
+	## Añadir nuevo modelo
+	#current_model = new_model
+	#model_container.add_child(current_model)
+	#
+	##print("🔄 Modelo cambiado en container: %s" % current_model.name)
+
+
 
 func _safe_switch_model_in_container(new_model: Node3D):
-	"""Cambiar modelo en container de forma segura"""
+	"""Cambiar modelo en container de forma segura APLICANDO NORTH_OFFSET"""
 	if not model_container:
 		push_error("❌ No hay model_container disponible")
 		return
+	
+	# ✅ OBTENER north_offset del camera_controller
+	var north_offset = 0.0
+	if camera_controller and camera_controller.get("current_north_offset") != null:
+		north_offset = camera_controller.current_north_offset
+	
+	print("🔄 North offset detectado: %.1f°" % north_offset)
 	
 	# Remover modelo actual del container (pero no hacer queue_free)
 	for child in model_container.get_children():
@@ -388,26 +362,18 @@ func _safe_switch_model_in_container(new_model: Node3D):
 	current_model = new_model
 	model_container.add_child(current_model)
 	
-	#print("🔄 Modelo cambiado en container: %s" % current_model.name)
+	# ✅ APLICAR north_offset físicamente al modelo
+	current_model.rotation_degrees.y = -north_offset
+	print("✅ North offset aplicado al modelo: %.1f°" % current_model.rotation_degrees.y)
+	
+	print("🔄 Modelo cambiado en container: %s (con north_offset aplicado)" % current_model.name)
+
 
 func _restore_preview_mode():
 	"""Restaurar modo preview después del renderizado"""
 	#print("🔄 Restaurando modo preview...")
 	
-	## Restaurar modelo original del preview si existe
-	#if render_backup_model and is_instance_valid(render_backup_model):
-		#_safe_switch_model_in_container(render_backup_model)
-		#render_backup_model = null
-		##print("✅ Modelo del preview restaurado")
-	#
-	## Restaurar configuración original del viewport
-	#if original_viewport_mode >= 0:
-		#viewport.render_target_update_mode = original_viewport_mode
-	#
-	## Limpiar referencias del renderizado
-	#current_model = null
-	#
-	##print("✅ Modo preview restaurado")
+
 
 		# Restaurar modelo original del preview si existe
 	if render_backup_model and is_instance_valid(render_backup_model):
@@ -424,57 +390,9 @@ func _restore_preview_mode():
 	print("✅ Modo preview completamente restaurado")
 
 
-# ========================================================================
-# RENDERIZADO DE FRAMES - MANTIENE LÓGICA EXISTENTE
-# ========================================================================
 
-#func _render_next_frame():
-	#"""Renderizar siguiente frame usando cámara compartida"""
-	#if current_frame >= total_frames:
-		#_finish_rendering()
-		#return
-	#
-	#if not current_model or not is_instance_valid(current_model):
-		#push_error("❌ Modelo se invalidó durante el renderizado")
-		#_finish_rendering()
-		#return
-#
-	#_prepare_model_for_frame()
-#
-	## Esperar frames para garantizar render limpio
-	##await get_tree().process_frame
-	##await RenderingServer.frame_post_draw
-	#await get_tree().process_frame
-	#
-	## Configurar viewport para captura
-	#viewport.render_target_clear_mode = SubViewport.CLEAR_MODE_ALWAYS
-	#viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	##await RenderingServer.frame_post_draw
-	#
-	## ✅ Captura del frame usando viewport compartido
-	#var image := viewport.get_texture().get_image().duplicate()
-	#
-	#if render_settings.get("pixelize", true):
-		#image = _apply_pixelization(image)
-#
-	#var frame_data := {
-		#"animation": current_animation,
-		#"direction": current_direction,
-		#"frame": current_frame,
-		#"angle": _get_current_camera_angle(),
-		#"image": image
-	#}
-#
-	##emit_signal("frame_rendered", frame_data)
-	#frame_rendered.emit(frame_data)
-	##emit_signal("rendering_progress", current_frame + 1, total_frames)
-	#rendering_progress.emit(current_frame+1, total_frames)
-	#
-	#
-	#
-#
-	#current_frame += 1
-	#call_deferred("_render_next_frame")
+
+
 
 func _get_current_camera_angle() -> float:
 	"""Obtener ángulo actual de la cámara"""
@@ -493,34 +411,6 @@ func _finish_rendering():
 	animation_complete.emit(current_animation)
 	#print("✅ Renderizado completado y preview restaurado")
 #
-#func _render_static_frame():
-	#"""Renderizar frame estático para modelos sin animación"""
-	#await get_tree().process_frame
-	#
-	#if not viewport:
-		#push_error("❌ Viewport no disponible para frame estático")
-		#_finish_rendering()
-		#return
-	#
-	#viewport.render_target_clear_mode = SubViewport.CLEAR_MODE_ALWAYS
-	#viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
-	#await RenderingServer.frame_post_draw
-	#
-	#var image = viewport.get_texture().get_image()
-	#
-	#if render_settings.get("pixelize", true):
-		#image = _apply_pixelization(image)
-	#
-	#var frame_data = {
-		#"animation": current_animation,
-		#"direction": current_direction,
-		#"frame": 0,
-		#"angle": _get_current_camera_angle(),
-		#"image": image
-	#}
-	#
-	#emit_signal("frame_rendered", frame_data)
-	#_finish_rendering()
 
 # ========================================================================
 # PREPARACIÓN DE MODELO - MANTIENE LÓGICA EXISTENTE
@@ -672,19 +562,7 @@ func get_shared_viewport() -> SubViewport:
 func debug_shared_state():
 	"""Debug del estado compartido"""
 	pass
-	##print("\n🎬 === SPRITE RENDERER SHARED DEBUG ===")
-	##print("Preview Panel: %s" % ("✅" if preview_panel else "❌"))
-	##print("Viewport compartido: %s" % ("✅" if viewport else "❌"))
-	##print("Cámara compartida: %s" % ("✅" if camera else "❌"))
-	##print("CameraController: %s" % ("✅" if camera_controller else "❌"))
-	##print("ModelContainer: %s" % ("✅" if model_container else "❌"))
-	##print("Estado renderizado: %s" % ("🔄 Activo" if is_rendering else "⏸️ Inactivo"))
-	#if viewport:
-		#print("Viewport path: %s" % viewport.get_path())
-		#print("Viewport size: %s" % str(viewport.size))
-		#print("Viewport mode: %d" % viewport.render_target_update_mode)
-	#print("==========================================\n")
-#
+
 
 
 # NUEVO - AGREGAR DESPUÉS DE _render_next_frame():
@@ -703,7 +581,6 @@ func _render_next_frame_with_delay():
 	var frame_delay = _get_current_user_delay()
 	var target_time = current_frame * frame_delay
 	
-	#print("⏰ Frame %d/%d en tiempo %.4fs" % [current_frame + 1, total_frames, target_time])
 	
 	# Aplicar timing preciso
 	var anim_player = current_model.get_node_or_null("AnimationPlayer")
@@ -810,72 +687,6 @@ func validate_viewport_resolution_sync() -> Dictionary:
 
 
 
-#func update_render_settings(settings: Dictionary):
-	#"""Actualizar configuración de renderizado - CON SOPORTE SHADER AVANZADO"""
-	#print("🔄 Actualizando configuración de renderizado...")
-	#
-	#render_settings = settings.duplicate()
-	#
-	## ✅ NUEVO: Manejar shader avanzado
-	#if settings.has("advanced_shader") and not settings["advanced_shader"].is_empty():
-		#render_settings["use_advanced_shader"] = true
-		#render_settings["advanced_shader"] = settings["advanced_shader"].duplicate()
-		#print("  🎨 Configuración de shader avanzado incluida")
-		#print("    pixel_size: %s" % settings["advanced_shader"].get("pixel_size", "N/A"))
-		#print("    pixelize_enabled: %s" % settings["advanced_shader"].get("pixelize_enabled", "N/A"))
-	#else:
-		#render_settings["use_advanced_shader"] = false
-		#print("  ℹ️ Sin shader avanzado")
-	#
-	## Aplicar configuración a la cámara si existe
-	#if camera_controller and camera_controller.has_method("set_camera_settings"):
-		#camera_controller.set_camera_settings(render_settings)
-	#
-	#print("✅ Configuración de renderizado actualizada")
-#
-#
-#
-##func _apply_advanced_shader_to_model(model: Node3D, shader_settings: Dictionary):
-	##"""Aplicar shader avanzado al modelo durante el renderizado"""
-	##if not model:
-		##return
-	##
-	### Buscar todos los MeshInstance3D y aplicar shader
-	##_apply_shader_recursive(model, shader_settings)
-#
-##func _apply_shader_recursive(node: Node3D, shader_settings: Dictionary):
-	##"""Aplicar shader recursivamente a todos los MeshInstance3D"""
-	##if node is MeshInstance3D:
-		##var mesh_instance = node as MeshInstance3D
-		##
-		### Crear material con shader si no existe
-		##if not mesh_instance.material_override:
-			##mesh_instance.material_override = ShaderMaterial.new()
-		##
-		##if mesh_instance.material_override is ShaderMaterial:
-			##var shader_material = mesh_instance.material_override as ShaderMaterial
-			##
-			### Cargar shader avanzado
-			##var shader_path = "res://resources/shaders/pixelize_with_outline.gdshader"
-			##if ResourceLoader.exists(shader_path):
-				##shader_material.shader = load(shader_path)
-				##
-				### Aplicar parámetros
-				##shader_material.set_shader_parameter("pixel_size", shader_settings.get("pixel_size", 2.0))
-				##shader_material.set_shader_parameter("reduce_colors", shader_settings.get("reduce_colors", false))
-				##shader_material.set_shader_parameter("color_levels", shader_settings.get("color_levels", 16))
-				##shader_material.set_shader_parameter("enable_dithering", shader_settings.get("enable_dithering", false))
-				##shader_material.set_shader_parameter("dither_strength", shader_settings.get("dither_strength", 0.1))
-				##
-				##print("    🎨 Shader aplicado a: %s" % mesh_instance.name)
-	##
-	### Continuar recursivamente
-	##for child in node.get_children():
-		##if child is Node3D:
-			##_apply_shader_recursive(child, shader_settings)
-#
-
-
 
 func _render_next_frame():
 	"""Renderizar siguiente frame usando cámara compartida - CON SHADER AVANZADO"""
@@ -906,10 +717,6 @@ func _render_next_frame():
 	# ✅ Captura del frame usando viewport compartido
 	var image := viewport.get_texture().get_image().duplicate()
 	
-	# ✅ CAMBIO: Remover pixelización aquí porque ya se aplica con el shader
-	# if render_settings.get("pixelize", true):
-	#	image = _apply_pixelization(image)
-
 	var frame_data := {
 		"animation": current_animation,
 		"direction": current_direction,
@@ -1020,10 +827,7 @@ func _render_static_frame():
 	
 	var image = viewport.get_texture().get_image()
 	
-	# ✅ CAMBIO: Remover pixelización manual ya que se aplica con shader
-	# if render_settings.get("pixelize", true):
-	#	image = _apply_pixelization(image)
-	
+
 	var frame_data = {
 		"animation": current_animation,
 		"direction": current_direction,
