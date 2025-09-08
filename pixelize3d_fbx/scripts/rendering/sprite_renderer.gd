@@ -29,6 +29,11 @@ var current_direction: int = 0
 var current_frame: int = 0
 var total_frames: int = 0
 
+
+var postprocess_material: ShaderMaterial = null
+var postprocess_enabled: bool = false
+var original_viewport_material = null
+
 # ✅ NUEVO: Estado de la cámara durante renderizado
 var original_viewport_mode: int
 var render_backup_model: Node3D
@@ -44,6 +49,90 @@ func _ready():
 		print("✅ OrientationAnalyzer inicializado")
 	else:
 		push_error("❌ No se pudo cargar orientation_analyzer.gd")
+
+
+#func _setup_canvas_postprocessing():
+	#"""Configurar canvas post-processing en el viewport durante renderizado"""
+	#if not viewport:
+		#return false
+	#
+	## Crear material de post-processing si no existe
+	#if not postprocess_material:
+		#postprocess_material = ShaderMaterial.new()
+		#var shader = load("res://resources/shaders/pixelize_postprocess.gdshader")
+		#if shader:
+			#postprocess_material.shader = shader
+		#else:
+			#print("❌ No se pudo cargar shader canvas: pixelize_postprocess.gdshader")
+			#return false
+	#
+	#return true
+#
+##func _apply_canvas_postprocessing(shader_settings: Dictionary):
+	##"""Aplicar canvas post-processing al viewport"""
+	##if not _setup_canvas_postprocessing():
+		##return
+	##
+	### Aplicar parámetros al shader
+	##postprocess_material.set_shader_parameter("pixelize_enabled", shader_settings.get("pixelize_enabled", true))
+	##postprocess_material.set_shader_parameter("pixel_size", shader_settings.get("pixel_size", 2.0))
+	##postprocess_material.set_shader_parameter("reduce_colors", shader_settings.get("reduce_colors", false))
+	##postprocess_material.set_shader_parameter("color_levels", shader_settings.get("color_levels", 16))
+	##postprocess_material.set_shader_parameter("enable_dithering", shader_settings.get("enable_dithering", false))
+	##postprocess_material.set_shader_parameter("dither_strength", shader_settings.get("dither_strength", 0.1))
+	##postprocess_material.set_shader_parameter("contrast_enabled", shader_settings.get("contrast_enabled", false))
+	##postprocess_material.set_shader_parameter("contrast_boost", shader_settings.get("contrast_boost", 1.0))
+	##postprocess_material.set_shader_parameter("saturation_enabled", shader_settings.get("saturation_enabled", false))
+	##postprocess_material.set_shader_parameter("saturation_mult", shader_settings.get("saturation_mult", 1.0))
+	##postprocess_material.set_shader_parameter("tint_enabled", shader_settings.get("tint_enabled", false))
+	##postprocess_material.set_shader_parameter("color_tint", shader_settings.get("color_tint", Color.WHITE))
+	##
+	### 🔍 DEBUG: Verificar si encontramos el ViewportContainer
+	##var viewport_container = _find_viewport_container()
+	##print("🔍 DEBUG _apply_canvas_postprocessing:")
+	##print("  viewport existe: %s" % (viewport != null))
+	##print("  viewport_container encontrado: %s" % (viewport_container != null))
+	##if viewport_container:
+		##print("  viewport_container path: %s" % viewport_container.get_path())
+		##print("  viewport_container class: %s" % viewport_container.get_class())
+	##
+	##if viewport_container:
+		### Guardar material original
+		##if not postprocess_enabled:
+			##original_viewport_material = viewport_container.material
+			##print("  material original guardado: %s" % (original_viewport_material != null))
+		##
+		### Aplicar post-processing
+		##viewport_container.material = postprocess_material
+		##postprocess_enabled = true
+		##print("✅ Canvas post-processing aplicado al viewport durante renderizado")
+		##print("  Material aplicado a: %s" % viewport_container.get_path())
+	##else:
+		##print("❌ No se encontró ViewportContainer para aplicar canvas post-processing")
+		##print("  viewport parent: %s" % (viewport.get_parent().get_path() if viewport.get_parent() else "NULL"))
+		##print("  viewport parent class: %s" % (viewport.get_parent().get_class() if viewport.get_parent() else "NULL"))
+	#
+	
+	
+	
+#func _find_viewport_container() -> Control:
+	#"""Buscar el ViewportContainer que contiene el viewport"""
+	#var parent = viewport.get_parent()
+	#while parent:
+		#if parent is SubViewportContainer:
+			#return parent
+		#parent = parent.get_parent()
+	#return null
+#
+##func _clear_canvas_postprocessing():
+	##"""Limpiar canvas post-processing del viewport"""
+	##if postprocess_enabled:
+		##var viewport_container = _find_viewport_container()
+		##if viewport_container:
+			##viewport_container.material = original_viewport_material
+		##postprocess_enabled = false
+		##print("🧹 Canvas post-processing limpiado del viewport")
+
 
 
 func _initialize_shared_references():
@@ -277,7 +366,7 @@ func render_animation(model: Node3D, animation_name: String, angle: float, direc
 		var frame_delay = _get_current_user_delay()
 		total_frames = int(anim.length / frame_delay)
 		
-		print("📊 Delay: %.4fs, Frames: %d" % [frame_delay, total_frames])
+		#print("📊 Delay: %.4fs, Frames: %d" % [frame_delay, total_frames])
 		_render_next_frame_with_delay()
 	else:
 		total_frames = 1
@@ -316,7 +405,7 @@ func _switch_to_render_mode(model: Node3D, angle: float):
 		# Aplicar ángulo - el camera_controller ya maneja su north_offset interno
 		if camera_controller.has_method("set_rotation_angle"):
 			camera_controller.set_rotation_angle(angle)
-			print("🔧 Ángulo aplicado: %.1f°" % angle)
+			#print("🔧 Ángulo aplicado: %.1f°" % angle)
 	
 	# Configurar viewport para captura
 	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
@@ -351,7 +440,7 @@ func _safe_switch_model_in_container(new_model: Node3D):
 	if camera_controller and camera_controller.get("current_north_offset") != null:
 		north_offset = camera_controller.current_north_offset
 	
-	print("🔄 North offset detectado: %.1f°" % north_offset)
+	#print("🔄 North offset detectado: %.1f°" % north_offset)
 	
 	# Remover modelo actual del container (pero no hacer queue_free)
 	for child in model_container.get_children():
@@ -409,6 +498,7 @@ func _finish_rendering():
 	_restore_preview_mode()
 	#emit_signal("animation_complete", current_animation)
 	animation_complete.emit(current_animation)
+
 	#print("✅ Renderizado completado y preview restaurado")
 #
 
@@ -499,24 +589,50 @@ func _find_all_mesh_instances(node: Node) -> Array:
 	
 	return meshes
 
-func _apply_pixelization(image: Image) -> Image:
-	"""Aplicar efecto de pixelización"""
+func _apply_pixelization_to_image(image: Image, shader_settings: Dictionary) -> Image:
+	"""Aplicar pixelización directamente a la imagen capturada"""
+	var pixel_size = shader_settings.get("pixel_size", 2.0)
+	
+	if pixel_size <= 1.0:
+		return image
+	
 	var original_size = image.get_size()
-	var pixel_size = render_settings.get("pixel_scale", 2)
 	
-	# Reducir tamaño
-	var small_size = original_size / pixel_size
-	image.resize(small_size.x, small_size.y, Image.INTERPOLATE_NEAREST)
+	# Calcular nuevo tamaño (pixelizado)
+	var new_width = max(1, int(original_size.x / pixel_size))
+	var new_height = max(1, int(original_size.y / pixel_size))
 	
-	# Opcional: Reducir paleta de colores
-	if render_settings.get("reduce_colors", false):
-		_reduce_color_palette(image, render_settings.get("color_count", 16))
+	# 1. Reducir tamaño (crear efecto pixel)
+	image.resize(new_width, new_height, Image.INTERPOLATE_NEAREST)
 	
-	# Volver al tamaño original
+	# 2. Volver al tamaño original
 	image.resize(original_size.x, original_size.y, Image.INTERPOLATE_NEAREST)
 	
+	# 3. Aplicar reducción de colores si está habilitada
+	if shader_settings.get("reduce_colors", false):
+		var color_levels = shader_settings.get("color_levels", 16)
+		_reduce_image_colors(image, color_levels)
+	
+	#print("  🎨 Pixelización aplicada directamente (pixel_size: %.1f)" % pixel_size)
 	return image
 
+func _reduce_image_colors(image: Image, levels: int):
+	"""Reducir colores de la imagen"""
+	if levels >= 256:
+		return
+	
+	var factor = 255.0 / (levels - 1)
+	
+	for x in range(image.get_width()):
+		for y in range(image.get_height()):
+			var color = image.get_pixel(x, y)
+			
+			# Cuantizar cada canal
+			color.r = round(color.r * 255.0 / factor) * factor / 255.0
+			color.g = round(color.g * 255.0 / factor) * factor / 255.0  
+			color.b = round(color.b * 255.0 / factor) * factor / 255.0
+			
+			image.set_pixel(x, y, color)
 func _reduce_color_palette(image: Image, color_count: int):
 	"""Reducir paleta de colores"""
 	var width = image.get_width()
@@ -565,7 +681,6 @@ func debug_shared_state():
 
 
 
-# NUEVO - AGREGAR DESPUÉS DE _render_next_frame():
 func _render_next_frame_with_delay():
 	"""Renderizar frame usando timing de delay preciso"""
 	if current_frame >= total_frames:
@@ -577,10 +692,8 @@ func _render_next_frame_with_delay():
 		return
 	
 	# Calcular tiempo preciso usando delay
-	#var frame_delay = render_settings.get("frame_delay", 0.033333)
 	var frame_delay = _get_current_user_delay()
 	var target_time = current_frame * frame_delay
-	
 	
 	# Aplicar timing preciso
 	var anim_player = current_model.get_node_or_null("AnimationPlayer")
@@ -595,10 +708,15 @@ func _render_next_frame_with_delay():
 	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	await RenderingServer.frame_post_draw
 	
+	# ✅ CAPTURAR IMAGEN LIMPIA
 	var image = viewport.get_texture().get_image().duplicate()
 	
-	#if render_settings.get("pixelize", true):
-		#image = _apply_pixelization(image)
+	# ✅ APLICAR PIXELIZACIÓN DIRECTAMENTE A LA IMAGEN
+	if render_settings.get("use_advanced_shader", false):
+		var shader_settings = render_settings.get("advanced_shader", {})
+		if shader_settings.get("pixelize_enabled", false):
+			image = _apply_pixelization_to_image(image, shader_settings)
+			#print("  🎨 Post-processing aplicado para frame %d" % current_frame)
 	
 	var frame_data = {
 		"animation": current_animation,
@@ -613,14 +731,13 @@ func _render_next_frame_with_delay():
 		}
 	}
 	
-	frame_rendered.emit(frame_data)  # ✅ Godot 4.4
-	rendering_progress.emit(current_frame + 1, total_frames)  # ✅ Godot 4.4
+	frame_rendered.emit(frame_data)
+	rendering_progress.emit(current_frame + 1, total_frames)
 	
 	current_frame += 1
 	call_deferred("_render_next_frame_with_delay")
-
-
-
+	
+	
 func _get_current_user_delay() -> float:
 	"""Obtener el delay que configuró el usuario en el SettingsPanel"""
 	
@@ -687,7 +804,6 @@ func validate_viewport_resolution_sync() -> Dictionary:
 
 
 
-
 func _render_next_frame():
 	"""Renderizar siguiente frame usando cámara compartida - CON SHADER AVANZADO"""
 	if current_frame >= total_frames:
@@ -701,11 +817,19 @@ func _render_next_frame():
 
 	_prepare_model_for_frame()
 
-	# ✅ NUEVO: Aplicar shader avanzado si está habilitado
+	# ✅ FORZAR CANVAS POST-PROCESSING: Aplicar si hay pixelización habilitada
 	if render_settings.get("use_advanced_shader", false):
 		var shader_settings = render_settings.get("advanced_shader", {})
-		_apply_advanced_shader_to_model(current_model, shader_settings)
-		print("  🎨 Shader avanzado aplicado para frame %d" % current_frame)
+		
+		# FORZAR canvas post-processing si pixelización está habilitada
+		var force_canvas = shader_settings.get("pixelize_enabled", false) or shader_settings.get("canvas_postprocess", false) or  shader_settings.get("post_processing", false)
+		
+		if force_canvas:
+			#_apply_canvas_postprocessing(shader_settings)
+			print("  🎨 Canvas post-processing FORZADO aplicado para frame %d" % current_frame)
+		else:
+			_apply_advanced_shader_to_model(current_model, shader_settings)
+			print("  🎨 Shader 3D aplicado para frame %d" % current_frame)
 
 	# Esperar frames para garantizar render limpio
 	await get_tree().process_frame
@@ -730,10 +854,8 @@ func _render_next_frame():
 	
 	current_frame += 1
 	call_deferred("_render_next_frame")
-	
-	
-	# ========================================================================
-# SOPORTE PARA SHADER AVANZADO - NUEVO
+
+
 # ========================================================================
 
 func _apply_advanced_shader_to_model(model: Node3D, shader_settings: Dictionary):
@@ -757,7 +879,7 @@ func _apply_shader_recursive(node: Node3D, shader_settings: Dictionary):
 			var shader_material = mesh_instance.material_override as ShaderMaterial
 			
 			# Cargar shader avanzado
-			var shader_path = "res://resources/shaders/pixelize_with_outline.gdshader"
+			var shader_path = "res://resources/shaders/pixelize_postprocess.gdshader"
 			if ResourceLoader.exists(shader_path):
 				shader_material.shader = load(shader_path)
 				
@@ -807,7 +929,7 @@ func update_render_settings(new_settings: Dictionary):
 	#print("✅ Configuración de renderizado actualizada")
 	
 func _render_static_frame():
-	"""Renderizar frame estático para modelos sin animación - CON SHADER"""
+	"""Renderizar frame estático para modelos sin animación - CON PIXELIZACIÓN DIRECTA"""
 	await get_tree().process_frame
 	
 	if not viewport:
@@ -815,19 +937,20 @@ func _render_static_frame():
 		_finish_rendering()
 		return
 	
-	# ✅ NUEVO: Aplicar shader avanzado si está habilitado
-	if render_settings.get("use_advanced_shader", false):
-		var shader_settings = render_settings.get("advanced_shader", {})
-		_apply_advanced_shader_to_model(current_model, shader_settings)
-		print("  🎨 Shader avanzado aplicado a frame estático")
-	
 	viewport.render_target_clear_mode = SubViewport.CLEAR_MODE_ALWAYS
 	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	await RenderingServer.frame_post_draw
 	
+	# ✅ CAPTURAR IMAGEN LIMPIA
 	var image = viewport.get_texture().get_image()
 	
-
+	# ✅ APLICAR PIXELIZACIÓN DIRECTAMENTE A LA IMAGEN
+	if render_settings.get("use_advanced_shader", false):
+		var shader_settings = render_settings.get("advanced_shader", {})
+		if shader_settings.get("pixelize_enabled", false):
+			image = _apply_pixelization_to_image(image, shader_settings)
+			print("  🎨 Post-processing aplicado a frame estático")
+	
 	var frame_data = {
 		"animation": current_animation,
 		"direction": current_direction,
@@ -838,3 +961,4 @@ func _render_static_frame():
 	
 	emit_signal("frame_rendered", frame_data)
 	_finish_rendering()
+	

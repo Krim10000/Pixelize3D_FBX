@@ -120,7 +120,7 @@ func combine_base_with_animation(base_data: Dictionary, animation_data: Dictiona
 	print("✅ Animaciones retargeteadas correctamente")
 	
 	# NUEVO: Configurar loops infinitos en todas las animaciones
-	loop_manager.setup_infinite_loops(new_anim_player)
+	#loop_manager.setup_infinite_loops(new_anim_player)
 	print("🔄 Loops infinitos configurados")
 	
 	# Aplicar la pose inicial de la primera animación

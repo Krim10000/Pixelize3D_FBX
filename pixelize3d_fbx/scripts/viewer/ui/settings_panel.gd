@@ -813,21 +813,21 @@ func _perform_centering_wiggle():
 		print("❌ No hay capture_area_slider para wiggle")
 		return
 	
-	print("🔄 Iniciando wiggle fix para centrado...")
+	#print("🔄 Iniciando wiggle fix para centrado...")
 	
 	# Guardar valor original
 	var original_value = capture_area_slider.value
-	print("  💾 Valor original del slider: %.3f" % original_value)
+	#print("  💾 Valor original del slider: %.3f" % original_value)
 	
 	# Calcular valores para wiggle (asegurar que estén en rango válido)
-	var wiggle_up = min(original_value + 0.1, capture_area_slider.max_value)
-	var wiggle_down = max(original_value - 0.1, capture_area_slider.min_value)
+	var wiggle_up = min( capture_area_slider.value + 0.1, capture_area_slider.max_value)
+	var wiggle_down = max( capture_area_slider.value - 0.1, capture_area_slider.min_value)
 	
 	# Si el wiggle no hace diferencia (valor muy cerca del límite), usar diferente estrategia
 	if abs(wiggle_up - original_value) < 0.05:
-		wiggle_up = max(original_value - 0.1, capture_area_slider.min_value)
-	if abs(wiggle_down - original_value) < 0.05:
-		wiggle_down = min(original_value + 0.1, capture_area_slider.max_value)
+		wiggle_up = max( capture_area_slider.value - 0.1, capture_area_slider.min_value)
+	if abs(wiggle_down -  capture_area_slider.value) < 0.05:
+		wiggle_down = min( capture_area_slider.value + 0.1, capture_area_slider.max_value)
 	
 	#print("  📈 Wiggle up: %.3f" % wiggle_up)
 	#print("  📉 Wiggle down: %.3f" % wiggle_down)
@@ -842,10 +842,16 @@ func _execute_wiggle_sequence(original: float, up: float, down: float):
 	"""Ejecutar secuencia de wiggle con timing correcto"""
 	
 	# Paso 1: Subir +0.1
-	print("  🔄 Paso 1: Aplicando +0.1...")
-	capture_area_slider.value = up
+	#print("  🔄 Paso 1: Aplicando +0.1...")
+	capture_area_slider.value = capture_area_slider.value + 1
 	await get_tree().process_frame
 	await get_tree().process_frame  # Esperar que se procese completamente
+
+	# Paso 3: Volver al valor original
+	#print("  🔄 Paso 2: Restaurando valor original...")
+	capture_area_slider.value = capture_area_slider.value -1
+	await get_tree().process_frame
+
 	
 	## Paso 2: Bajar -0.1 del original (no del valor up)
 	#print("  🔄 Paso 2: Aplicando -0.1...")
@@ -853,12 +859,9 @@ func _execute_wiggle_sequence(original: float, up: float, down: float):
 	#await get_tree().process_frame
 	#await get_tree().process_frame  # Esperar que se procese completamente
 	
-	# Paso 3: Volver al valor original
-	print("  🔄 Paso 3: Restaurando valor original...")
-	capture_area_slider.value = original
-	await get_tree().process_frame
+
 	
-	print("  ✅ Wiggle fix completado - modelo debería estar centrado")
+	#print("  ✅ Wiggle fix completado - modelo debería estar centrado")
 
 # ========================================================================
 # FUNCIÓN ALTERNATIVA: wiggle_immediate() - Para casos extremos
@@ -868,15 +871,15 @@ func _perform_immediate_wiggle():
 	if not capture_area_slider:
 		return
 	
-	print("⚡ Wiggle inmediato...")
+	#print("⚡ Wiggle inmediato...")
 	var original = capture_area_slider.value
 	
 	# Cambio rápido sin esperas
-	capture_area_slider.value = original + 0.1
-	capture_area_slider.value = original - 0.1  
-	capture_area_slider.value = original
+	capture_area_slider.value = capture_area_slider.value + 0.1
+	capture_area_slider.value = capture_area_slider.value - 0.1  
+	#capture_area_slider.value = original
 	
-	print("  ✅ Wiggle inmediato completado")
+	#print("  ✅ Wiggle inmediato completado")
 
 # ========================================================================
 # FUNCIÓN DE DEBUG: test_wiggle_manually()
@@ -886,7 +889,7 @@ func test_wiggle_manually():
 	print("🧪 === TESTING WIGGLE MANUAL ===")
 	
 	if capture_area_slider:
-		print("Valor actual del slider: %.3f" % capture_area_slider.value)
+		#print("Valor actual del slider: %.3f" % capture_area_slider.value)
 		_perform_centering_wiggle()
 	else:
 		print("❌ No hay slider disponible")
@@ -1803,7 +1806,7 @@ func _remove_shader_from_preview():
 	if model_preview_panel.has_method("clear_postprocessing"):
 		model_preview_panel.clear_postprocessing()
 		shader_currently_applied = false
-		print("✅ Canvas post-processing removido del preview")
+		#print("✅ Canvas post-processing removido del preview")
 	elif model_preview_panel.has_method("clear_advanced_shader"):
 		model_preview_panel.clear_advanced_shader()
 		shader_currently_applied = false

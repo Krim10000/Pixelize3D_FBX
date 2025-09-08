@@ -392,7 +392,7 @@ func set_model(model: Node3D):
 # ========================================================================
 func _trigger_initial_centering_wiggle():
 	"""Ejecutar wiggle de centrado después de cargar modelo inicial"""
-	print("🎯 Ejecutando wiggle de centrado para modelo inicial...")
+	#print("🎯 Ejecutando wiggle de centrado para modelo inicial...")
 	
 	# Esperar frames adicionales para asegurar que todo esté estabilizado
 	await get_tree().process_frame
@@ -1376,7 +1376,7 @@ func apply_postprocessing(settings: Dictionary):
 		# Aplicar material de post-processing al ViewportContainer
 		viewport_container.material = postprocess_material
 		postprocess_enabled = true
-		print("✅ Post-processing canvas activado en ViewportContainer")
+		#print("✅ Post-processing canvas activado en ViewportContainer")
 	else:
 		# Restaurar material original
 		viewport_container.material = original_material
@@ -1408,15 +1408,15 @@ func _apply_canvas_postprocess_parameters(settings: Dictionary):
 	postprocess_material.set_shader_parameter("tint_enabled", settings.get("tint_enabled", false))
 	postprocess_material.set_shader_parameter("color_tint", settings.get("color_tint", Color.WHITE))
 	
-	print("📝 Parámetros de post-processing canvas aplicados")
+	#print("📝 Parámetros de post-processing canvas aplicados")
 
 func clear_postprocessing():
 	"""Limpiar post-processing canvas y volver al estado anterior"""
-	if viewport_container:
-		viewport_container.material = original_material
-	
-	postprocess_enabled = false
-	print("🧹 Post-processing canvas limpiado, estado anterior restaurado")
+	#if viewport_container:
+		#viewport_container.material = original_material
+	#
+	#postprocess_enabled = false
+	#print("🧹 Post-processing canvas limpiado, estado anterior restaurado")
 
 func get_postprocess_status() -> Dictionary:
 	"""Obtener estado del sistema de post-processing canvas"""
@@ -1442,7 +1442,7 @@ func apply_advanced_shader(shader_settings: Dictionary):
 	apply_postprocessing(current_shader_settings)
 	
 	shader_applied_to_model = true
-	print("✅ Shader aplicado usando post-processing canvas")
+	#print("✅ Shader aplicado usando post-processing canvas")
 
 func clear_advanced_shader():
 	"""Limpiar shader avanzado"""
