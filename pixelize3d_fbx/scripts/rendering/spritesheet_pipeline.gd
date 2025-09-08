@@ -187,7 +187,7 @@ func _start_pipeline_process():
 	emit_signal("pipeline_progress", 3, 4, "Iniciando exportación...")
 	emit_signal("export_phase_started", current_animation)
 	
-	if not await _execute_export_phase():
+	if _execute_export_phase():
 		_finish_pipeline(false, "Error en fase de exportación")
 		return
 	
@@ -348,7 +348,7 @@ func _render_all_directions_sequential(combined_model: Node3D) -> bool:
 		#print("  📐 Renderizando dirección %d/%d: %.1f°" % [direction + 1, total_directions, angle])
 		
 		# Emitir progreso de la fase de renderizado
-		var progress = float(direction) / float(total_directions)
+		var _progress = float(direction) / float(total_directions)
 		#var message = "Renderizando dirección %d/%d" % [direction + 1, total_directions]
 		var message = "En progreso"
 
@@ -420,7 +420,7 @@ func _generate_multiple_spritesheets(animations: Array, config: Dictionary):
 		# Exportar
 		if success:
 			emit_signal("export_phase_started", anim_name)
-			success = await _execute_export_phase()
+			success =  _execute_export_phase()
 			if success:
 				# Esperar señal de export_complete
 				await export_manager.export_complete
@@ -450,7 +450,7 @@ func _on_frame_rendered(frame_data: Dictionary):
 	if export_manager and export_manager.has_method("add_frame"):
 		export_manager.add_frame(frame_data)
 
-func _on_animation_render_complete(animation_name: String):
+func _on_animation_render_complete(_animation_name: String):
 	"""Manejar completación de renderizado de animación"""
 	# Esta señal se usa internamente en _render_all_directions_sequential
 	pass
@@ -460,8 +460,8 @@ func _on_rendering_progress(current: int, total: int):
 	# Convertir progreso de renderizado a progreso de pipeline
 	# (fase 2 de 4, con progreso interno)
 	var phase_progress = float(current) / float(total) * 0.25  # 25% del total
-	var overall_progress = 0.5 + phase_progress  # Fase 2 empieza en 50%
-	var message = "Renderizando frame %d/%d" % [current, total]
+	var _overall_progress = 0.5 + phase_progress  # Fase 2 empieza en 50%
+	var _message = "Renderizando frame %d/%d" % [current, total]
 	
 	# Emitir como progreso de fase específica si es necesario
 	pass

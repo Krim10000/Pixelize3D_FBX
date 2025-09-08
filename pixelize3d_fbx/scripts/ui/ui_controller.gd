@@ -326,7 +326,7 @@ func _create_config_panel() -> Control:
 	# Checkbox básico (mantener compatibilidad)
 	basic_pixelize_checkbox = CheckBox.new()
 	basic_pixelize_checkbox.text = "Aplicar pixelización"
-	basic_pixelize_checkbox.button_pressed = false
+	basic_pixelize_checkbox.button_pressed = true
 	basic_pixelize_checkbox.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	basic_pixelize_checkbox.toggled.connect(_on_basic_pixelize_toggled)
 	pixelize_container.add_child(basic_pixelize_checkbox)
@@ -1017,7 +1017,7 @@ func apply_advanced_shader_to_material(material: Material, settings: Dictionary)
 	
 	if not shader_settings.is_empty():
 		# Parámetros de pixelización
-		shader_material.set_shader_parameter("pixel_size", shader_settings.get("pixel_size", 4.0))
+		shader_material.set_shader_parameter("pixel_size", shader_settings.get("pixel_size", 2.0))
 		
 		# Parámetros de reducción de colores
 		shader_material.set_shader_parameter("reduce_colors", shader_settings.get("reduce_colors", false))

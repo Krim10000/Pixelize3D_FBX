@@ -64,7 +64,7 @@ func update_render_settings(new_settings: Dictionary) -> void:
 	if render_settings.has("stabilization_delay"):
 		stabilization_delay = render_settings.stabilization_delay
 	
-	print("⚙️ Configuración actualizada - delay: %.3fs, estabilización: %.1fs" % [frame_delay, stabilization_delay])
+	#print("⚙️ Configuración actualizada - delay: %.3fs, estabilización: %.1fs" % [frame_delay, stabilization_delay])
 
 func render_animation(model: Node3D, animation_name: String, angle: float, direction_index: int) -> void:
 	"""Renderizar animación con delay específico SIN BLOQUEOS"""
@@ -85,10 +85,10 @@ func render_animation(model: Node3D, animation_name: String, angle: float, direc
 		rendering_failed.emit(animation_name, "Modelo no válido")
 		return
 	
-	print("\n🎬 === INICIANDO RENDERIZADO ===")
-	print("Animación: %s" % animation_name)
-	print("Dirección: %d (%.1f°)" % [direction_index, angle])
-	print("Delay configurado: %.3fs (%.1f FPS equiv)" % [frame_delay, 1.0/frame_delay])
+	#print("\n🎬 === INICIANDO RENDERIZADO ===")
+	#print("Animación: %s" % animation_name)
+	#print("Dirección: %d (%.1f°)" % [direction_index, angle])
+	#print("Delay configurado: %.3fs (%.1f FPS equiv)" % [frame_delay, 1.0/frame_delay])
 	
 	# Configurar estado
 	is_rendering = true
@@ -100,9 +100,9 @@ func render_animation(model: Node3D, animation_name: String, angle: float, direc
 	await _setup_viewport_and_camera(model, angle)
 	
 	# ✅ CRÍTICO: DELAY DE ESTABILIZACIÓN (2 segundos)
-	print("⏳ Esperando estabilización del modelo...")
+	#print("⏳ Esperando estabilización del modelo...")
 	await get_tree().create_timer(stabilization_delay).timeout
-	print("✅ Modelo estabilizado")
+	#print("✅ Modelo estabilizado")
 	
 	# Buscar AnimationPlayer
 	current_animation_player = _find_animation_player(model)

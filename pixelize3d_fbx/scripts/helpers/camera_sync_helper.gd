@@ -164,23 +164,23 @@ func _on_preview_ready():
 
 func _validate_sync_setup():
 	"""Validar que la sincronización esté correcta"""
-	print("🔍 Validando configuración de sincronización...")
+	#print("🔍 Validando configuración de sincronización...")
 	
 	var preview_viewport = _get_preview_viewport()
 	var preview_camera = _get_preview_camera()
 	var preview_controller = _get_preview_camera_controller()
 	
-	print("📊 Estado de sincronización:")
-	print("  Preview Viewport: %s" % ("✅" if preview_viewport else "❌"))
-	print("  Preview Camera: %s" % ("✅" if preview_camera else "❌"))
-	print("  Preview Controller: %s" % ("✅" if preview_controller else "❌"))
+	#print("📊 Estado de sincronización:")
+	#print("  Preview Viewport: %s" % ("✅" if preview_viewport else "❌"))
+	#print("  Preview Camera: %s" % ("✅" if preview_camera else "❌"))
+	#print("  Preview Controller: %s" % ("✅" if preview_controller else "❌"))
 	
 	if sprite_renderer:
 		var sprite_viewport = sprite_renderer.get("viewport")
 		var sprite_camera = sprite_renderer.get("camera")
 		
-		print("  SpriteRenderer Viewport: %s" % ("✅" if sprite_viewport else "❌"))
-		print("  SpriteRenderer Camera: %s" % ("✅" if sprite_camera else "❌"))
+		#print("  SpriteRenderer Viewport: %s" % ("✅" if sprite_viewport else "❌"))
+		#print("  SpriteRenderer Camera: %s" % ("✅" if sprite_camera else "❌"))
 		
 		# Verificar si están usando las mismas referencias
 		if preview_viewport and sprite_viewport:
@@ -188,9 +188,10 @@ func _validate_sync_setup():
 			print("  ✅ MISMO VIEWPORT: %s" % ("SÍ" if same_viewport else "NO"))
 			
 			if same_viewport:
-				print("🎯 SINCRONIZACIÓN PERFECTA CONFIRMADA")
+				#print("🎯 SINCRONIZACIÓN PERFECTA CONFIRMADA")
+				pass
 			else:
-				print("⚠️ VIEWPORT DIFERENTE - Corrigiendo...")
+				#print("⚠️ VIEWPORT DIFERENTE - Corrigiendo...")
 				_force_sprite_renderer_sync()
 	
 	if sync_active:
@@ -220,32 +221,34 @@ func is_sync_active() -> bool:
 
 func force_resync():
 	"""Forzar re-sincronización manual"""
-	print("🔄 Forzando re-sincronización...")
+	#print("🔄 Forzando re-sincronización...")
 	_setup_synchronization()
 
 func debug_sync_state():
 	"""Debug completo del estado de sincronización"""
-	print("\n🔗 === CAMERA SYNC DEBUG ===")
-	print("Sync activo: %s" % sync_active)
-	print("ModelPreviewPanel: %s" % ("✅" if model_preview_panel else "❌"))
-	print("SpriteRenderer: %s" % ("✅" if sprite_renderer else "❌"))
+	#print("\n🔗 === CAMERA SYNC DEBUG ===")
+	#print("Sync activo: %s" % sync_active)
+	#print("ModelPreviewPanel: %s" % ("✅" if model_preview_panel else "❌"))
+	#print("SpriteRenderer: %s" % ("✅" if sprite_renderer else "❌"))
 	
 	var preview_viewport = _get_preview_viewport()
 	var preview_camera = _get_preview_camera()
 	
 	if preview_viewport:
-		print("Preview Viewport path: %s" % preview_viewport.get_path())
-		print("Preview Viewport size: %s" % str(preview_viewport.size))
+		pass
+		#print("Preview Viewport path: %s" % preview_viewport.get_path())
+		#print("Preview Viewport size: %s" % str(preview_viewport.size))
 	
 	if preview_camera:
-		print("Preview Camera path: %s" % preview_camera.get_path())
-		print("Preview Camera position: %s" % str(preview_camera.position))
+		pass
+		#print("Preview Camera path: %s" % preview_camera.get_path())
+		#print("Preview Camera position: %s" % str(preview_camera.position))
 	
 	if sprite_renderer:
 		if sprite_renderer.has_method("debug_shared_state"):
 			sprite_renderer.debug_shared_state()
 	
-	print("==============================\n")
+	#print("==============================\n")
 
 # ========================================================================
 # UTILIDADES
@@ -278,4 +281,4 @@ static func setup_automatic_sync():
 	var main_scene = Engine.get_main_loop().current_scene
 	main_scene.add_child(helper_instance)
 	
-	print("🚀 CameraSyncHelper configurado automáticamente")
+	#print("🚀 CameraSyncHelper configurado automáticamente")

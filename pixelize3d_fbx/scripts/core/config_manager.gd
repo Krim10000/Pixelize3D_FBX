@@ -233,11 +233,11 @@ func load_config() -> void:
 	var error: int = config_file.load(CONFIG_FILE_PATH)
 	
 	if error != OK:
-		print("📁 No se encontro config de delay, usando valores por defecto")
+		#print("📁 No se encontro config de delay, usando valores por defecto")
 		current_config = default_config.duplicate(true)
 		save_config()
 	else:
-		print("📁 Cargando config de delay desde archivo")
+		#print("📁 Cargando config de delay desde archivo")
 		current_config = {}
 		for section in config_file.get_sections():
 			current_config[section] = {}
@@ -268,11 +268,11 @@ func _migrate_fps_to_delay_config() -> void:
 			current_config.render.erase("fps")  # Remover campo obsoleto
 			
 			migrated = true
-			print("🔄 Migrado FPS %.1f → delay %.4fs" % [old_fps, new_delay])
+			#print("🔄 Migrado FPS %.1f → delay %.4fs" % [old_fps, new_delay])
 	
 	if migrated:
 		save_config()
-		print("✅ Migracion de FPS a delay completada")
+		#print("✅ Migracion de FPS a delay completada")
 
 func save_config() -> void:
 	var config_file: ConfigFile = ConfigFile.new()
@@ -423,11 +423,11 @@ func apply_delay_preset(preset_name: String) -> bool:
 	var delay_config: Dictionary = get_delay_config()
 	delay_preset_applied.emit(preset_name, delay_config)
 	
-	print("✅ Preset '%s' aplicado: delay=%.4fs (%.1f FPS equiv)" % [
-		preset_name, 
-		delay_config.get("frame_delay", 0.083333),
-		delay_config.get("fps_equivalent", 12.0)
-	])
+	#print("✅ Preset '%s' aplicado: delay=%.4fs (%.1f FPS equiv)" % [
+		#preset_name, 
+		#delay_config.get("frame_delay", 0.083333),
+		#delay_config.get("fps_equivalent", 12.0)
+	#])
 	
 	return true
 
@@ -520,7 +520,7 @@ func create_custom_delay_preset(preset_name: String, delay: float, description: 
 	}
 	
 	save_presets()
-	print("✅ Preset personalizado creado: %s (%.4fs delay)" % [preset_name, delay])
+	#print("✅ Preset personalizado creado: %s (%.4fs delay)" % [preset_name, delay])
 	return true
 
 func delete_custom_preset(preset_name: String) -> bool:

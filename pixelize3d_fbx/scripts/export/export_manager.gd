@@ -1285,7 +1285,7 @@ func _get_max_frames_per_direction(frames_by_direction: Dictionary) -> int:
 	
 	return max_frames
 
-func _place_frames_in_spritesheet(spritesheet: Image, frames_by_direction: Dictionary, sprite_size: Vector2, layout: Dictionary) -> int:
+func _place_frames_in_spritesheet(spritesheet: Image, frames_by_direction: Dictionary, sprite_size: Vector2, _layout: Dictionary) -> int:
 	"""Colocar frames en el spritesheet"""
 	var frames_placed = 0
 	var current_row = 0

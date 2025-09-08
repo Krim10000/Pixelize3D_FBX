@@ -160,7 +160,7 @@ func _create_pixelization_section(parent: VBoxContainer):
 	pixel_size_container.add_child(pixel_size_slider)
 	
 	pixel_size_label = Label.new()
-	pixel_size_label.text = "2"
+	pixel_size_label.text = str(pixel_size_slider.value)
 	pixel_size_label.custom_minimum_size.x = 30
 	pixel_size_container.add_child(pixel_size_label)
 
@@ -520,7 +520,7 @@ func _set_preset_values(
 	# Pixelización
 	pixelize_enabled_check.button_pressed = pixelize
 	pixel_size_slider.value = pixel_sz
-	pixel_size_label.text = "%.0f" % pixel_sz
+	pixel_size_label.text = "%.1f" % pixel_sz
 	
 	# Reducción de colores
 	reduce_colors_check.button_pressed = reduce_col
@@ -573,12 +573,12 @@ func _update_current_settings():
 func _emit_settings_signal():
 	"""Emitir señal con configuración actual"""
 	_update_current_settings()
-	print("📡 Emitiendo señal: shader_settings_changed (POST-PROCESSING)")
-	print("   - pixelize_enabled: %s" % current_settings.pixelize_enabled)
-	print("   - pixel_size: %.0f" % current_settings.pixel_size)
-	print("   - reduce_colors: %s" % current_settings.reduce_colors)
-	print("   - enable_dithering: %s" % current_settings.enable_dithering)
-	print("   - post_processing: %s" % current_settings.post_processing)
+	#print("📡 Emitiendo señal: shader_settings_changed (POST-PROCESSING)")
+	#print("   - pixelize_enabled: %s" % current_settings.pixelize_enabled)
+	#print("   - pixel_size: %.0f" % current_settings.pixel_size)
+	#print("   - reduce_colors: %s" % current_settings.reduce_colors)
+	#print("   - enable_dithering: %s" % current_settings.enable_dithering)
+	#print("   - post_processing: %s" % current_settings.post_processing)
 	
 	# Emitir señal
 	shader_settings_changed.emit(current_settings.duplicate())
@@ -598,8 +598,8 @@ func apply_settings(settings: Dictionary):
 	
 	# Actualizar UI
 	pixelize_enabled_check.button_pressed = current_settings.get("pixelize_enabled", false)
-	pixel_size_slider.value = current_settings.get("pixel_size", 4.0)
-	pixel_size_label.text = "%.0f" % pixel_size_slider.value
+	pixel_size_slider.value = current_settings.get("pixel_size", 2.0)
+	pixel_size_label.text = "%.2f" % pixel_size_slider.value
 	reduce_colors_check.button_pressed = current_settings.get("reduce_colors", false)
 	color_levels_slider.value = current_settings.get("color_levels", 16)
 	color_levels_label.text = "%d" % color_levels_slider.value
@@ -624,8 +624,8 @@ func force_emit_current_settings():
 func _reset_to_defaults():
 	"""Resetear a configuración por defecto"""
 	current_settings = {
-		"pixelize_enabled": false,
-		"pixel_size": 4.0,
+		"pixelize_enabled": true,
+		"pixel_size": 2.0,
 		"reduce_colors": false,
 		"color_levels": 16,
 		"enable_dithering": false,
@@ -653,12 +653,13 @@ func is_postprocessing_enabled() -> bool:
 
 func debug_panel_state():
 	"""Debug del estado del panel"""
-	print("\n🔍 === DEBUG PANEL CANVAS POST-PROCESSING ===")
-	print("pixelize_enabled: %s" % current_settings.pixelize_enabled)
-	print("pixel_size: %.0f" % current_settings.pixel_size)
-	print("reduce_colors: %s" % current_settings.reduce_colors)
-	print("enable_dithering: %s" % current_settings.enable_dithering)
-	print("canvas_postprocess: %s" % current_settings.get("canvas_postprocess", true))
-	print("post_processing: %s" % current_settings.post_processing)
-	print("shader_path: %s" % current_settings.get("shader_path", "N/A"))
-	print("============================================\n")
+	pass
+	#print("\n🔍 === DEBUG PANEL CANVAS POST-PROCESSING ===")
+	#print("pixelize_enabled: %s" % current_settings.pixelize_enabled)
+	#print("pixel_size: %.0f" % current_settings.pixel_size)
+	#print("reduce_colors: %s" % current_settings.reduce_colors)
+	#print("enable_dithering: %s" % current_settings.enable_dithering)
+	#print("canvas_postprocess: %s" % current_settings.get("canvas_postprocess", true))
+	#print("post_processing: %s" % current_settings.post_processing)
+	#print("shader_path: %s" % current_settings.get("shader_path", "N/A"))
+	#print("============================================\n")

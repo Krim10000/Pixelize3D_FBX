@@ -55,13 +55,13 @@ var previous_viewport_state: Dictionary = {}
 var original_material: Material = null
 
 func _ready():
-	print("🎬 ModelPreviewPanel MEJORADO inicializado")
+	print("🎬 ModelPreviewPanel")
+	print("viewport_container " + str(viewport_container))
 	_setup_ui()
 	_connect_signals()
 	#call_deferred("setup_postprocessing_system")
 	call_deferred("setup_canvas_postprocessing")
-	print("oooooooooooooooooooooooo camera")
-	print(camera)
+	
 	
 	# Configurar viewport
 	if viewport:
@@ -386,7 +386,7 @@ func set_model(model: Node3D):
 	
 	# ✅ WIGGLE FIX: Ejecutar wiggle de centrado después de cargar modelo
 	call_deferred("_trigger_initial_centering_wiggle")
-
+	_trigger_pixelize_wiggle_on_model_load()
 # ========================================================================
 # FUNCIÓN NUEVA: _trigger_initial_centering_wiggle() - en model_preview_panel.gd
 # ========================================================================
@@ -411,18 +411,31 @@ func _trigger_initial_centering_wiggle():
 	
 	# Ejecutar wiggle de centrado
 	if settings_panel.has_method("trigger_centering_wiggle"):
-		print("🔄 Ejecutando wiggle de centrado inicial...")
+		#print("🔄 Ejecutando wiggle de centrado inicial...")
 		settings_panel.trigger_centering_wiggle()
 		print("✅ Wiggle de centrado inicial completado")
 	else:
 		print("❌ Método trigger_centering_wiggle no encontrado en SettingsPanel")
 
+
+func _trigger_pixelize_wiggle_on_model_load():
+	"""Activar estrategia wiggle automática al cargar modelo"""
+	
+	var viewer_coordinator = get_node("/root/ViewerModular")	# Obtener referencia al settings_panel si no la tenemos
+	var settings_panel = viewer_coordinator.get_node("HSplitContainer/LeftPanel/VBoxContainer/SettingsPanel")
+
+	# Activar wiggle si el settings_panel está disponible
+	if settings_panel and settings_panel.has_method("trigger_pixelize_wiggle_on_model_change"):
+		#print("🔄 Activando wiggle automático desde model_preview_panel...")
+		settings_panel.trigger_pixelize_wiggle_on_model_change()
+	else:
+		print("⚠️ settings_panel no disponible para wiggle automático")
 # ========================================================================
 # FUNCIÓN ALTERNATIVA: force_initial_wiggle() - en model_preview_panel.gd
 # ========================================================================
 func force_initial_wiggle():
 	"""Función de debug para forzar wiggle inicial manualmente"""
-	print("🧪 === FORZANDO WIGGLE INICIAL MANUAL ===")
+	#print("🧪 === FORZANDO WIGGLE INICIAL MANUAL ===")
 	_trigger_initial_centering_wiggle()
 
 # ========================================================================
@@ -471,7 +484,7 @@ func _setup_initial_camera_centering():
 # ========================================================================
 func _apply_current_settings_to_camera():
 	"""Aplicar configuración actual del settings panel a la cámara"""
-	print("⚙️ Aplicando configuración actual a cámara...")
+	#print("⚙️ Aplicando configuración actual a cámara...")
 	
 	# Buscar el settings panel para obtener configuración actual
 	var viewer_coordinator = get_node_or_null("/root/ViewerModular")
@@ -494,12 +507,12 @@ func _apply_current_settings_to_camera():
 		print("❌ No se puede obtener configuración del settings panel")
 		return
 	
-	print("📋 Configuración obtenida: %s claves" % current_settings.size())
+	#print("📋 Configuración obtenida: %s claves" % current_settings.size())
 	
 	# Aplicar a la cámara
 	if camera_controller and camera_controller.has_method("set_camera_settings"):
 		camera_controller.set_camera_settings(current_settings)
-		print("✅ Configuración aplicada a cámara")
+		#print("✅ Configuración aplicada a cámara")
 		
 		# Forzar actualización
 		if camera_controller.has_method("update_camera_position"):
@@ -510,7 +523,7 @@ func _apply_current_settings_to_camera():
 # ========================================================================
 func _verify_initial_centering():
 	"""Verificar que el centrado inicial funcionó correctamente"""
-	print("🔍 Verificando centrado inicial...")
+	#print("🔍 Verificando centrado inicial...")
 	
 	if not camera_controller:
 		print("❌ No hay camera_controller para verificar")
@@ -521,19 +534,19 @@ func _verify_initial_centering():
 	if camera_controller.has_method("get_current_zoom_info"):
 		camera_info = camera_controller.get_current_zoom_info()
 	
-	print("📸 Estado de cámara:")
-	for key in camera_info:
-		print("  %s: %s" % [key, camera_info[key]])
-	
+	#print("📸 Estado de cámara:")
+	#for key in camera_info:
+		#print("  %s: %s" % [key, camera_info[key]])
+	#
 	# Verificar si el modelo está visible
 	if current_bounds != AABB():
 		var bounds_center = current_bounds.get_center()
-		print("📐 Centro del modelo: %s" % bounds_center)
+		#print("📐 Centro del modelo: %s" % bounds_center)
 		
 		# Si el centro está muy lejos del origen, puede estar descentrado
 		var distance_from_origin = bounds_center.length()
 		if distance_from_origin > 10.0:  # Umbral arbitrario
-			print("⚠️ Modelo parece estar lejos del centro (distancia: %.2f)" % distance_from_origin)
+			#print("⚠️ Modelo parece estar lejos del centro (distancia: %.2f)" % distance_from_origin)
 			_force_recenter_model()
 		else:
 			print("✅ Modelo parece estar bien centrado")
@@ -543,7 +556,7 @@ func _verify_initial_centering():
 # ========================================================================
 func _force_recenter_model():
 	"""Forzar re-centrado del modelo si parece estar mal posicionado"""
-	print("🔧 Forzando re-centrado del modelo...")
+	#print("🔧 Forzando re-centrado del modelo...")
 	
 	if not current_model or not camera_controller:
 		return
@@ -558,14 +571,14 @@ func _force_recenter_model():
 		if camera_controller.has_method("update_camera_position"):
 			camera_controller.update_camera_position()
 	
-	print("🎯 Re-centrado forzado completado")
+	#print("🎯 Re-centrado forzado completado")
 
 # ========================================================================
 # FUNCIÓN NUEVA: force_immediate_centering() - Para debugging
 # ========================================================================
 func force_immediate_centering():
 	"""Función de debug para forzar centrado inmediato - llamar desde consola"""
-	print("🧪 === FORZANDO CENTRADO INMEDIATO ===")
+	#print("🧪 === FORZANDO CENTRADO INMEDIATO ===")
 	
 	if current_model:
 		_setup_initial_camera_centering()
@@ -578,7 +591,7 @@ func force_immediate_centering():
 
 func play_animation(animation_name: String):
 	"""✅ NUEVO: Reproducir animación específica"""
-	print("▶️ Reproduciendo animación: %s" % animation_name)
+	#print("▶️ Reproduciendo animación: %s" % animation_name)
 	
 	if not animation_player:
 		print("❌ No hay AnimationPlayer")
@@ -609,7 +622,7 @@ func play_animation(animation_name: String):
 
 func pause_animation():
 	"""✅ NUEVO: Pausar animación actual"""
-	print("⏸️ Pausando animación")
+	#print("⏸️ Pausando animación")
 	
 	if not animation_player or not is_animation_playing:
 		return
@@ -620,7 +633,7 @@ func pause_animation():
 
 func resume_animation():
 	"""✅ NUEVO: Reanudar animación pausada"""
-	print("▶️ Reanudando animación")
+	#print("▶️ Reanudando animación")
 	
 	if not animation_player or is_animation_playing:
 		return
@@ -631,7 +644,7 @@ func resume_animation():
 
 func stop_animation():
 	"""✅ NUEVO: Detener animación completamente"""
-	print("⏹️ Deteniendo animación")
+	#print("⏹️ Deteniendo animación")
 	
 	if not animation_player:
 		return
@@ -651,7 +664,7 @@ func change_animation_speed(speed: float):
 	"""✅ NUEVO: Cambiar velocidad de reproducción"""
 	if animation_player:
 		animation_player.speed_scale = speed
-		print("🎬 Velocidad de animación: %.1fx" % speed)
+		#print("🎬 Velocidad de animación: %.1fx" % speed)
 
 # === MANEJO DE EVENTOS ===
 
@@ -845,7 +858,7 @@ func _create_orientation_overlay():
 	orientation_cross.draw.connect(_draw_orientation_cross)
 	orientation_overlay.add_child(orientation_cross)
 	
-	print("✅ Cruz de orientación creada")
+	#print("✅ Cruz de orientación creada")
 
 func _draw_orientation_cross():
 	"""Dibujar cruz de orientación con indicador de norte"""
@@ -1015,7 +1028,7 @@ func _create_outline_material(shader_settings: Dictionary) -> ShaderMaterial:
 	outline_material.set_shader_parameter("outline_color", shader_settings.get("outline_color", Color.BLACK))
 	outline_material.set_shader_parameter("outline_thickness", shader_settings.get("outline_thickness", 1.0) * 0.01)
 	outline_material.set_shader_parameter("outline_pixelated", shader_settings.get("outline_pixelated", true))
-	outline_material.set_shader_parameter("pixel_size", shader_settings.get("pixel_size", 4.0))
+	outline_material.set_shader_parameter("pixel_size", shader_settings.get("pixel_size", 2.0))
 	
 	# Configurar render priority para que se dibuje primero
 	outline_material.set("render_priority", -1)
@@ -1150,7 +1163,7 @@ func _ensure_advanced_shader_loaded(shader_material: ShaderMaterial) -> bool:
 func _apply_shader_parameters(shader_material: ShaderMaterial, shader_settings: Dictionary):
 	"""Aplicar parámetros del shader al material"""
 	# Parámetros básicos
-	shader_material.set_shader_parameter("pixel_size", shader_settings.get("pixel_size", 4.0))
+	shader_material.set_shader_parameter("pixel_size", shader_settings.get("pixel_size", 2.0))
 	shader_material.set_shader_parameter("reduce_colors", shader_settings.get("reduce_colors", false))
 	shader_material.set_shader_parameter("color_levels", shader_settings.get("color_levels", 16))
 	shader_material.set_shader_parameter("enable_dithering", shader_settings.get("enable_dithering", false))
@@ -1255,7 +1268,7 @@ func _apply_postprocess_parameters(settings: Dictionary):
 	
 	# Parámetros principales
 	postprocess_material.set_shader_parameter("pixelize_enabled", settings.get("pixelize_enabled", false))
-	postprocess_material.set_shader_parameter("pixel_size", settings.get("pixel_size", 4.0))
+	postprocess_material.set_shader_parameter("pixel_size", settings.get("pixel_size", 2.0))
 	
 	# Reducción de colores
 	postprocess_material.set_shader_parameter("reduce_colors", settings.get("reduce_colors", false))
@@ -1302,6 +1315,8 @@ func _restore_viewport_state():
 
 func setup_canvas_postprocessing():
 	"""Configurar sistema de post-processing canvas en el ViewportContainer"""
+	if viewport_container:
+		print("Sí existe viewport_container")
 	if not viewport_container:
 		print("❌ No hay ViewportContainer para configurar post-processing")
 		return
@@ -1326,8 +1341,8 @@ func _create_canvas_postprocess_material():
 		return
 	
 	# Configurar parámetros por defecto
-	postprocess_material.set_shader_parameter("pixelize_enabled", false)
-	postprocess_material.set_shader_parameter("pixel_size", 4.0)
+	postprocess_material.set_shader_parameter("pixelize_enabled", true)
+	postprocess_material.set_shader_parameter("pixel_size", 2.0)
 	postprocess_material.set_shader_parameter("reduce_colors", false)
 	postprocess_material.set_shader_parameter("color_levels", 16)
 	postprocess_material.set_shader_parameter("enable_dithering", false)
@@ -1375,7 +1390,7 @@ func _apply_canvas_postprocess_parameters(settings: Dictionary):
 	
 	# Parámetros principales
 	postprocess_material.set_shader_parameter("pixelize_enabled", settings.get("pixelize_enabled", false))
-	postprocess_material.set_shader_parameter("pixel_size", settings.get("pixel_size", 4.0))
+	postprocess_material.set_shader_parameter("pixel_size", settings.get("pixel_size", 2.0))
 	
 	# Reducción de colores
 	postprocess_material.set_shader_parameter("reduce_colors", settings.get("reduce_colors", false))

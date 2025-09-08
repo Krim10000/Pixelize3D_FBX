@@ -54,7 +54,13 @@ var show_shader_panel_button: Button = null
 var current_shader_settings: Dictionary = {}
 var shader_currently_applied: bool = false
 
-# Configuracion interna - EXTENDIDA CON DELAY SYSTEM Y SHADER AVANZADO
+# NUEVO: Variable para evitar loops infinitos en sincronización
+var _is_syncing_pixelize: bool = false
+
+# NUEVO: Variable para tracking de wiggle automático
+var _is_auto_wiggling: bool = false
+
+# Configuracion interna ESTOS SON LOS PARAMETROS INICIALES
 var current_settings: Dictionary = {
 	"directions": 16,
 	"sprite_size": 128,
@@ -62,10 +68,10 @@ var current_settings: Dictionary = {
 	"frame_delay": 0.025,  # 30 FPS equivalent
 	"fps_equivalent": 40.0,   # Para mostrar equivalencia
 	"camera_height": 12.0,  
-	"pixelize": false,
+	"pixelize": true,
 	"camera_angle": 45.0,
 	"north_offset": 0.0,
-	"capture_area_size": 2.5,
+	"capture_area_size": 3.0,
 	"auto_north_detection": true,
 	"timing_validation": true,
 	# NUEVOS CAMPOS PARA SHADER AVANZADO
@@ -73,6 +79,48 @@ var current_settings: Dictionary = {
 	"advanced_shader": {}
 }
 
+
+func trigger_pixelize_wiggle_on_model_change():
+	"""API pública para activar wiggle cuando cambia el modelo"""
+	call_deferred("apply_wiggle_strategy_on_model_load")
+
+
+
+func apply_wiggle_strategy_on_model_load():
+	"""Aplicar estrategia wiggle al cargar modelo - SOLO SI ESTÁ ACTIVADO"""
+	
+	if _is_auto_wiggling:
+		print("⚠️ Ya se está ejecutando wiggle, saltando...")
+		return
+	
+	if not pixelize_check:
+		print("⚠️ pixelize_check no disponible para wiggle")
+		return
+	
+	# SOLO hacer wiggle si la pixelización está activada
+	if pixelize_check.button_pressed:
+		print("🔄 Ejecutando estrategia wiggle (desactivar y reactivar pixelización)...")
+		
+		_is_auto_wiggling = true
+		
+		# Desactivar
+		pixelize_check.button_pressed = false
+		_on_pixelize_changed(false)
+		
+		# Esperar un frame
+		await get_tree().process_frame
+		
+		# Reactivar
+		pixelize_check.button_pressed = true
+		_on_pixelize_changed(true)
+		
+		_is_auto_wiggling = false
+		
+		print("✅ Estrategia wiggle completada")
+	else:
+		print("ℹ️ Pixelización desactivada, no se aplica wiggle")
+		
+		
 func _ready():
 	print("⚙️ SettingsPanel con DELAY SYSTEM + SHADER AVANZADO inicializado")
 	_create_ui()
@@ -187,7 +235,7 @@ func _create_basic_settings():
 	pixelize_check.text = "Aplicar pixelizacion"
 	pixelize_check.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	pixelize_check.toggled.connect(_on_pixelize_changed)
-	pixelize_check.button_pressed =false
+	pixelize_check.button_pressed =true
 	print ("pixelize_check.button_pressed " + str( pixelize_check.button_pressed))
 	
 	pixelize_container.add_child(pixelize_check)
@@ -245,7 +293,7 @@ func _create_advanced_shader_panel():
 	advanced_window.exclusive = false
 	
 	# Posicionar ventana
-	var screen_size = DisplayServer.screen_get_size()
+	var _screen_size = DisplayServer.screen_get_size()
 	advanced_window.position = Vector2i(900, 50)
 	
 	get_tree().current_scene.add_child(advanced_window)
@@ -327,7 +375,7 @@ func _connect_advanced_shader_signals():
 		# Conectar la señal principal
 		if not advanced_shader_panel.shader_settings_changed.is_connected(_on_advanced_shader_settings_changed):
 			advanced_shader_panel.shader_settings_changed.connect(_on_advanced_shader_settings_changed)
-			print("✅ Señal shader_settings_changed conectada desde panel completo")
+			#print("✅ Señal shader_settings_changed conectada desde panel completo")
 		
 		# Conectar señal de reset si existe
 		if advanced_shader_panel.has_signal("reset_to_defaults_requested"):
@@ -626,7 +674,7 @@ func _create_capture_area_settings():
 	capture_area_slider = HSlider.new()
 	capture_area_slider.min_value = 0.5    # Modelo MUY grande (área pequeña)
 	capture_area_slider.max_value = 20.0   # Modelo pequeño (área grande)
-	capture_area_slider.value = 2.3        # Tamaño normal
+	capture_area_slider.value = 3.0        # Tamaño normal
 	capture_area_slider.step = 0.1
 	capture_area_slider.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	capture_area_slider.value_changed.connect(_on_capture_area_changed)
@@ -634,7 +682,7 @@ func _create_capture_area_settings():
 	print("✅ Slider de área de captura creado")
 	
 	capture_area_label = Label.new()
-	capture_area_label.text = "2.3"
+	capture_area_label.text = str(capture_area_slider.value)
 	capture_area_label.custom_minimum_size.x = 40
 	capture_container.add_child(capture_area_label)
 	print("✅ Label de valor de área agregado")
@@ -781,8 +829,8 @@ func _perform_centering_wiggle():
 	if abs(wiggle_down - original_value) < 0.05:
 		wiggle_down = min(original_value + 0.1, capture_area_slider.max_value)
 	
-	print("  📈 Wiggle up: %.3f" % wiggle_up)
-	print("  📉 Wiggle down: %.3f" % wiggle_down)
+	#print("  📈 Wiggle up: %.3f" % wiggle_up)
+	#print("  📉 Wiggle down: %.3f" % wiggle_down)
 	
 	# Realizar wiggle con delays
 	_execute_wiggle_sequence(original_value, wiggle_up, wiggle_down)
@@ -799,11 +847,11 @@ func _execute_wiggle_sequence(original: float, up: float, down: float):
 	await get_tree().process_frame
 	await get_tree().process_frame  # Esperar que se procese completamente
 	
-	# Paso 2: Bajar -0.1 del original (no del valor up)
-	print("  🔄 Paso 2: Aplicando -0.1...")
-	capture_area_slider.value = down
-	await get_tree().process_frame
-	await get_tree().process_frame  # Esperar que se procese completamente
+	## Paso 2: Bajar -0.1 del original (no del valor up)
+	#print("  🔄 Paso 2: Aplicando -0.1...")
+	#capture_area_slider.value = down
+	#await get_tree().process_frame
+	#await get_tree().process_frame  # Esperar que se procese completamente
 	
 	# Paso 3: Volver al valor original
 	print("  🔄 Paso 3: Restaurando valor original...")
@@ -1043,7 +1091,7 @@ func _apply_pixelize_to_preview_only(enabled: bool):
 	# Crear configuración mínima para pixelización básica
 	var pixelize_settings = {
 		"pixelize_enabled": enabled,
-		"pixel_size": 4.0,  # Valor por defecto
+		"pixel_size": 2.0,  # Valor por defecto
 		"reduce_colors": false,
 		"enable_dithering": false,
 		"enable_outline": false
@@ -1083,7 +1131,7 @@ func _on_fps_changed(new_fps: float):
 func _on_delay_changed(new_delay: float):
 	"""Manejar cambio de delay y sincronizar con FPS"""
 	current_settings.frame_delay = new_delay
-	current_settings.fps_equivalent = 1.0 / new_delay if new_delay > 0 else 0
+	current_settings.fps_equivalent = 1.0 / new_delay 
 	
 	# Actualizar FPS spinbox para mantener sincronia
 	if fps_spinbox:
@@ -1126,7 +1174,7 @@ func _update_capture_area_visual():
 		var preview_panel = viewer_coordinator.get_node_or_null("HSplitContainer/RightPanel/ModelPreviewPanel")
 		if preview_panel and preview_panel.has_method("update_capture_area_indicator"):
 			preview_panel.update_capture_area_indicator()
-			print("🔄 Indicador de area de captura actualizado")
+			#print("🔄 Indicador de area de captura actualizado")
 
 
 func _on_auto_north_toggled(enabled: bool):
@@ -1608,7 +1656,7 @@ func _on_size_preset_pressed(size_value: float):
 	"""Manejar preset de tamaño"""
 	if capture_area_slider: 
 		capture_area_slider.value = size_value
-		print("📐 Preset de tamaño aplicado: %.1f" % size_value)
+		#print("📐 Preset de tamaño aplicado: %.1f" % size_value)
 	else:
 		print("❌ capture_area_slider no existe para aplicar preset")
 
@@ -1617,12 +1665,12 @@ func _on_size_preset_pressed(size_value: float):
 # ========================================================================
 func _on_capture_area_changed(value: float):
 	"""Manejar cambio en area de captura (CON DEBUG)"""
-	print("📏 _on_capture_area_changed llamado con valor: %.1f" % value)
+	#print("📏 _on_capture_area_changed llamado con valor: %.1f" % value)
 	
 	current_settings.capture_area_size = value
 	if capture_area_label: 
 		capture_area_label.text = "%.1f" % value
-		print("  ✅ Label actualizado: %s" % capture_area_label.text)
+		#print("  ✅ Label actualizado: %s" % capture_area_label.text)
 	else:
 		print("  ❌ capture_area_label no existe")
 	
@@ -1630,20 +1678,20 @@ func _on_capture_area_changed(value: float):
 	current_settings.manual_zoom_override = true
 	current_settings.fixed_orthographic_size = value
 	
-	print("  ✅ Settings actualizados:")
-	print("    capture_area_size: %.1f" % current_settings.capture_area_size)
-	print("    manual_zoom_override: %s" % current_settings.manual_zoom_override)
-	
+	#print("  ✅ Settings actualizados:")
+	#print("    capture_area_size: %.1f" % current_settings.capture_area_size)
+	#print("    manual_zoom_override: %s" % current_settings.manual_zoom_override)
+	#
 	settings_changed.emit(_get_enhanced_settings())
 	_update_capture_area_visual()
-	print("  ✅ Señales emitidas")
+	#print("  ✅ Señales emitidas")
 
 # ========================================================================
 # FUNCIÓN DE VERIFICACIÓN: validate_ui_elements()
 # ========================================================================
 func validate_ui_elements():
 	"""Validar que todos los elementos de UI existen"""
-	print("\n🔍 === VALIDACIÓN ELEMENTOS UI ===")
+	#print("\n🔍 === VALIDACIÓN ELEMENTOS UI ===")
 	
 	var validation = {
 		"capture_area_slider": capture_area_slider != null,
@@ -1654,7 +1702,7 @@ func validate_ui_elements():
 	
 	for element in validation:
 		var status = "✅" if validation[element] else "❌"
-		print("%s %s: %s" % [status, element, validation[element]])
+		#print("%s %s: %s" % [status, element, validation[element]])
 	
 	var all_valid = true
 	for value in validation.values():
@@ -1662,30 +1710,30 @@ func validate_ui_elements():
 			all_valid = false
 			break
 	
-	print("🎯 Estado general: %s" % ("✅ TODOS VÁLIDOS" if all_valid else "❌ FALTAN ELEMENTOS"))
-	print("===================================\n")
+	#print("🎯 Estado general: %s" % ("✅ TODOS VÁLIDOS" if all_valid else "❌ FALTAN ELEMENTOS"))
+	#print("===================================\n")
 	
 	return all_valid
 
 
 func trigger_centering_wiggle():
 	"""Función pública para ejecutar wiggle de centrado desde otros scripts"""
-	print("📡 Wiggle de centrado solicitado externamente...")
+	#print("📡 Wiggle de centrado solicitado externamente...")
 	_perform_centering_wiggle()
 
 
 func debug_corrected_shader_system():
 	"""Debug del sistema de shader corregido"""
-	print("\n🔍 === DEBUG SISTEMA CORREGIDO ===")
-	print("model_preview_panel: %s" % ("✅" if model_preview_panel else "❌"))
-	print("advanced_shader_panel: %s" % ("✅" if advanced_shader_panel else "❌"))
-	print("shader_currently_applied: %s" % shader_currently_applied)
+	#print("\n🔍 === DEBUG SISTEMA CORREGIDO ===")
+	#print("model_preview_panel: %s" % ("✅" if model_preview_panel else "❌"))
+	#print("advanced_shader_panel: %s" % ("✅" if advanced_shader_panel else "❌"))
+	#print("shader_currently_applied: %s" % shader_currently_applied)
 	
 	if advanced_shader_panel and advanced_shader_panel.has_signal("shader_settings_changed"):
 		var connections = advanced_shader_panel.get_signal_connection_list("shader_settings_changed")
-		print("Conexiones: %d" % connections.size())
+		#print("Conexiones: %d" % connections.size())
 	
-	print("===================================\n")
+	#print("===================================\n")
 
 
 
@@ -1707,7 +1755,7 @@ func _apply_basic_shader_to_preview():
 	# Configuración básica de canvas post-processing
 	var basic_canvas_settings = {
 		"pixelize_enabled": true,
-		"pixel_size": 4.0,
+		"pixel_size": 2.0,
 		"reduce_colors": false,
 		"color_levels": 16,
 		"enable_dithering": false,
@@ -1811,10 +1859,10 @@ func _on_pixelize_changed(enabled: bool):
 	current_settings.pixelize = enabled
 	
 	if enabled:
-		print("🎨 Aplicando canvas post-processing básico...")
+		#print("🎨 Aplicando canvas post-processing básico...")
 		_apply_basic_shader_to_preview()
 	else:
-		print("🧹 Removiendo canvas post-processing...")
+		#print("🧹 Removiendo canvas post-processing...")
 		_remove_shader_from_preview()
 	
 	# Emitir señal de cambio
@@ -1861,7 +1909,7 @@ func debug_canvas_shader_system():
 	if model_preview_panel:
 		#print("model_preview_panel.current_model: %s" % ("✅" if model_preview_panel.current_model else "❌"))
 		if model_preview_panel.has_method("get_postprocess_status"):
-			var status = model_preview_panel.get_postprocess_status()
+			var _status = model_preview_panel.get_postprocess_status()
 			#print("postprocess_status: %s" % status)
 	
 	#print("=====================================\n")

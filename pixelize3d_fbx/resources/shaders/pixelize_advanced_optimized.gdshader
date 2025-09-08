@@ -7,7 +7,7 @@ shader_type spatial;
 render_mode unshaded, cull_disabled;
 
 // === PARÁMETROS DE PIXELIZACIÓN (CARACTERÍSTICAS PRIORITARIAS) ===
-uniform float pixel_size : hint_range(1.0, 32.0, 1.0) = 4.0;
+uniform float pixel_size : hint_range(1.0, 32.0, 1.0) = 2.0;
 
 // === PARÁMETROS DE REDUCCIÓN DE COLORES ===
 uniform bool reduce_colors = false;

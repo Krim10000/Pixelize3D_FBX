@@ -11,9 +11,9 @@ static func fix_animation_retargeting(anim_player: AnimationPlayer, old_skeleton
 		print("❌ AnimationPlayer inválido para retargeting")
 		return false
 	
-	print("🔧 CORRIGIENDO RETARGETING DE ANIMACIONES")
-	print("  Skeleton origen: %s" % old_skeleton_name)
-	print("  Skeleton destino: %s" % new_skeleton_name)
+	#print("🔧 CORRIGIENDO RETARGETING DE ANIMACIONES")
+	#print("  Skeleton origen: %s" % old_skeleton_name)
+	#print("  Skeleton destino: %s" % new_skeleton_name)
 	
 	var total_tracks_updated = 0
 	var animations_processed = 0
@@ -52,9 +52,9 @@ static func fix_animation_retargeting(anim_player: AnimationPlayer, old_skeleton
 		
 		print("    ✅ Tracks actualizados: %d/%d" % [tracks_updated_in_anim, animation.get_track_count()])
 	
-	print("🔧 RETARGETING COMPLETADO:")
-	print("  Animaciones procesadas: %d" % animations_processed)
-	print("  Total tracks actualizados: %d" % total_tracks_updated)
+	#print("🔧 RETARGETING COMPLETADO:")
+	#print("  Animaciones procesadas: %d" % animations_processed)
+	#print("  Total tracks actualizados: %d" % total_tracks_updated)
 	
 	return total_tracks_updated > 0
 
@@ -102,7 +102,7 @@ static func validate_animation_paths(anim_player: AnimationPlayer, skeleton: Ske
 	if not anim_player or not skeleton:
 		return validation_result
 	
-	print("🔍 VALIDANDO RUTAS DE ANIMACIÓN")
+	#print("🔍 VALIDANDO RUTAS DE ANIMACIÓN")
 	
 	# Crear lista de huesos disponibles
 	var available_bones = []
@@ -136,13 +136,14 @@ static func validate_animation_paths(anim_player: AnimationPlayer, skeleton: Ske
 					if bone_name not in validation_result.missing_bones:
 						validation_result.missing_bones.append(bone_name)
 	
-	print("🔍 VALIDACIÓN COMPLETADA:")
-	print("  Tracks válidos: %d" % validation_result.valid_tracks)
-	print("  Tracks inválidos: %d" % validation_result.invalid_tracks)
-	print("  Animaciones validadas: %d" % validation_result.animations_validated)
+	#print("🔍 VALIDACIÓN COMPLETADA:")
+	#print("  Tracks válidos: %d" % validation_result.valid_tracks)
+	#print("  Tracks inválidos: %d" % validation_result.invalid_tracks)
+	#print("  Animaciones validadas: %d" % validation_result.animations_validated)
 	
 	if validation_result.missing_bones.size() > 0:
-		print("  ⚠️ Huesos faltantes: %s" % str(validation_result.missing_bones))
+		pass
+		#print("  ⚠️ Huesos faltantes: %s" % str(validation_result.missing_bones))
 	
 	return validation_result
 
@@ -181,7 +182,7 @@ static func apply_animation_pose(anim_player: AnimationPlayer, animation_name: S
 		print("❌ No se puede aplicar pose: animación no encontrada")
 		return false
 	
-	print("🎭 Aplicando pose de animación: %s en tiempo %.2fs" % [animation_name, time_position])
+	#print("🎭 Aplicando pose de animación: %s en tiempo %.2fs" % [animation_name, time_position])
 	
 	# Reproducir la animación en la posición específica
 	anim_player.play(animation_name)
@@ -194,7 +195,7 @@ static func apply_animation_pose(anim_player: AnimationPlayer, animation_name: S
 
 # Función de debug para inspeccionar todas las rutas de animación
 static func debug_animation_paths(anim_player: AnimationPlayer):
-	print("\n🔍 DEBUG: INSPECCIONANDO RUTAS DE ANIMACIÓN")
+	#print("\n🔍 DEBUG: INSPECCIONANDO RUTAS DE ANIMACIÓN")
 	
 	if not anim_player:
 		print("❌ AnimationPlayer inválido")
@@ -210,7 +211,7 @@ static func debug_animation_paths(anim_player: AnimationPlayer):
 			print("  ❌ No se pudo obtener animación")
 			continue
 		
-		print("  Tracks: %d" % animation.get_track_count())
+		#print("  Tracks: %d" % animation.get_track_count())
 		
 		# Mostrar solo los primeros 5 tracks para evitar spam
 		var max_tracks_to_show = min(animation.get_track_count(), 5)
@@ -223,9 +224,10 @@ static func debug_animation_paths(anim_player: AnimationPlayer):
 			print("    [%d] %s (%s)" % [track_idx, str(track_path), track_type_name])
 		
 		if animation.get_track_count() > max_tracks_to_show:
-			print("    ... y %d tracks más" % (animation.get_track_count() - max_tracks_to_show))
+			pass
+			#print("    ... y %d tracks más" % (animation.get_track_count() - max_tracks_to_show))
 	
-	print("🔍 FIN DEBUG RUTAS\n")
+	#print("🔍 FIN DEBUG RUTAS\n")
 
 # Función auxiliar para obtener nombre del tipo de track
 static func _get_track_type_name(track_type: int) -> String:

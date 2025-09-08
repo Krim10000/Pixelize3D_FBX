@@ -255,7 +255,7 @@ func get_visual_info() -> Dictionary:
 func debug_indicator_state():
 	"""Debug del estado del indicador"""
 	#print("\n=== NORTH INDICATOR DEBUG ===")
-	var info = get_visual_info()
+	var _info = get_visual_info()
 	#for key in info:
 		#print("  %s: %s" % [key, str(info[key])])
 	#print("==============================\n")

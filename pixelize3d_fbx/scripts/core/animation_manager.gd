@@ -41,10 +41,10 @@ func register_multiple_animations_metadata(animations_data: Dictionary) -> void:
 		#register_animation_metadata(anim_name, metadata)
 
 func combine_base_with_animation(base_data: Dictionary, animation_data: Dictionary) -> Node3D:
-	print("\n=== INICIANDO COMBINACIÓN CON METADATOS ===")
-	print("Base: %s (%d huesos)" % [base_data.skeleton.name, base_data.get("bone_count", 0)])
-	print("Anim: %s (%d huesos)" % [animation_data.skeleton.name, animation_data.get("bone_count", 0)])
-	
+	#print("\n=== INICIANDO COMBINACIÓN CON METADATOS ===")
+	#print("Base: %s (%d huesos)" % [base_data.skeleton.name, base_data.get("bone_count", 0)])
+	#print("Anim: %s (%d huesos)" % [animation_data.skeleton.name, animation_data.get("bone_count", 0)])
+	#
 	# Crear un nuevo nodo raíz para el modelo combinado
 	var combined_root = Node3D.new()
 	combined_root.name = animation_data.get("display_name", animation_data.name)
@@ -63,17 +63,17 @@ func combine_base_with_animation(base_data: Dictionary, animation_data: Dictiona
 	# IMPORTANTE: Dar nombre específico al nuevo skeleton para retargeting
 	new_skeleton.name = "Skeleton3D_combined"
 	combined_root.add_child(new_skeleton)
-	print("✅ Skeleton duplicado: %s con %d huesos" % [new_skeleton.name, new_skeleton.get_bone_count()])
+	#print("✅ Skeleton duplicado: %s con %d huesos" % [new_skeleton.name, new_skeleton.get_bone_count()])
 	
 	# Añadir los meshes del modelo base al nuevo skeleton
 	var meshes_to_use = base_meshes_cache if base_meshes_cache.size() > 0 else base_data.meshes
-	print("DEBUG: Usando %s mesh data (%d meshes)" % [
-		"cached mejorado" if meshes_to_use == base_meshes_cache else "original fbx_loader", 
-		meshes_to_use.size()
-	])
+	#print("DEBUG: Usando %s mesh data (%d meshes)" % [
+		#"cached mejorado" if meshes_to_use == base_meshes_cache else "original fbx_loader", 
+		#meshes_to_use.size()
+	#])
 	
 	_attach_meshes_to_skeleton(meshes_to_use, new_skeleton)
-	print("✅ Meshes anexados: %d" % meshes_to_use.size())
+	#print("✅ Meshes anexados: %d" % meshes_to_use.size())
 	
 	# Copiar el AnimationPlayer de la animación
 	var new_anim_player = _setup_animation_player(animation_data.animation_player, animation_data.skeleton, new_skeleton)
@@ -84,7 +84,7 @@ func combine_base_with_animation(base_data: Dictionary, animation_data: Dictiona
 		return null
 	
 	combined_root.add_child(new_anim_player)
-	print("✅ AnimationPlayer configurado: %d animaciones" % new_anim_player.get_animation_list().size())
+	#print("✅ AnimationPlayer configurado: %d animaciones" % new_anim_player.get_animation_list().size())
 	
 	# CORRECCIÓN CRÍTICA: Usar el nuevo sistema de retargeting
 	var retargeting_success = _retarget_animations_fixed(new_anim_player, animation_data.skeleton, new_skeleton)
@@ -94,7 +94,7 @@ func combine_base_with_animation(base_data: Dictionary, animation_data: Dictiona
 		combined_root.queue_free()
 		return null
 	
-	print("✅ Animaciones retargeteadas correctamente")
+	#print("✅ Animaciones retargeteadas correctamente")
 	
 	# NUEVO: Configurar loops infinitos en todas las animaciones
 	loop_manager.setup_infinite_loops(new_anim_player)
@@ -112,7 +112,7 @@ func combine_base_with_animation(base_data: Dictionary, animation_data: Dictiona
 		var last_index = animation_list.size() - 1
 		var target_anim_name = animation_list[last_index]
 
-		print("✅ Aplicando pose inicial (última animación): %s" % target_anim_name)
+		#print("✅ Aplicando pose inicial (última animación): %s" % target_anim_name)
 
 		# Configurar loop y aplicar pose inicial de forma segura
 		var anim_lib = new_anim_player.get_animation_library("")
@@ -125,7 +125,7 @@ func combine_base_with_animation(base_data: Dictionary, animation_data: Dictiona
 
 
 	
-	print("✅ Combinación completada exitosamente con metadatos")
+	#print("✅ Combinación completada exitosamente con metadatos")
 	emit_signal("combination_complete", combined_root)
 	return combined_root
 
@@ -133,10 +133,10 @@ func combine_base_with_animation(base_data: Dictionary, animation_data: Dictiona
 
 
 func combine_base_with_animation_for_transition(base_data: Dictionary, animation_data: Dictionary) -> Node3D:
-	print("\n=== INICIANDO COMBINACIÓN CON METADATOS ===")
-	print("Base: %s (%d huesos)" % [base_data.skeleton.name, base_data.get("bone_count", 0)])
-	print("Anim: %s (%d huesos)" % [animation_data.skeleton.name, animation_data.get("bone_count", 0)])
-	
+	#print("\n=== INICIANDO COMBINACIÓN CON METADATOS ===")
+	#print("Base: %s (%d huesos)" % [base_data.skeleton.name, base_data.get("bone_count", 0)])
+	#print("Anim: %s (%d huesos)" % [animation_data.skeleton.name, animation_data.get("bone_count", 0)])
+	#
 	# Crear un nuevo nodo raíz para el modelo combinado
 	var combined_root = Node3D.new()
 	combined_root.name = animation_data.get("display_name", animation_data.name)
@@ -186,11 +186,11 @@ func combine_base_with_animation_for_transition(base_data: Dictionary, animation
 		combined_root.queue_free()
 		return null
 	
-	print("✅ Animaciones retargeteadas correctamente")
+	#print("✅ Animaciones retargeteadas correctamente")
 	
 	# NUEVO: Configurar loops infinitos en todas las animaciones
 	loop_manager.setup_infinite_loops(new_anim_player)
-	print("🔄 Loops infinitos configurados")
+	#print("🔄 Loops infinitos configurados")
 	
 	##########################################################
 	##########################################################
@@ -204,7 +204,7 @@ func combine_base_with_animation_for_transition(base_data: Dictionary, animation
 		var last_index = animation_list.size() - 1
 		var target_anim_name = animation_list[last_index]
 
-		print("✅ Aplicando pose inicial (última animación): %s" % target_anim_name)
+		#print("✅ Aplicando pose inicial (última animación): %s" % target_anim_name)
 
 		# Configurar loop y aplicar pose inicial de forma segura
 		var anim_lib = new_anim_player.get_animation_library("")
@@ -217,7 +217,7 @@ func combine_base_with_animation_for_transition(base_data: Dictionary, animation
 
 
 	
-	print("✅ Combinación completada exitosamente con metadatos")
+	#print("✅ Combinación completada exitosamente con metadatos")
 	emit_signal("combination_complete", combined_root)
 	return combined_root
 
@@ -227,7 +227,7 @@ func combine_base_with_animation_for_transition(base_data: Dictionary, animation
 
 # ✅ FUNCIÓN NUEVA: Almacenar metadatos en el modelo combinado
 func _store_metadata_in_combined_model(combined_root: Node3D, base_data: Dictionary, animation_data: Dictionary) -> void:
-	print("📝 ALMACENANDO METADATOS EN MODELO COMBINADO")
+	#print("📝 ALMACENANDO METADATOS EN MODELO COMBINADO")
 	
 	# Metadatos del modelo base
 	var base_metadata = {
@@ -272,21 +272,21 @@ func _store_metadata_in_combined_model(combined_root: Node3D, base_data: Diction
 		"animations_count": 1  # Será actualizado si se agregan más animaciones
 	})
 	
-	print("✅ Metadatos almacenados:")
-	print("  - Base: %s" % base_metadata.filename)
-	print("  - Animación principal: %s" % main_animation_metadata.filename)
-	print("  - Total animaciones en cache: %d" % all_animations_metadata.size())
-	for anim_name in all_animations_metadata.keys():
-		var anim_meta = all_animations_metadata[anim_name]
+	#print("✅ Metadatos almacenados:")
+	#print("  - Base: %s" % base_metadata.filename)
+	#print("  - Animación principal: %s" % main_animation_metadata.filename)
+	#print("  - Total animaciones en cache: %d" % all_animations_metadata.size())
+	#for anim_name in all_animations_metadata.keys():
+		#var _anim_meta = all_animations_metadata[anim_name]
 		#print("    • %s -> %s" % [anim_name, anim_meta.get("display_name", "Sin nombre")])
 
 
 
 func combine_base_with_multiple_animations(base_data: Dictionary, animations_data: Dictionary) -> Node3D:
 	"""Función mejorada para combinar base con múltiples animaciones preservando metadatos"""
-	print("\n=== COMBINACIÓN CON MÚLTIPLES ANIMACIONES ===")
-	print("Base: %s" % base_data.get("display_name", base_data.get("name", "Unknown")))
-	print("Animaciones a combinar: %d" % animations_data.size())
+	#print("\n=== COMBINACIÓN CON MÚLTIPLES ANIMACIONES ===")
+	#print("Base: %s" % base_data.get("display_name", base_data.get("name", "Unknown")))
+	#print("Animaciones a combinar: %d" % animations_data.size())
 
 	# Registrar metadatos de todas las animaciones
 	register_multiple_animations_metadata(animations_data)
@@ -322,13 +322,13 @@ func combine_base_with_multiple_animations(base_data: Dictionary, animations_dat
 						print("  ✅ Agregada animación: %s" % anim_name)
 						print("added_animations: "+ added_animations)
 
-		print("✅ Total animaciones en modelo combinado: %d" % (anim_player.get_animation_list().size()))
+		#print("✅ Total animaciones en modelo combinado: %d" % (anim_player.get_animation_list().size()))
 
 		# ✅ FORZAR POSE INICIAL DE LA ÚLTIMA ANIMACIÓN
 		var anims = anim_player.get_animation_list()
 		if anims.size() > 0:
 			var last_anim = anims[anims.size() - 1]
-			print("✅ Reproduciendo animación final agregada: %s" % last_anim)
+			#print("✅ Reproduciendo animación final agregada: %s" % last_anim)
 			anim_player.play(last_anim)
 
 		# Actualizar metadatos con información de animaciones múltiples
@@ -342,7 +342,7 @@ func combine_base_with_multiple_animations(base_data: Dictionary, animations_dat
 		if anim_list.size() > 0:
 			var last_anim = anim_list[anim_list.size() - 1]
 			if anim_player.has_animation(last_anim):
-				print("🎯 Reproduciendo directamente última animación agregada: %s" % last_anim)
+				#print("🎯 Reproduciendo directamente última animación agregada: %s" % last_anim)
 				anim_player.play(last_anim)
 			else:
 				print("❌ La animación '%s' no está disponible para reproducción" % last_anim)
@@ -388,16 +388,16 @@ func _retarget_animations_fixed(anim_player: AnimationPlayer, old_skeleton: Skel
 	# Validar que las rutas sean correctas después del retargeting
 	var validation = retargeting_fix.validate_animation_paths(anim_player, new_skeleton)
 	
-	print("📊 RESULTADO DE VALIDACIÓN:")
-	print("  Tracks válidos: %d" % validation.valid_tracks)
-	print("  Tracks inválidos: %d" % validation.invalid_tracks)
+	#print("📊 RESULTADO DE VALIDACIÓN:")
+	#print("  Tracks válidos: %d" % validation.valid_tracks)
+	#print("  Tracks inválidos: %d" % validation.invalid_tracks)
 	
 	# Considerar exitoso si al menos 80% de los tracks son válidos
 	var total_tracks = validation.valid_tracks + validation.invalid_tracks
 	var success_rate = float(validation.valid_tracks) / float(total_tracks) if total_tracks > 0 else 0.0
 	
 	if success_rate >= 0.8:
-		print("✅ Retargeting exitoso (%.1f%% tracks válidos)" % (success_rate * 100))
+		#print("✅ Retargeting exitoso (%.1f%% tracks válidos)" % (success_rate * 100))
 		return true
 	else:
 		print("❌ Retargeting falló (solo %.1f%% tracks válidos)" % (success_rate * 100))
@@ -405,7 +405,7 @@ func _retarget_animations_fixed(anim_player: AnimationPlayer, old_skeleton: Skel
 
 # FUNCIÓN EXISTENTE MEJORADA: Duplicar skeleton con nombres consistentes
 func _duplicate_skeleton(original_skeleton: Skeleton3D) -> Skeleton3D:
-	print("--- DUPLICANDO SKELETON ---")
+	#print("--- DUPLICANDO SKELETON ---")
 	
 	if not original_skeleton:
 		print("❌ Skeleton original inválido")
@@ -430,17 +430,18 @@ func _duplicate_skeleton(original_skeleton: Skeleton3D) -> Skeleton3D:
 		
 		# Verificar huesos críticos para debug
 		if bone_name.contains("Hips") or bone_name.contains("Spine") or bone_name.contains("Head"):
-			print("  ✅ Hueso crítico preservado: %s" % bone_name)
+			pass
+			#print("  ✅ Hueso crítico preservado: %s" % bone_name)
 		
 		#print("  Hueso copiado: %s (índice %d)" % [bone_name, i])
 	
-	print("Skeleton duplicado: %d huesos reales" % new_skeleton.get_bone_count())
+	#print("Skeleton duplicado: %d huesos reales" % new_skeleton.get_bone_count())
 	return new_skeleton
 
 
 
 func _attach_meshes_to_skeleton(mesh_data_array: Array, skeleton: Skeleton3D) -> void:
-	print("--- ANEXANDO MESHES ---")
+	#print("--- ANEXANDO MESHES ---")
 	
 	for mesh_data in mesh_data_array:
 		var mesh_instance = MeshInstance3D.new()
@@ -453,21 +454,21 @@ func _attach_meshes_to_skeleton(mesh_data_array: Array, skeleton: Skeleton3D) ->
 				var material = mesh_data.materials[i]
 				if material:
 					mesh_instance.set_surface_override_material(i, material)
-					print("    Material aplicado en superficie %d: %s" % [
-						i, 
-						material.resource_name if material.resource_name else "Material sin nombre"
-					])
-		
+					#print("    Material aplicado en superficie %d: %s" % [
+						#i, 
+						#material.resource_name if material.resource_name else "Material sin nombre"
+					#])
+		#
 		# Configurar skeleton path
 		mesh_instance.skeleton = NodePath("..")
 		
 		# MEJORA: Retargetear skin correctamente
 		if mesh_data.has("original_skin") and mesh_data.original_skin:
-			print("    DEBUG: Retargeteando skin...")
+			#print("    DEBUG: Retargeteando skin...")
 			var new_skin = _retarget_skin_to_skeleton(mesh_data.original_skin, skeleton)
 			if new_skin:
 				mesh_instance.skin = new_skin
-				print("    ✅ Skin retargeteado exitosamente")
+				#print("    ✅ Skin retargeteado exitosamente")
 			else:
 				print("    ❌ Falló retargeting de skin, usando original")
 				mesh_instance.skin = mesh_data.original_skin
@@ -477,11 +478,11 @@ func _attach_meshes_to_skeleton(mesh_data_array: Array, skeleton: Skeleton3D) ->
 		# Agregar al skeleton
 		skeleton.add_child(mesh_instance)
 		
-		print("  Mesh anexado: %s" % mesh_instance.name)
-		print("    Mesh resource: %s" % (mesh_instance.mesh.get_class() if mesh_instance.mesh else "NULL"))
-		print("    Surfaces: %d" % (mesh_instance.mesh.get_surface_count() if mesh_instance.mesh else 0))
-		print("    Skeleton path: %s" % str(mesh_instance.skeleton))
-		print("    Skin asignado: %s" % (mesh_instance.skin != null))
+		#print("  Mesh anexado: %s" % mesh_instance.name)
+		#print("    Mesh resource: %s" % (mesh_instance.mesh.get_class() if mesh_instance.mesh else "NULL"))
+		#print("    Surfaces: %d" % (mesh_instance.mesh.get_surface_count() if mesh_instance.mesh else 0))
+		#print("    Skeleton path: %s" % str(mesh_instance.skeleton))
+		#print("    Skin asignado: %s" % (mesh_instance.skin != null))
 
 # FUNCIÓN EXISTENTE: Retargetear skin (sin cambios)
 func _retarget_skin_to_skeleton(original_skin: Skin, target_skeleton: Skeleton3D) -> Skin:
@@ -489,8 +490,8 @@ func _retarget_skin_to_skeleton(original_skin: Skin, target_skeleton: Skeleton3D
 		printerr("❌ Error: Parámetros inválidos para retargeting de skin")
 		return null
 	
-	print("      Skin original bind count: %d" % original_skin.get_bind_count())
-	print("      Target skeleton bone count: %d" % target_skeleton.get_bone_count())
+	#print("      Skin original bind count: %d" % original_skin.get_bind_count())
+	#print("      Target skeleton bone count: %d" % target_skeleton.get_bone_count())
 	
 	var new_skin = Skin.new()
 	var successful_binds = 0
@@ -511,7 +512,7 @@ func _retarget_skin_to_skeleton(original_skin: Skin, target_skeleton: Skeleton3D
 		else:
 			print("        ❌ Hueso no encontrado: %s" % bind_name)
 	
-	print("      Resultado: %d/%d binds exitosos" % [successful_binds, original_skin.get_bind_count()])
+	#print("      Resultado: %d/%d binds exitosos" % [successful_binds, original_skin.get_bind_count()])
 	
 	# Devolver skin solo si tenemos suficientes binds exitosos
 	if successful_binds > 0 and (float(successful_binds) / float(original_skin.get_bind_count())) > 0.5:
@@ -523,7 +524,7 @@ func _retarget_skin_to_skeleton(original_skin: Skin, target_skeleton: Skeleton3D
 func _extract_meshes_from_skeleton(skeleton: Skeleton3D) -> Array:
 	var meshes = []
 	
-	print("--- EXTRAYENDO MESHES CON SKIN AUTO-GENERATION ---")
+	#print("--- EXTRAYENDO MESHES CON SKIN AUTO-GENERATION ---")
 	
 	for child in skeleton.get_children():
 		if child is MeshInstance3D:
@@ -548,36 +549,36 @@ func _extract_meshes_from_skeleton(skeleton: Skeleton3D) -> Array:
 					
 					mesh_data.materials.append(material)
 			
-			print("  Mesh: %s - Skin existente detectado" % child.name if child.skin else "  Mesh: %s - Sin skin" % child.name)
-			meshes.append(mesh_data)
+			#print("  Mesh: %s - Skin existente detectado" % child.name if child.skin else "  Mesh: %s - Sin skin" % child.name)
+			#meshes.append(mesh_data)
 	
-	print("Total meshes extraídos: %d" % meshes.size())
+	#print("Total meshes extraídos: %d" % meshes.size())
 	return meshes
 
 # NUEVA FUNCIÓN: Debug del modelo combinado CON METADATOS
 func debug_combined_model_with_metadata(combined_model: Node3D):
-	print("\n🔍 DEBUG MODELO COMBINADO CON METADATOS")
+	#print("\n🔍 DEBUG MODELO COMBINADO CON METADATOS")
 	print("Nombre: %s" % combined_model.name)
 	
 	# Extraer y mostrar metadatos
 	var metadata = extract_metadata_from_combined_model(combined_model)
 	
-	print("📝 METADATOS ALMACENADOS:")
+	#print("📝 METADATOS ALMACENADOS:")
 	if metadata.has("base_metadata"):
 		var base_meta = metadata.base_metadata
-		print("  Base: %s (%s)" % [base_meta.get("display_name", "Sin nombre"), base_meta.get("filename", "Sin archivo")])
+		#print("  Base: %s (%s)" % [base_meta.get("display_name", "Sin nombre"), base_meta.get("filename", "Sin archivo")])
 	
 	if metadata.has("all_animations_metadata"):
 		var anims_meta = metadata.all_animations_metadata
 		print("  Animaciones disponibles: %d" % anims_meta.size())
 		for anim_name in anims_meta.keys():
 			var anim_meta = anims_meta[anim_name]
-			print("    • %s -> %s (%s)" % [anim_name, anim_meta.get("display_name", "Sin nombre"), anim_meta.get("filename", "Sin archivo")])
+			#print("    • %s -> %s (%s)" % [anim_name, anim_meta.get("display_name", "Sin nombre"), anim_meta.get("filename", "Sin archivo")])
 	
 	# Buscar skeleton
 	var skeleton = combined_model.get_node_or_null("Skeleton3D_combined")
 	if skeleton:
-		print("✅ Skeleton encontrado: %d huesos" % skeleton.get_bone_count())
+		#print("✅ Skeleton encontrado: %d huesos" % skeleton.get_bone_count())
 		
 		# Contar meshes
 		var mesh_count = 0
@@ -585,25 +586,25 @@ func debug_combined_model_with_metadata(combined_model: Node3D):
 			if child is MeshInstance3D:
 				mesh_count += 1
 		
-		print("✅ Meshes: %d" % mesh_count)
+		#print("✅ Meshes: %d" % mesh_count)
 	else:
 		print("❌ No se encontró skeleton")
 	
 	# Buscar AnimationPlayer
 	var anim_player = combined_model.get_node_or_null("AnimationPlayer")
 	if anim_player:
-		print("✅ AnimationPlayer: %d animaciones" % anim_player.get_animation_list().size())
+		#print("✅ AnimationPlayer: %d animaciones" % anim_player.get_animation_list().size())
 		
 		# Validar rutas de animación
 		if skeleton:
 			var validation = retargeting_fix.validate_animation_paths(anim_player, skeleton)
-			print("📊 Validación de animaciones:")
-			print("  Tracks válidos: %d" % validation.valid_tracks)
-			print("  Tracks inválidos: %d" % validation.invalid_tracks)
+			#print("📊 Validación de animaciones:")
+			#print("  Tracks válidos: %d" % validation.valid_tracks)
+			#print("  Tracks inválidos: %d" % validation.invalid_tracks)
 	else:
 		print("❌ No se encontró AnimationPlayer")
 	
-	print("🔍 FIN DEBUG CON METADATOS\n")
+	#print("🔍 FIN DEBUG CON METADATOS\n")
 
 # FUNCIONES EXISTENTES SIN CAMBIOS (preparar modelo, etc.)
 func get_animation_info(anim_player: AnimationPlayer, anim_name: String) -> Dictionary:
@@ -641,10 +642,11 @@ func add_animation_to_base_model(animation_player: AnimationPlayer, animation: A
 		return
 
 	if animation_player.has_animation(anim_id):
-		print("ℹ️ Animación '%s' ya existe, sobrescribiendo..." % anim_id)
+		pass
+		#print("ℹ️ Animación '%s' ya existe, sobrescribiendo..." % anim_id)
 
 	animation_player.add_animation(anim_id, animation)
-	print("✅ Animación '%s' agregada al modelo base" % anim_id)
+	#print("✅ Animación '%s' agregada al modelo base" % anim_id)
 
 func _setup_animation_player(original_player: AnimationPlayer, _original_skeleton: Skeleton3D, _new_skeleton: Skeleton3D) -> AnimationPlayer:
 	print("--- CONFIGURANDO ANIMATION PLAYER (NUEVO) ---")
@@ -657,7 +659,7 @@ func _setup_animation_player(original_player: AnimationPlayer, _original_skeleto
 	
 	# PASO 1: Determinar si usar AnimationPlayer existente o crear nuevo
 	if current_building_animation_player == null:
-		print("🆕 Primera animación - creando AnimationPlayer nuevo")
+		#print("🆕 Primera animación - creando AnimationPlayer nuevo")
 		target_player = AnimationPlayer.new()
 		target_player.name = "AnimationPlayer"
 		
@@ -694,10 +696,10 @@ func _setup_animation_player(original_player: AnimationPlayer, _original_skeleto
 			var new_anim = original_anim.duplicate(true)
 			anim_library.add_animation(anim_name, new_anim)
 			added_count += 1
-			print("  ✅ Animación agregada: %s (%.2fs)" % [anim_name, new_anim.length])
+			#print("  ✅ Animación agregada: %s (%.2fs)" % [anim_name, new_anim.length])
 	
-	print("📊 Resumen: %d animaciones agregadas, total actual: %d" % [added_count, target_player.get_animation_list().size()])
-	print("📤 Retornando AnimationPlayer (padre removido si era necesario)")
+	#print("📊 Resumen: %d animaciones agregadas, total actual: %d" % [added_count, target_player.get_animation_list().size()])
+	#print("📤 Retornando AnimationPlayer (padre removido si era necesario)")
 	
 	return target_player
 
@@ -714,7 +716,7 @@ func _setup_animation_player_for_transition(original_player: AnimationPlayer, _o
 	
 	# PASO 1: Determinar si usar AnimationPlayer existente o crear nuevo
 	
-	print(" creando AnimationPlayer nuevo")
+	#print(" creando AnimationPlayer nuevo")
 	target_player = AnimationPlayer.new()
 	target_player.name = "AnimationPlayer"
 	
@@ -727,7 +729,7 @@ func _setup_animation_player_for_transition(original_player: AnimationPlayer, _o
 	
 	# Almacenar referencia para futuras llamadas
 	current_building_animation_player = target_player
-	print("✅ AnimationPlayer creado y almacenado")
+	#print("✅ AnimationPlayer creado y almacenado")
 	
 	# PASO 2: Agregar todas las animaciones del original_player al target_player
 	var added_count = 0
@@ -744,7 +746,7 @@ func _setup_animation_player_for_transition(original_player: AnimationPlayer, _o
 			added_count += 1
 			print("  ✅ Animación agregada: %s (%.2fs)" % [anim_name, new_anim.length])
 	
-	print("📊 Resumen: %d animaciones agregadas, total actual: %d" % [added_count, target_player.get_animation_list().size()])
+	#print("📊 Resumen: %d animaciones agregadas, total actual: %d" % [added_count, target_player.get_animation_list().size()])
 
 	return target_player
 
@@ -753,18 +755,18 @@ func _setup_animation_player_for_transition(original_player: AnimationPlayer, _o
 # FUNCIÓN NUEVA: Limpiar el AnimationPlayer en construcción (LLAMAR CUANDO USUARIO REINICIE)
 func _reset_building_animation_player() -> void:
 	"""Limpiar la referencia al AnimationPlayer en construcción"""
-	print("🧹 Limpiando referencia de AnimationPlayer en construcción")
+	#print("🧹 Limpiando referencia de AnimationPlayer en construcción")
 	current_building_animation_player = null
 
 # FUNCIÓN PÚBLICA: Reset manual del sistema de animaciones (para uso desde coordinator)
 func reset_animation_system() -> void:
 	"""Reset completo del sistema cuando el usuario decide reiniciar"""
-	print("🔄 RESET MANUAL DEL SISTEMA DE ANIMACIONES")
+	#print("🔄 RESET MANUAL DEL SISTEMA DE ANIMACIONES")
 	_reset_building_animation_player()
 	# Limpiar también otros cachés si es necesario
 	base_meshes_cache.clear()
 	animations_metadata_cache.clear()
-	print("✅ Sistema de animaciones reseteado completamente")
+	#print("✅ Sistema de animaciones reseteado completamente")
 
 # FUNCIÓN NUEVA: Obtener el AnimationPlayer en construcción (para debugging)
 func get_current_building_animation_player() -> AnimationPlayer:

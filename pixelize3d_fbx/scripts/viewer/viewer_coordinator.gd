@@ -59,7 +59,7 @@ var is_changing_animation: bool = false
 var pending_animations_for_combination: Array = []
 
 func _ready():
-	print("🎮 ViewerCoordinator  iniciado")
+	#print("🎮 ViewerCoordinator  iniciado")
 	
 	add_to_group("coordinator")
 	
@@ -82,7 +82,7 @@ func _ready():
 
 func _on_orientation_analysis_complete(result: Dictionary):
 	"""Manejar completación de análisis de orientación - CORRECCIÓN MÍNIMA"""
-	print("🧭 Análisis completado: Norte sugerido = %.1f°" % result.get("suggested_north", 0.0))
+	#print("🧭 Análisis completado: Norte sugerido = %.1f°" % result.get("suggested_north", 0.0))
 	
 	var suggested_north = result.get("suggested_north", 0.0)
 	
@@ -106,15 +106,15 @@ func _on_orientation_analysis_complete(result: Dictionary):
 	
 	if settings_panel and settings_panel.has_method("apply_settings"):
 		settings_panel.apply_settings(new_settings)
-		print("✅ Configuración aplicada al settings panel")
+		#print("✅ Configuración aplicada al settings panel")
 	
 	# Rotar modelo físicamente
 	if current_combined_model and current_combined_model.get_child_count() > 0:
 		var model = current_combined_model.get_child(0)
 		model.rotation_degrees.y = adjusted_north
-		print("✅ Modelo rotado físicamente a: %.1f°" % adjusted_north)
+		#print("✅ Modelo rotado físicamente a: %.1f°" % adjusted_north)
 	
-	print("🧭 Orientación aplicada: %.1f°" % adjusted_north)
+	#print("🧭 Orientación aplicada: %.1f°" % adjusted_north)
 
 
 
@@ -242,47 +242,47 @@ func _connect_all_signals():
 
 func _on_auto_north_requested():
 	"""Manejar solicitud de detección automática de norte - CORREGIDO"""
-	print("🧭 === AUTO-NORTH REQUESTED - DEBUG COMPLETO ===")
+	#print("🧭 === AUTO-NORTH REQUESTED - DEBUG COMPLETO ===")
 	
 	# Debug 1: Verificar analizador
 	if not orientation_analyzer or not is_instance_valid(orientation_analyzer):
-		print("❌ OrientationAnalyzer no disponible")
-		print("   orientation_analyzer existe: %s" % (orientation_analyzer != null))
+		#print("❌ OrientationAnalyzer no disponible")
+		#print("   orientation_analyzer existe: %s" % (orientation_analyzer != null))
 #		print("   is_valid: %s" % (is_instance_valid(orientation_analyzer) if orientation_analyzer else "N/A"))
 		
 		# Intentar crear el analizador aquí
-		print("🔧 Intentando crear OrientationAnalyzer...")
+		#print("🔧 Intentando crear OrientationAnalyzer...")
 		var analyzer_script = load("res://scripts/orientation/orientation_analyzer.gd")
 		if analyzer_script:
 			orientation_analyzer = analyzer_script.new()
 			orientation_analyzer.name = "OrientationAnalyzer"
 			add_child(orientation_analyzer)
 			orientation_analyzer.analysis_complete.connect(_on_orientation_analysis_complete)
-			print("✅ OrientationAnalyzer creado dinámicamente")
+			#print("✅ OrientationAnalyzer creado dinámicamente")
 		else:
 			print("❌ No se pudo cargar script del analizador")
 			return
 	
 	# Debug 2: Verificar modelo
 	if not current_combined_model or not is_instance_valid(current_combined_model):
-		print("⚠️ No hay modelo combinado para analizar")
-		print("   current_combined_model existe: %s" % (current_combined_model != null))
+		#print("⚠️ No hay modelo combinado para analizar")
+		#print("   current_combined_model existe: %s" % (current_combined_model != null))
 #		print("   is_valid: %s" % (is_instance_valid(current_combined_model) if current_combined_model else "N/A"))
 		return
 	
 	# Debug 3: Verificar hijos del modelo
-	print("📋 Modelo combinado: %s" % current_combined_model.name)
-	print("   Hijos del modelo: %d" % current_combined_model.get_child_count())
-	
+	#print("📋 Modelo combinado: %s" % current_combined_model.name)
+	#print("   Hijos del modelo: %d" % current_combined_model.get_child_count())
+	#
 	if current_combined_model.get_child_count() > 0:
 		var current_model = current_combined_model.get_child(0)
-		print("   Primer hijo: %s" % current_model.name)
-		print("   Tipo: %s" % current_model.get_class())
+		#print("   Primer hijo: %s" % current_model.name)
+		#print("   Tipo: %s" % current_model.get_class())
 		
 		if orientation_analyzer.has_method("analyze_model_orientation"):
-			print("🚀 LLAMANDO A analyze_model_orientation...")
+			#print("🚀 LLAMANDO A analyze_model_orientation...")
 			orientation_analyzer.analyze_model_orientation(current_model)
-			print("✅ Análisis de orientación iniciado")
+			#print("✅ Análisis de orientación iniciado")
 		else:
 			print("❌ OrientationAnalyzer no tiene método analyze_model_orientation")
 	else:
@@ -292,14 +292,14 @@ func _on_auto_north_requested():
 # ========================================================================
 func _on_render_settings_changed(settings: Dictionary):
 	"""Manejar cambios en configuración de renderizado - CON SINCRONIZACIÓN DE RESOLUCIÓN"""
-	print("\n📡 === CONFIGURACIÓN CON RESOLUCIÓN SINCRONIZADA ===")
-	print("  directions: %d" % settings.get("directions", 16))
-	print("  sprite_size: %d" % settings.get("sprite_size", 128))
-	print("  capture_area_size: %.1f" % settings.get("capture_area_size", 8.0))
-	print("  camera_height: %.1f" % settings.get("camera_height", 12.0))
-	print("  camera_angle: %.1f°" % settings.get("camera_angle", 45.0))
-	print("  north_offset: %.0f°" % settings.get("north_offset", 0.0))
-	print("==================================================")
+	#print("\n📡 === CONFIGURACIÓN CON RESOLUCIÓN SINCRONIZADA ===")
+	#print("  directions: %d" % settings.get("directions", 16))
+	#print("  sprite_size: %d" % settings.get("sprite_size", 128))
+	#print("  capture_area_size: %.1f" % settings.get("capture_area_size", 8.0))
+	#print("  camera_height: %.1f" % settings.get("camera_height", 12.0))
+	#print("  camera_angle: %.1f°" % settings.get("camera_angle", 45.0))
+	#print("  north_offset: %.0f°" % settings.get("north_offset", 0.0))
+	#print("==================================================")
 
 	# ✅ CRÍTICO: Procesar configuración completa (resolución + área)
 	var enhanced_settings = settings.duplicate()
@@ -325,7 +325,7 @@ func _on_render_settings_changed(settings: Dictionary):
 		# Actualizar preview con nueva resolución
 		if model_preview_panel.has_method("update_for_resolution_change"):
 			model_preview_panel.update_for_resolution_change(sprite_size, capture_area)
-			print("✅ Preview actualizado a resolución: %dx%d" % [sprite_size, sprite_size])
+			#print("✅ Preview actualizado a resolución: %dx%d" % [sprite_size, sprite_size])
 		
 		# Actualizar configuración de cámara del preview
 		var preview_camera = model_preview_panel.get_node_or_null("ViewportContainer/SubViewport/CameraController")
@@ -335,24 +335,25 @@ func _on_render_settings_changed(settings: Dictionary):
 			if preview_camera.has_method("update_camera_position"):
 				preview_camera.update_camera_position()
 			
-			print("✅ Cámara de preview configurada")
+			#print("✅ Cámara de preview configurada")
 	
 	# 2. Configurar Sprite Renderer con la misma resolución
 	if sprite_renderer:
 		if sprite_renderer.has_method("update_render_settings"):
 			sprite_renderer.update_render_settings(enhanced_settings)
-			print("✅ Sprite renderer sincronizado")
+			#print("✅ Sprite renderer sincronizado")
 		
 		# Validar sincronización
 		if sprite_renderer.has_method("validate_viewport_resolution_sync"):
 			var sync_status = sprite_renderer.validate_viewport_resolution_sync()
 			if sync_status.needs_update:
-				print("⚠️ Sincronización pendiente en sprite renderer")
+				pass
+				#print("⚠️ Sincronización pendiente en sprite renderer")
 	
 	# 3. Configurar pipeline con configuración completa
 	if spritesheet_pipeline and spritesheet_pipeline.has_method("update_pipeline_settings"):
 		spritesheet_pipeline.update_pipeline_settings(enhanced_settings)
-		print("✅ Pipeline configurado")
+		#print("✅ Pipeline configurado")
 	
 	# 4. Guardar configuración actual
 	current_render_settings = enhanced_settings
@@ -395,10 +396,10 @@ func validate_preview_render_sync() -> Dictionary:
 		validation.preview_size == validation.render_size
 	)
 	
-	print("🔍 Validación de sincronización:")
-	print("  Preview: %s (%s)" % [validation.preview_size, "✅" if validation.preview_valid else "❌"])
-	print("  Render: %s (%s)" % [validation.render_size, "✅" if validation.render_valid else "❌"])
-	print("  Sincronizado: %s" % ("✅" if validation.is_synced else "❌"))
+	#print("🔍 Validación de sincronización:")
+	#print("  Preview: %s (%s)" % [validation.preview_size, "✅" if validation.preview_valid else "❌"])
+	#print("  Render: %s (%s)" % [validation.render_size, "✅" if validation.render_valid else "❌"])
+	#print("  Sincronizado: %s" % ("✅" if validation.is_synced else "❌"))
 	
 	return validation
 
@@ -407,7 +408,7 @@ func validate_preview_render_sync() -> Dictionary:
 # ========================================================================
 func force_resolution_sync(target_resolution: int):
 	"""Forzar sincronización de resolución en todos los componentes"""
-	print("🔧 Forzando sincronización a resolución: %dx%d" % [target_resolution, target_resolution])
+	#print("🔧 Forzando sincronización a resolución: %dx%d" % [target_resolution, target_resolution])
 	
 	# Crear configuración de sincronización
 	var sync_settings = current_render_settings.duplicate()
@@ -432,35 +433,35 @@ func force_resolution_sync(target_resolution: int):
 # ========================================================================
 func debug_resolution_state():
 	"""Debug completo del estado de resolución y área de captura"""
-	print("\n🔍 === DEBUG RESOLUCIÓN Y ÁREA DE CAPTURA ===")
+	#print("\n🔍 === DEBUG RESOLUCIÓN Y ÁREA DE CAPTURA ===")
 	
 	# Estado de configuración actual
-	print("📋 Configuración actual:")
-	print("  sprite_size (resolución): %d" % current_render_settings.get("sprite_size", 0))
-	print("  capture_area_size (tamaño modelo): %.1f" % current_render_settings.get("capture_area_size", 0.0))
-	print("  orthographic_size: %.1f" % current_render_settings.get("orthographic_size", 0.0))
+	#print("📋 Configuración actual:")
+	#print("  sprite_size (resolución): %d" % current_render_settings.get("sprite_size", 0))
+	#print("  capture_area_size (tamaño modelo): %.1f" % current_render_settings.get("capture_area_size", 0.0))
+	#print("  orthographic_size: %.1f" % current_render_settings.get("orthographic_size", 0.0))
 	
 	# Estado del preview
 	if model_preview_panel and model_preview_panel.has_method("get_current_viewport_info"):
 		var preview_info = model_preview_panel.get_current_viewport_info()
-		print("🎬 Preview Panel:")
-		print("  Viewport size: %s" % preview_info.viewport_size)
-		print("  Container size: %s" % preview_info.container_size)
-		print("  Valid: %s" % preview_info.is_valid)
-		print("  Match: %s" % ("✅" if preview_info.viewport_size == preview_info.container_size else "❌"))
+		#print("🎬 Preview Panel:")
+		#print("  Viewport size: %s" % preview_info.viewport_size)
+		#print("  Container size: %s" % preview_info.container_size)
+		#print("  Valid: %s" % preview_info.is_valid)
+		#print("  Match: %s" % ("✅" if preview_info.viewport_size == preview_info.container_size else "❌"))
 	
 	# Estado del renderer
 	if sprite_renderer and sprite_renderer.has_method("validate_viewport_resolution_sync"):
 		var render_info = sprite_renderer.validate_viewport_resolution_sync()
-		print("🎨 Sprite Renderer:")
-		print("  Viewport size: %s" % render_info.viewport_size)
-		print("  Expected size: %s" % render_info.expected_size)
-		print("  Synced: %s" % render_info.is_synced)
+		#print("🎨 Sprite Renderer:")
+		#print("  Viewport size: %s" % render_info.viewport_size)
+		#print("  Expected size: %s" % render_info.expected_size)
+		#print("  Synced: %s" % render_info.is_synced)
 	
 	# Validación general
 	var validation = validate_preview_render_sync()
-	print("🎯 Estado general: %s" % ("✅ COHERENTE" if validation.is_synced else "❌ INCOHERENTE"))
-	print("=============================================\n")
+	#print("🎯 Estado general: %s" % ("✅ COHERENTE" if validation.is_synced else "❌ INCOHERENTE"))
+	#print("=============================================\n")
 
 
 
@@ -1104,7 +1105,7 @@ func _on_combination_complete_safe(combined_model: Node3D):
 	# Actualizar preview
 	if model_preview_panel and model_preview_panel.has_method("set_model"):
 		model_preview_panel.set_model(current_combined_model)
-		print("✅ Preview actualizado")
+		#print("✅ Preview actualizado")
 	
 	# Poblar controles
 	_safe_populate_animation_controls()
@@ -1128,10 +1129,10 @@ func _safe_populate_animation_controls():
 		print("❌ populate_animations no disponible")
 		return
 	
-	print("🎮 Poblando controles de animación")
+	#print("🎮 Poblando controles de animación")
 	#log_panel.add_log("🎮 Controles de animación listos")
 	animation_controls_panel.populate_animations(current_combined_model)
-	print("✅ Animation controls poblados exitosamente")
+	#print("✅ Animation controls poblados exitosamente")
 
 func _on_combination_failed(error: String):
 	"""Manejar error de combinación"""
@@ -1166,30 +1167,7 @@ func _arrays_equal(a: Array, b: Array) -> bool:
 			return false
 	return true
 
-# ========================================================================
-# INICIALIZACIÓN DE EXTENSIONES - ✅ MODIFICADO PARA INCLUIR MONITOR
-# ========================================================================
 
-#func _initialize_extensions():
-	#"""Inicializar extensiones de renderizado y exportación"""
-	#print("🔧 Inicializando extensiones...")
-	#
-	## Crear ExportManager si no existe
-	#_setup_export_manager()
-	#
-	## Crear controles de cámara
-	#_setup_camera_controls()
-	#
-	## Crear diálogo de exportación
-	#_setup_export_dialog()
-	#
-	## ✅ NUEVO: Configurar monitor de animaciones
-	#_setup_animation_monitor()
-	#
-	## Conectar señales adicionales
-	#_connect_extension_signals()
-	#
-	#print("✅ Extensiones inicializadas")
 
 func _setup_export_manager():
 	"""Configurar Export Manager"""
@@ -1202,7 +1180,7 @@ func _setup_export_manager():
 			export_manager = export_script.new()
 			export_manager.name = "ExportManager"
 			add_child(export_manager)
-			print("✅ ExportManager creado")
+			#print("✅ ExportManager creado")
 		else:
 			print("⚠️ Script ExportManager no encontrado")
 	else:
@@ -1236,7 +1214,7 @@ func _setup_export_dialog():
 			export_dialog = dialog_instance
 			export_dialog.name = "ExportDialog"
 			add_child(export_dialog)
-			print("✅ Diálogo de exportación creado")
+			#print("✅ Diálogo de exportación creado")
 		else:
 			print("❌ El script ExportDialog no hereda de Control")
 			dialog_instance.queue_free()
@@ -1258,7 +1236,7 @@ func _setup_animation_monitor():
 		# Configuración inicial
 		animation_monitor.update_interval = 1.0  # Actualizar cada segundo
 		
-		print("✅ Monitor de animaciones configurado")
+		#print("✅ Monitor de animaciones configurado")
 	else:
 		print("⚠️ Script AnimationMonitor no encontrado")
 
@@ -1313,27 +1291,6 @@ func _on_animations_status_changed(active_count: int, total_count: int):
 		# Esto podría indicar que las animaciones se detuvieron inesperadamente
 		print("🔍 Todas las animaciones se detuvieron (%d disponibles)" % total_count)
 
-# ========================================================================
-# FUNCIONES DE SOPORTE (SIMPLIFICADAS)
-# ========================================================================
-
-#func _get_current_render_settings() -> Dictionary:
-	#"""Obtener configuración actual de renderizado"""
-	#
-	#if not current_render_settings.is_empty():
-		#print("📋 Usando configuración actual guardada")
-		#return current_render_settings.duplicate()
-	#
-	#
-	#
-	
-	## Fallback: usar la primera animación disponible
-	#if current_combined_model and is_instance_valid(current_combined_model):
-		#var anim_player = _find_animation_player(current_combined_model)
-		#if anim_player and anim_player.get_animation_list().size() > 0:
-			#return anim_player.get_animation_list()[0]
-	#
-	#return ""
 
 func _get_available_animation_names() -> Array:
 	"""Obtener lista de animaciones disponibles"""
@@ -1352,8 +1309,8 @@ func _get_available_animation_names() -> Array:
 
 func _on_export_dialog_started(config: Dictionary):
 	"""Manejar inicio de exportación desde diálogo"""
-	print("🚀 Exportación iniciada con configuración:")
-	print(config)
+	#print("🚀 Exportación iniciada con configuración:")
+	#print(config)
 	
 	# Añadir animación actual si es necesario
 	if config.get("animation_mode") == "current":
@@ -1381,7 +1338,7 @@ func _on_export_progress(current: int, total: int, message: String):
 
 func _on_export_complete(output_folder: String):
 	"""Manejar completación exitosa de exportación"""
-	print("✅ Exportación completada en: %s" % output_folder)
+	#print("✅ Exportación completada en: %s" % output_folder)
 	
 	if export_dialog and export_dialog.has_method("export_completed"):
 		export_dialog.export_completed(true, "Exportación completada exitosamente")
@@ -1430,7 +1387,7 @@ func _on_model_rotated(new_rotation: Vector3):
 
 func force_reset():
 	"""Reset completo del coordinator - CORREGIDO"""
-	print("🚨 FORCE RESET COORDINATOR")
+	#print("🚨 FORCE RESET COORDINATOR")
 	
 	# Reset flags
 	is_processing_animations = false
@@ -1449,17 +1406,17 @@ func force_reset():
 	# ✅ NUEVO: Reset del pipeline
 	if spritesheet_pipeline and spritesheet_pipeline.has_method("force_reset_pipeline"):
 		spritesheet_pipeline.force_reset_pipeline()
-		print("🔄 Pipeline reseteado")
+		#print("🔄 Pipeline reseteado")
 	
 	# ✅ NUEVO: Reset del monitor de animaciones
 	if animation_monitor:
 		animation_monitor.stop_monitoring()
-		print("🔄 Monitor de animaciones detenido")
+		#print("🔄 Monitor de animaciones detenido")
 	
 	# Reset del sistema de animaciones del AnimationManager
 	if animation_manager and animation_manager.has_method("reset_animation_system"):
 		animation_manager.reset_animation_system()
-		print("🔄 Sistema de animaciones reseteado")
+		#print("🔄 Sistema de animaciones reseteado")
 	
 	# Reset panels
 	if file_loader_panel and file_loader_panel.has_method("_emergency_reset"):
@@ -1468,7 +1425,7 @@ func force_reset():
 	if animation_controls_panel and animation_controls_panel.has_method("reset_controls"):
 		animation_controls_panel.reset_controls()
 	
-	print("✅ COORDINATOR RESET COMPLETO")
+	#print("✅ COORDINATOR RESET COMPLETO")
 
 func get_current_state() -> Dictionary:
 	"""Estado actual del sistema - ✅ MODIFICADO PARA INCLUIR MONITOR"""
@@ -1505,13 +1462,13 @@ func debug_state():
 	"""Debug detallado del estado - ✅ MODIFICADO PARA INCLUIR MONITOR"""
 	print("\n🎮 === COORDINATOR DEBUG (REFACTORIZADO) ===")
 	var state = get_current_state()
-	print("📊 ESTADO:")
-	print("  Base cargada: %s" % state.base_loaded)
-	print("  Animaciones: %d" % state.animations_count)
-	print("  Modelo combinado: %s" % state.combined_ready)
-	print("  Procesando: %s" % state.processing)
-	print("  Cambiando animación: %s" % state.changing_animation)
-	print("  Pipeline disponible: %s" % ("✅" if state.pipeline_available else "❌"))
+	#print("📊 ESTADO:")
+	#print("  Base cargada: %s" % state.base_loaded)
+	#print("  Animaciones: %d" % state.animations_count)
+	#print("  Modelo combinado: %s" % state.combined_ready)
+	#print("  Procesando: %s" % state.processing)
+	#print("  Cambiando animación: %s" % state.changing_animation)
+	#print("  Pipeline disponible: %s" % ("✅" if state.pipeline_available else "❌"))
 	
 	if animation_controls_panel and animation_controls_panel.has_method("debug_state"):
 		print("\n🎮 ANIMATION CONTROLS:")
@@ -1523,23 +1480,23 @@ func debug_state():
 	
 	# ✅ NUEVO: Debug del monitor de animaciones
 	if animation_monitor:
-		print("\n🔍 MONITOR DE ANIMACIONES:")
+		#print("\n🔍 MONITOR DE ANIMACIONES:")
 		var snapshot = animation_monitor.get_animations_snapshot()
-		print("  Total AnimationPlayers: %d" % snapshot.total_players)
-		print("  Animaciones activas: %d" % snapshot.active_players)
-		print("  Monitoreo activo: %s" % animation_monitor.monitoring_enabled)
+		#print("  Total AnimationPlayers: %d" % snapshot.total_players)
+		#print("  Animaciones activas: %d" % snapshot.active_players)
+		#print("  Monitoreo activo: %s" % animation_monitor.monitoring_enabled)
 		
 		if snapshot.active_players > 0:
-			print("  🎬 ANIMACIONES ACTIVAS:")
+			#print("  🎬 ANIMACIONES ACTIVAS:")
 			var active_anims = animation_monitor.get_detailed_active_animations()
-			for anim in active_anims:
-				print("    - %s: %s (%.1f%%)" % [
-					anim.player_name, 
-					anim.animation_name, 
-					anim.progress * 100
-				])
-	
-	print("==============================\n")
+			#for anim in active_anims:
+				#print("    - %s: %s (%.1f%%)" % [
+					#anim.player_name, 
+					#anim.animation_name, 
+					#anim.progress * 100
+				#])
+	#
+	#print("==============================\n")
 
 # ========================================================================
 # ✅ NUEVAS FUNCIONES SIMPLIFICADAS PARA USO PÚBLICO
@@ -1574,7 +1531,7 @@ func generate_all_spritesheets_simple() -> bool:
 # Función legacy para compatibilidad - ahora usa pipeline
 func generate_complete_spritesheet():
 	"""Función legacy - ahora redirige al pipeline"""
-	print("⚠️ Función legacy detectada - redirigiendo a pipeline")
+	#print("⚠️ Función legacy detectada - redirigiendo a pipeline")
 	return generate_spritesheet_simple()
 
 # ========================================================================
@@ -1585,7 +1542,7 @@ func start_animation_monitoring(interval: float = 1.0):
 	"""Iniciar monitoreo automático de animaciones"""
 	if animation_monitor:
 		animation_monitor.start_monitoring(interval)
-		print("🔍 Monitoreo de animaciones iniciado")
+		#print("🔍 Monitoreo de animaciones iniciado")
 	else:
 		print("❌ Monitor de animaciones no disponible")
 
@@ -1593,7 +1550,7 @@ func stop_animation_monitoring():
 	"""Detener monitoreo automático de animaciones"""
 	if animation_monitor:
 		animation_monitor.stop_monitoring()
-		print("🔍 Monitoreo de animaciones detenido")
+		#print("🔍 Monitoreo de animaciones detenido")
 	else:
 		print("❌ Monitor de animaciones no disponible")
 
@@ -2329,7 +2286,7 @@ func _create_advanced_shader_material(shader_settings: Dictionary) -> ShaderMate
 func _apply_shader_parameters(material: ShaderMaterial, settings: Dictionary):
 	"""Aplicar parámetros del shader al material"""
 	# Pixelización
-	material.set_shader_parameter("pixel_size", settings.get("pixel_size", 4.0))
+	material.set_shader_parameter("pixel_size", settings.get("pixel_size", 2.0))
 	
 	# Reducción de colores
 	material.set_shader_parameter("reduce_colors", settings.get("reduce_colors", false))

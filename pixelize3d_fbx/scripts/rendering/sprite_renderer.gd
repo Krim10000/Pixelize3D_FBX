@@ -191,7 +191,7 @@ func _restore_viewport_after_rendering():
 	var preview_size = render_settings.get("sprite_size", 128)
 	viewport.size = Vector2i(preview_size, preview_size)
 	
-	print("🔄 Viewport restaurado a modo preview: %dx%d" % [viewport.size.x, viewport.size.y])
+	#print("🔄 Viewport restaurado a modo preview: %dx%d" % [viewport.size.x, viewport.size.y])
 
 
 func _configure_camera_for_rendering(settings: Dictionary):
@@ -364,9 +364,9 @@ func _safe_switch_model_in_container(new_model: Node3D):
 	
 	# ✅ APLICAR north_offset físicamente al modelo
 	current_model.rotation_degrees.y = -north_offset
-	print("✅ North offset aplicado al modelo: %.1f°" % current_model.rotation_degrees.y)
-	
-	print("🔄 Modelo cambiado en container: %s (con north_offset aplicado)" % current_model.name)
+	#print("✅ North offset aplicado al modelo: %.1f°" % current_model.rotation_degrees.y)
+	#
+	#print("🔄 Modelo cambiado en container: %s (con north_offset aplicado)" % current_model.name)
 
 
 func _restore_preview_mode():
@@ -387,7 +387,7 @@ func _restore_preview_mode():
 	# Limpiar referencias del renderizado
 	current_model = null
 	
-	print("✅ Modo preview completamente restaurado")
+	#print("✅ Modo preview completamente restaurado")
 
 
 
@@ -502,7 +502,7 @@ func _find_all_mesh_instances(node: Node) -> Array:
 func _apply_pixelization(image: Image) -> Image:
 	"""Aplicar efecto de pixelización"""
 	var original_size = image.get_size()
-	var pixel_size = render_settings.get("pixel_scale", 4)
+	var pixel_size = render_settings.get("pixel_scale", 2)
 	
 	# Reducir tamaño
 	var small_size = original_size / pixel_size
@@ -774,7 +774,7 @@ func _apply_shader_recursive(node: Node3D, shader_settings: Dictionary):
 				shader_material.set_shader_parameter("saturation_mult", shader_settings.get("saturation_mult", 1.0))
 				shader_material.set_shader_parameter("color_tint", shader_settings.get("color_tint", Color.WHITE))
 				
-				print("    🎨 Shader aplicado a: %s (pixel_size: %s)" % [mesh_instance.name, shader_settings.get("pixel_size", 2.0)])
+				#print("    🎨 Shader aplicado a: %s (pixel_size: %s)" % [mesh_instance.name, shader_settings.get("pixel_size", 2.0)])
 			else:
 				print("    ❌ Shader no encontrado: %s" % shader_path)
 	
@@ -785,7 +785,7 @@ func _apply_shader_recursive(node: Node3D, shader_settings: Dictionary):
 
 func update_render_settings(new_settings: Dictionary):
 	"""Actualizar configuración de renderizado - CON SOPORTE SHADER AVANZADO"""
-	print("🔄 Actualizando configuración de renderizado...")
+	#print("🔄 Actualizando configuración de renderizado...")
 	
 	render_settings = new_settings.duplicate()
 	
@@ -793,18 +793,18 @@ func update_render_settings(new_settings: Dictionary):
 	if new_settings.has("advanced_shader") and not new_settings["advanced_shader"].is_empty():
 		render_settings["use_advanced_shader"] = true
 		render_settings["advanced_shader"] = new_settings["advanced_shader"].duplicate()
-		print("  🎨 Configuración de shader avanzado incluida")
-		print("    pixel_size: %s" % new_settings["advanced_shader"].get("pixel_size", "N/A"))
-		print("    pixelize_enabled: %s" % new_settings["advanced_shader"].get("pixelize_enabled", "N/A"))
+		#print("  🎨 Configuración de shader avanzado incluida")
+		#print("    pixel_size: %s" % new_settings["advanced_shader"].get("pixel_size", "N/A"))
+		#print("    pixelize_enabled: %s" % new_settings["advanced_shader"].get("pixelize_enabled", "N/A"))
 	else:
 		render_settings["use_advanced_shader"] = false
-		print("  ℹ️ Sin shader avanzado")
+		#print("  ℹ️ Sin shader avanzado")
 	
 	# Aplicar configuración a la cámara si existe
 	if camera_controller and camera_controller.has_method("set_camera_settings"):
 		camera_controller.set_camera_settings(render_settings)
 	
-	print("✅ Configuración de renderizado actualizada")
+	#print("✅ Configuración de renderizado actualizada")
 	
 func _render_static_frame():
 	"""Renderizar frame estático para modelos sin animación - CON SHADER"""
