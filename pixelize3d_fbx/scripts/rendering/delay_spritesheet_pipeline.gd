@@ -360,7 +360,7 @@ func _render_animation_with_delay() -> bool:
 		var north_offset: float = current_config.get("north_offset", 0.0)
 		angle += north_offset
 		
-		#print("  🧭 Renderizando direccion %d/%d: %.1f°" % [direction + 1, total_directions, angle])
+		print("  🧭 Renderizando direccion %d/%d: %.1f°" % [direction + 1, total_directions, angle])
 		
 		# Emitir progreso de la fase de renderizado
 		var progress: float = float(direction) / float(total_directions)

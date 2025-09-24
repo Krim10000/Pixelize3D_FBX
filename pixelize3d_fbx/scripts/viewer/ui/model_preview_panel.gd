@@ -896,8 +896,8 @@ func _draw_orientation_cross():
 	
 	# Obtener rotación actual del modelo para orientar la "N"
 	var north_angle = 0.0
-	if current_model and is_instance_valid(current_model):
-		north_angle = deg_to_rad(-current_model.rotation_degrees.y)
+	#if current_model and is_instance_valid(current_model):
+		#north_angle = deg_to_rad(-current_model.rotation_degrees.y)
 	
 	# Calcular posición del norte
 	var north_distance = cross_size + 20.0

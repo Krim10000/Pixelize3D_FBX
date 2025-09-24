@@ -16,7 +16,7 @@ var model_container: Node3D
 
 # NUEVO: Indicador visual de orientación norte
 var north_indicator: NorthIndicator = null
-var show_north_indicator: bool = true
+var show_north_indicator: bool = false
 
 # Configuración de cámara
 @export var camera_angle: float = 45.0  # Ángulo de elevación (0-90°)

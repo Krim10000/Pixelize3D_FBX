@@ -292,12 +292,12 @@ func _configure_camera_for_rendering(settings: Dictionary):
 	
 	# 1. Verificar si necesitamos auto-detección de norte
 	var final_settings = settings.duplicate()
-	if settings.get("auto_north_detection", true) and current_model:
+	if settings.get("auto_north_detection", false) and current_model:
 		#print("🧭 Aplicando detección automática de norte...")
 		
 		# 2. Obtener orientación sugerida
-		var suggested_north = orientation_analyzer.analyze_model_quick(current_model)
-		
+		var suggested_north =  orientation_analyzer.analyze_model_quick(current_model)
+		#var suggested_north = 0
 		var adjusted_north = suggested_north
 
 		# Normalizar
@@ -307,9 +307,9 @@ func _configure_camera_for_rendering(settings: Dictionary):
 			adjusted_north += 360.0
 
 		
-		# 3. Calcular compensación para la cámara
-		var camera_offset = -suggested_north
-		
+		 #3. Calcular compensación para la cámara
+		#var camera_offset = -suggested_north
+		var camera_offset = -adjusted_north
 		
 		# 4. Actualizar settings con el nuevo norte
 		final_settings["north_offset"] = camera_offset
@@ -326,7 +326,7 @@ func _configure_camera_for_rendering(settings: Dictionary):
 		}
 		camera_controller.set_camera_settings(camera_settings)
 		print( camera_settings)
-		print("✅ Configuración de cámara aplicada para renderizado")
+		print("✅ Configuración de cámara aplicada para renderizado 000000000000000000000000")
 
 
 
@@ -436,9 +436,9 @@ func _safe_switch_model_in_container(new_model: Node3D):
 		return
 	
 	# ✅ OBTENER north_offset del camera_controller
-	var north_offset = 0.0
-	if camera_controller and camera_controller.get("current_north_offset") != null:
-		north_offset = camera_controller.current_north_offset
+	#var north_offset = 0.0
+	#if camera_controller and camera_controller.get("current_north_offset") != null:
+		#north_offset = camera_controller.current_north_offset
 	
 	#print("🔄 North offset detectado: %.1f°" % north_offset)
 	
@@ -452,7 +452,7 @@ func _safe_switch_model_in_container(new_model: Node3D):
 	model_container.add_child(current_model)
 	
 	# ✅ APLICAR north_offset físicamente al modelo
-	current_model.rotation_degrees.y = -north_offset
+	#current_model.rotation_degrees.y = -north_offset
 	#print("✅ North offset aplicado al modelo: %.1f°" % current_model.rotation_degrees.y)
 	#
 	#print("🔄 Modelo cambiado en container: %s (con north_offset aplicado)" % current_model.name)

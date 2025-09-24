@@ -101,7 +101,7 @@ func _on_orientation_analysis_complete(result: Dictionary):
 	# Actualizar configuración con el resultado
 	var new_settings = {
 		"north_offset": adjusted_north,
-		"auto_north_detection": true
+		"auto_north_detection": false
 	}
 	
 	if settings_panel and settings_panel.has_method("apply_settings"):
@@ -109,9 +109,9 @@ func _on_orientation_analysis_complete(result: Dictionary):
 		#print("✅ Configuración aplicada al settings panel")
 	
 	# Rotar modelo físicamente
-	if current_combined_model and current_combined_model.get_child_count() > 0:
-		var model = current_combined_model.get_child(0)
-		model.rotation_degrees.y = adjusted_north
+	#if current_combined_model and current_combined_model.get_child_count() > 0:
+		#var model = current_combined_model.get_child(0)
+		#model.rotation_degrees.y = adjusted_north
 		#print("✅ Modelo rotado físicamente a: %.1f°" % adjusted_north)
 	
 	#print("🧭 Orientación aplicada: %.1f°" % adjusted_north)
@@ -292,14 +292,14 @@ func _on_auto_north_requested():
 # ========================================================================
 func _on_render_settings_changed(settings: Dictionary):
 	"""Manejar cambios en configuración de renderizado - CON SINCRONIZACIÓN DE RESOLUCIÓN"""
-	#print("\n📡 === CONFIGURACIÓN CON RESOLUCIÓN SINCRONIZADA ===")
-	#print("  directions: %d" % settings.get("directions", 16))
-	#print("  sprite_size: %d" % settings.get("sprite_size", 128))
-	#print("  capture_area_size: %.1f" % settings.get("capture_area_size", 8.0))
-	#print("  camera_height: %.1f" % settings.get("camera_height", 12.0))
-	#print("  camera_angle: %.1f°" % settings.get("camera_angle", 45.0))
-	#print("  north_offset: %.0f°" % settings.get("north_offset", 0.0))
-	#print("==================================================")
+	print("\n📡 === CONFIGURACIÓN CON RESOLUCIÓN SINCRONIZADA ===")
+	print("  directions: %d" % settings.get("directions", 16))
+	print("  sprite_size: %d" % settings.get("sprite_size", 128))
+	print("  capture_area_size: %.1f" % settings.get("capture_area_size", 8.0))
+	print("  camera_height: %.1f" % settings.get("camera_height", 12.0))
+	print("  camera_angle: %.1f°" % settings.get("camera_angle", 45.0))
+	print("  north_offset: %.0f°" % settings.get("north_offset", 0.0))
+	print("==================================================")
 
 	# ✅ CRÍTICO: Procesar configuración completa (resolución + área)
 	var enhanced_settings = settings.duplicate()

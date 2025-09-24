@@ -44,7 +44,7 @@ var default_render_settings: Dictionary = {
 	"camera_angle": 45.0,
 	"camera_height": 12.0,
 	"camera_distance": 20.0,
-	"north_offset": 270.0,
+	"north_offset": 0.0,
 	"pixelize": true
 }
 
@@ -341,8 +341,8 @@ func _render_all_directions_sequential(combined_model: Node3D) -> bool:
 		
 		# Aplicar north offset si existe
 		var north_offset = current_config.get("north_offset", 0)
-		#print("north_offset in render XXXXXXXXXXXXXXXXXXXXXXXXXX")
-		#print(north_offset)
+		print("north_offset in render XXXXXXXXXXXXXXXXXXXXXXXXXX")
+		print(north_offset)
 		angle += north_offset
 		
 		#print("  📐 Renderizando dirección %d/%d: %.1f°" % [direction + 1, total_directions, angle])

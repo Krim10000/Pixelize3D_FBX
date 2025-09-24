@@ -72,7 +72,7 @@ var current_settings: Dictionary = {
 	"camera_angle": 45.0,
 	"north_offset": 0.0,
 	"capture_area_size": 3.0,
-	"auto_north_detection": true,
+	"auto_north_detection": false,
 	"timing_validation": true,
 	# NUEVOS CAMPOS PARA SHADER AVANZADO
 	"use_advanced_shader": false,
@@ -99,7 +99,7 @@ func apply_wiggle_strategy_on_model_load():
 	
 	# SOLO hacer wiggle si la pixelización está activada
 	if pixelize_check.button_pressed:
-		print("🔄 Ejecutando estrategia wiggle (desactivar y reactivar pixelización)...")
+		#print("🔄 Ejecutando estrategia wiggle (desactivar y reactivar pixelización)...")
 		
 		_is_auto_wiggling = true
 		
@@ -1185,8 +1185,9 @@ func _on_auto_north_toggled(enabled: bool):
 	current_settings.auto_north_detection = enabled
 	print("🧭 Deteccion automatica de norte %s" % ("habilitada" if enabled else "deshabilitada"))
 	if enabled:
-		request_auto_north_detection.emit()  # Nueva señal
-	settings_changed.emit(_get_enhanced_settings())
+		pass
+		#request_auto_north_detection.emit()  # Nueva señal
+	#settings_changed.emit(_get_enhanced_settings())
 
 func _on_preset_pressed(angle: float):
 	"""Manejar preset de orientacion"""
@@ -1448,7 +1449,7 @@ func reset_to_defaults():
 		"camera_height": 12.0,
 		"north_offset": 0.0,
 		"capture_area_size": 2.5,
-		"auto_north_detection": true,
+		"auto_north_detection": false,
 		"timing_validation": true,
 		"use_advanced_shader": false,
 		"advanced_shader": {}

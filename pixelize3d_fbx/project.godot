@@ -14,7 +14,7 @@ config/name="Pixelize3D_FBX"
 config/description="Herramienta para convertir modelos FBX en spritesheets"
 config/version="1.0.0"
 run/main_scene="uid://cpfsrbac4ufiv"
-config/features=PackedStringArray("4.4", "GL Compatibility")
+config/features=PackedStringArray("4.5", "GL Compatibility")
 config/icon="res://icon.svg"
 
 [autoload]
